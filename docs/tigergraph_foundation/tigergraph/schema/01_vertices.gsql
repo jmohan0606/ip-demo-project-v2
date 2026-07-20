@@ -1,0 +1,219 @@
+// iPerform V2 — vertex types (16)
+// Graph: iperform_v2_revenue · Prefix: phx_dm_v2_
+// Every vertex carries data_source STRING — REAL | DERIVED | ASSUMED | DUMMY.
+
+// ---------------------------------------------------------------- DIMENSIONS
+
+// The ten advisors in the demo set. REAL.
+CREATE VERTEX phx_dm_v2_advisor (
+    PRIMARY_ID advisor_sid STRING,
+    advisor_name STRING,
+    rep_code STRING,
+    branch_cd STRING,
+    standard_id STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per calendar month in scope. month_id is "YYYYMM" (string). DERIVED.
+CREATE VERTEX phx_dm_v2_month (
+    PRIMARY_ID month_id STRING,
+    year INT,
+    month_no INT,
+    month_name STRING,
+    quarter INT,
+    start_dt DATETIME,
+    end_dt DATETIME,
+    calendar_days INT,
+    billable_days INT,
+    prior_month_id STRING,
+    index_return DOUBLE,
+    is_current BOOL,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Two rows: RECURRING, NON_RECURRING. REAL.
+CREATE VERTEX phx_dm_v2_revenue_class (
+    PRIMARY_ID class_id STRING,
+    class_name STRING,
+    display_order INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// level_one_product. REAL.
+CREATE VERTEX phx_dm_v2_product_line (
+    PRIMARY_ID line_id STRING,
+    line_name STRING,
+    display_order INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// level_two_product — the drill-down level shown in the pivot. REAL.
+CREATE VERTEX phx_dm_v2_product_group (
+    PRIMARY_ID group_id STRING,
+    group_name STRING,
+    display_order INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Leaf: the (product_cd, sub_product_code) pair. REAL.
+CREATE VERTEX phx_dm_v2_product (
+    PRIMARY_ID product_id STRING,
+    product_cd STRING,
+    product_sub_cd STRING,
+    product_name STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// REAL.
+CREATE VERTEX phx_dm_v2_account (
+    PRIMARY_ID account_no STRING,
+    account_typ STRING,
+    wrap_flg STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Controlled vocabulary of why revenue changed. Seeded reference data. REAL.
+CREATE VERTEX phx_dm_v2_driver_cause (
+    PRIMARY_ID cause_id STRING,
+    cause_name STRING,
+    cause_description STRING,
+    default_data_source STRING,
+    display_order INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// ---------------------------------------------------------------- FACTS
+
+// Grain: one trade split. The drill-down and evidence source-records table. REAL.
+CREATE VERTEX phx_dm_v2_revenue_transaction (
+    PRIMARY_ID txn_id STRING,
+    trade_ref_no STRING,
+    split_seq_no INT,
+    advisor_sid STRING,
+    month_id STRING,
+    product_id STRING,
+    account_no STRING,
+    trade_dt DATETIME,
+    proc_dt DATETIME,
+    credited_amt DOUBLE,
+    pre_split_amt DOUBLE,
+    split_pct DOUBLE,
+    client_rate_bps DOUBLE,
+    std_tier_rate DOUBLE,
+    concession_type STRING,
+    discount_amt DOUBLE,
+    eff_disc_pct DOUBLE,
+    avg_balance_amt DOUBLE,
+    file_key STRING,
+    trade_description STRING,
+    rev_nature STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Pre-aggregated pivot cells. DERIVED.
+CREATE VERTEX phx_dm_v2_monthly_product_revenue (
+    PRIMARY_ID mpr_id STRING,
+    advisor_sid STRING,
+    month_id STRING,
+    group_id STRING,
+    line_id STRING,
+    class_id STRING,
+    revenue DOUBLE,
+    txn_count INT,
+    account_count INT,
+    avg_rate_bps DOUBLE,
+    recurring_amt DOUBLE,
+    one_time_amt DOUBLE,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Billable assets per account per month. DUMMY until the client provides balances.
+CREATE VERTEX phx_dm_v2_account_month_balance (
+    PRIMARY_ID balance_id STRING,
+    account_no STRING,
+    month_id STRING,
+    avg_billable_assets DOUBLE,
+    effective_fee_bps DOUBLE,
+    billable_days INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// ---------------------------------------------------------------- ANALYTICS
+
+// One per (advisor, transition, product group) + a __TOTAL__ row per transition. DERIVED.
+CREATE VERTEX phx_dm_v2_revenue_change (
+    PRIMARY_ID change_id STRING,
+    advisor_sid STRING,
+    from_month_id STRING,
+    to_month_id STRING,
+    group_id STRING,
+    from_revenue DOUBLE,
+    to_revenue DOUBLE,
+    change_amt DOUBLE,
+    change_pct DOUBLE,
+    direction STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// An attributed contribution to a change, classified by cause. DERIVED.
+CREATE VERTEX phx_dm_v2_revenue_driver (
+    PRIMARY_ID driver_id STRING,
+    change_id STRING,
+    cause_id STRING,
+    group_id STRING,
+    contribution_amt DOUBLE,
+    contribution_pct DOUBLE,
+    direction STRING,
+    rank INT,
+    inputs_json STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per batch generation run. DERIVED.
+CREATE VERTEX phx_dm_v2_commentary_version (
+    PRIMARY_ID version_id STRING,
+    version_no INT,
+    generated_at DATETIME,
+    model STRING,
+    prompt_version STRING,
+    data_snapshot_dt DATETIME,
+    status STRING,
+    advisor_count INT,
+    transition_count INT,
+    blocked_count INT,
+    notes STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per (version, advisor, transition). DERIVED.
+CREATE VERTEX phx_dm_v2_commentary (
+    PRIMARY_ID commentary_id STRING,
+    version_id STRING,
+    advisor_sid STRING,
+    from_month_id STRING,
+    to_month_id STRING,
+    headline STRING,
+    narrative_text STRING,
+    bullets_json STRING,
+    status STRING,
+    blocked_reason STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per driver. A driver without evidence must not be published. DERIVED.
+CREATE VERTEX phx_dm_v2_evidence (
+    PRIMARY_ID evidence_id STRING,
+    driver_id STRING,
+    finding_text STRING,
+    calc_json STRING,
+    source_records_json STRING,
+    lineage_json STRING,
+    checks_json STRING,
+    gsql_query_name STRING,
+    gsql_params_json STRING,
+    gsql_result_json STRING,
+    source_sql STRING,
+    source_table STRING,
+    source_row_count INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"

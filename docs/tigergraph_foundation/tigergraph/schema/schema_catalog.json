@@ -1,0 +1,434 @@
+{
+  "graph": "iperform_v2_revenue",
+  "prefix": "phx_dm_v2_",
+  "vertex_count": 16,
+  "edge_count": 25,
+  "vertices": {
+    "phx_dm_v2_advisor": {
+      "primary_id": {
+        "name": "advisor_sid",
+        "type": "STRING"
+      },
+      "attributes": {
+        "advisor_sid": "STRING",
+        "advisor_name": "STRING",
+        "rep_code": "STRING",
+        "branch_cd": "STRING",
+        "standard_id": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_month": {
+      "primary_id": {
+        "name": "month_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "month_id": "STRING",
+        "year": "INT",
+        "month_no": "INT",
+        "month_name": "STRING",
+        "quarter": "INT",
+        "start_dt": "DATETIME",
+        "end_dt": "DATETIME",
+        "calendar_days": "INT",
+        "billable_days": "INT",
+        "prior_month_id": "STRING",
+        "index_return": "DOUBLE",
+        "is_current": "BOOL",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_revenue_class": {
+      "primary_id": {
+        "name": "class_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "class_id": "STRING",
+        "class_name": "STRING",
+        "display_order": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_product_line": {
+      "primary_id": {
+        "name": "line_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "line_id": "STRING",
+        "line_name": "STRING",
+        "display_order": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_product_group": {
+      "primary_id": {
+        "name": "group_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "group_id": "STRING",
+        "group_name": "STRING",
+        "display_order": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_product": {
+      "primary_id": {
+        "name": "product_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "product_id": "STRING",
+        "product_cd": "STRING",
+        "product_sub_cd": "STRING",
+        "product_name": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_account": {
+      "primary_id": {
+        "name": "account_no",
+        "type": "STRING"
+      },
+      "attributes": {
+        "account_no": "STRING",
+        "account_typ": "STRING",
+        "wrap_flg": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_driver_cause": {
+      "primary_id": {
+        "name": "cause_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "cause_id": "STRING",
+        "cause_name": "STRING",
+        "cause_description": "STRING",
+        "default_data_source": "STRING",
+        "display_order": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_revenue_transaction": {
+      "primary_id": {
+        "name": "txn_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "txn_id": "STRING",
+        "trade_ref_no": "STRING",
+        "split_seq_no": "INT",
+        "advisor_sid": "STRING",
+        "month_id": "STRING",
+        "product_id": "STRING",
+        "account_no": "STRING",
+        "trade_dt": "DATETIME",
+        "proc_dt": "DATETIME",
+        "credited_amt": "DOUBLE",
+        "pre_split_amt": "DOUBLE",
+        "split_pct": "DOUBLE",
+        "client_rate_bps": "DOUBLE",
+        "std_tier_rate": "DOUBLE",
+        "concession_type": "STRING",
+        "discount_amt": "DOUBLE",
+        "eff_disc_pct": "DOUBLE",
+        "avg_balance_amt": "DOUBLE",
+        "file_key": "STRING",
+        "trade_description": "STRING",
+        "rev_nature": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_monthly_product_revenue": {
+      "primary_id": {
+        "name": "mpr_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "mpr_id": "STRING",
+        "advisor_sid": "STRING",
+        "month_id": "STRING",
+        "group_id": "STRING",
+        "line_id": "STRING",
+        "class_id": "STRING",
+        "revenue": "DOUBLE",
+        "txn_count": "INT",
+        "account_count": "INT",
+        "avg_rate_bps": "DOUBLE",
+        "recurring_amt": "DOUBLE",
+        "one_time_amt": "DOUBLE",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_account_month_balance": {
+      "primary_id": {
+        "name": "balance_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "balance_id": "STRING",
+        "account_no": "STRING",
+        "month_id": "STRING",
+        "avg_billable_assets": "DOUBLE",
+        "effective_fee_bps": "DOUBLE",
+        "billable_days": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_revenue_change": {
+      "primary_id": {
+        "name": "change_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "change_id": "STRING",
+        "advisor_sid": "STRING",
+        "from_month_id": "STRING",
+        "to_month_id": "STRING",
+        "group_id": "STRING",
+        "from_revenue": "DOUBLE",
+        "to_revenue": "DOUBLE",
+        "change_amt": "DOUBLE",
+        "change_pct": "DOUBLE",
+        "direction": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_revenue_driver": {
+      "primary_id": {
+        "name": "driver_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "driver_id": "STRING",
+        "change_id": "STRING",
+        "cause_id": "STRING",
+        "group_id": "STRING",
+        "contribution_amt": "DOUBLE",
+        "contribution_pct": "DOUBLE",
+        "direction": "STRING",
+        "rank": "INT",
+        "inputs_json": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_commentary_version": {
+      "primary_id": {
+        "name": "version_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "version_id": "STRING",
+        "version_no": "INT",
+        "generated_at": "DATETIME",
+        "model": "STRING",
+        "prompt_version": "STRING",
+        "data_snapshot_dt": "DATETIME",
+        "status": "STRING",
+        "advisor_count": "INT",
+        "transition_count": "INT",
+        "blocked_count": "INT",
+        "notes": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_commentary": {
+      "primary_id": {
+        "name": "commentary_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "commentary_id": "STRING",
+        "version_id": "STRING",
+        "advisor_sid": "STRING",
+        "from_month_id": "STRING",
+        "to_month_id": "STRING",
+        "headline": "STRING",
+        "narrative_text": "STRING",
+        "bullets_json": "STRING",
+        "status": "STRING",
+        "blocked_reason": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_evidence": {
+      "primary_id": {
+        "name": "evidence_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "evidence_id": "STRING",
+        "driver_id": "STRING",
+        "finding_text": "STRING",
+        "calc_json": "STRING",
+        "source_records_json": "STRING",
+        "lineage_json": "STRING",
+        "checks_json": "STRING",
+        "gsql_query_name": "STRING",
+        "gsql_params_json": "STRING",
+        "gsql_result_json": "STRING",
+        "source_sql": "STRING",
+        "source_table": "STRING",
+        "source_row_count": "INT",
+        "data_source": "STRING"
+      }
+    }
+  },
+  "edges": {
+    "phx_dm_v2_product_in_group": {
+      "from": "phx_dm_v2_product",
+      "to": "phx_dm_v2_product_group",
+      "reverse_edge": "reverse_phx_dm_v2_product_in_group",
+      "attributes": {}
+    },
+    "phx_dm_v2_group_in_line": {
+      "from": "phx_dm_v2_product_group",
+      "to": "phx_dm_v2_product_line",
+      "reverse_edge": "reverse_phx_dm_v2_group_in_line",
+      "attributes": {}
+    },
+    "phx_dm_v2_line_in_class": {
+      "from": "phx_dm_v2_product_line",
+      "to": "phx_dm_v2_revenue_class",
+      "reverse_edge": "reverse_phx_dm_v2_line_in_class",
+      "attributes": {}
+    },
+    "phx_dm_v2_txn_for_advisor": {
+      "from": "phx_dm_v2_revenue_transaction",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_advisor",
+      "attributes": {}
+    },
+    "phx_dm_v2_txn_in_month": {
+      "from": "phx_dm_v2_revenue_transaction",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_txn_in_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_txn_for_product": {
+      "from": "phx_dm_v2_revenue_transaction",
+      "to": "phx_dm_v2_product",
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_product",
+      "attributes": {}
+    },
+    "phx_dm_v2_txn_for_account": {
+      "from": "phx_dm_v2_revenue_transaction",
+      "to": "phx_dm_v2_account",
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_account",
+      "attributes": {}
+    },
+    "phx_dm_v2_mpr_for_advisor": {
+      "from": "phx_dm_v2_monthly_product_revenue",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_mpr_for_advisor",
+      "attributes": {}
+    },
+    "phx_dm_v2_mpr_in_month": {
+      "from": "phx_dm_v2_monthly_product_revenue",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_mpr_in_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_mpr_for_group": {
+      "from": "phx_dm_v2_monthly_product_revenue",
+      "to": "phx_dm_v2_product_group",
+      "reverse_edge": "reverse_phx_dm_v2_mpr_for_group",
+      "attributes": {}
+    },
+    "phx_dm_v2_balance_for_account": {
+      "from": "phx_dm_v2_account_month_balance",
+      "to": "phx_dm_v2_account",
+      "reverse_edge": "reverse_phx_dm_v2_balance_for_account",
+      "attributes": {}
+    },
+    "phx_dm_v2_balance_in_month": {
+      "from": "phx_dm_v2_account_month_balance",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_balance_in_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_change_for_advisor": {
+      "from": "phx_dm_v2_revenue_change",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_change_for_advisor",
+      "attributes": {}
+    },
+    "phx_dm_v2_change_for_group": {
+      "from": "phx_dm_v2_revenue_change",
+      "to": "phx_dm_v2_product_group",
+      "reverse_edge": "reverse_phx_dm_v2_change_for_group",
+      "attributes": {}
+    },
+    "phx_dm_v2_change_from_month": {
+      "from": "phx_dm_v2_revenue_change",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_change_from_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_change_to_month": {
+      "from": "phx_dm_v2_revenue_change",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_change_to_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_driver_of_change": {
+      "from": "phx_dm_v2_revenue_driver",
+      "to": "phx_dm_v2_revenue_change",
+      "reverse_edge": "reverse_phx_dm_v2_driver_of_change",
+      "attributes": {}
+    },
+    "phx_dm_v2_driver_has_cause": {
+      "from": "phx_dm_v2_revenue_driver",
+      "to": "phx_dm_v2_driver_cause",
+      "reverse_edge": "reverse_phx_dm_v2_driver_has_cause",
+      "attributes": {}
+    },
+    "phx_dm_v2_driver_for_group": {
+      "from": "phx_dm_v2_revenue_driver",
+      "to": "phx_dm_v2_product_group",
+      "reverse_edge": "reverse_phx_dm_v2_driver_for_group",
+      "attributes": {}
+    },
+    "phx_dm_v2_commentary_for_advisor": {
+      "from": "phx_dm_v2_commentary",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_commentary_for_advisor",
+      "attributes": {}
+    },
+    "phx_dm_v2_commentary_from_month": {
+      "from": "phx_dm_v2_commentary",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_commentary_from_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_commentary_to_month": {
+      "from": "phx_dm_v2_commentary",
+      "to": "phx_dm_v2_month",
+      "reverse_edge": "reverse_phx_dm_v2_commentary_to_month",
+      "attributes": {}
+    },
+    "phx_dm_v2_commentary_in_version": {
+      "from": "phx_dm_v2_commentary",
+      "to": "phx_dm_v2_commentary_version",
+      "reverse_edge": "reverse_phx_dm_v2_commentary_in_version",
+      "attributes": {}
+    },
+    "phx_dm_v2_commentary_cites_driver": {
+      "from": "phx_dm_v2_commentary",
+      "to": "phx_dm_v2_revenue_driver",
+      "reverse_edge": "reverse_phx_dm_v2_commentary_cites_driver",
+      "attributes": {}
+    },
+    "phx_dm_v2_evidence_for_driver": {
+      "from": "phx_dm_v2_evidence",
+      "to": "phx_dm_v2_revenue_driver",
+      "reverse_edge": "reverse_phx_dm_v2_evidence_for_driver",
+      "attributes": {}
+    }
+  }
+}

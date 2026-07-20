@@ -1,0 +1,41 @@
+// iPerform V2 — edge types (25)
+// All directed, all with REVERSE_EDGE.
+// NOTE: SCHEMA_SPEC.md's header says 23 edge types, but its edge tables (the
+// detailed authority) enumerate 25 — all 25 are created here.
+
+// ------------------------------------------------------------- HIERARCHY
+CREATE DIRECTED EDGE phx_dm_v2_product_in_group (FROM phx_dm_v2_product, TO phx_dm_v2_product_group) WITH REVERSE_EDGE="reverse_phx_dm_v2_product_in_group"
+CREATE DIRECTED EDGE phx_dm_v2_group_in_line (FROM phx_dm_v2_product_group, TO phx_dm_v2_product_line) WITH REVERSE_EDGE="reverse_phx_dm_v2_group_in_line"
+CREATE DIRECTED EDGE phx_dm_v2_line_in_class (FROM phx_dm_v2_product_line, TO phx_dm_v2_revenue_class) WITH REVERSE_EDGE="reverse_phx_dm_v2_line_in_class"
+
+// ------------------------------------------------------- TRANSACTION FACTS
+CREATE DIRECTED EDGE phx_dm_v2_txn_for_advisor (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_for_advisor"
+CREATE DIRECTED EDGE phx_dm_v2_txn_in_month (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_in_month"
+CREATE DIRECTED EDGE phx_dm_v2_txn_for_product (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_product) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_for_product"
+CREATE DIRECTED EDGE phx_dm_v2_txn_for_account (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_account) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_for_account"
+
+// ------------------------------------------------------- MONTHLY AGGREGATES
+CREATE DIRECTED EDGE phx_dm_v2_mpr_for_advisor (FROM phx_dm_v2_monthly_product_revenue, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_mpr_for_advisor"
+CREATE DIRECTED EDGE phx_dm_v2_mpr_in_month (FROM phx_dm_v2_monthly_product_revenue, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_mpr_in_month"
+CREATE DIRECTED EDGE phx_dm_v2_mpr_for_group (FROM phx_dm_v2_monthly_product_revenue, TO phx_dm_v2_product_group) WITH REVERSE_EDGE="reverse_phx_dm_v2_mpr_for_group"
+
+// ------------------------------------------------------- BALANCES (DUMMY today)
+CREATE DIRECTED EDGE phx_dm_v2_balance_for_account (FROM phx_dm_v2_account_month_balance, TO phx_dm_v2_account) WITH REVERSE_EDGE="reverse_phx_dm_v2_balance_for_account"
+CREATE DIRECTED EDGE phx_dm_v2_balance_in_month (FROM phx_dm_v2_account_month_balance, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_balance_in_month"
+
+// ------------------------------------------------------- CHANGE & DRIVERS
+CREATE DIRECTED EDGE phx_dm_v2_change_for_advisor (FROM phx_dm_v2_revenue_change, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_change_for_advisor"
+CREATE DIRECTED EDGE phx_dm_v2_change_for_group (FROM phx_dm_v2_revenue_change, TO phx_dm_v2_product_group) WITH REVERSE_EDGE="reverse_phx_dm_v2_change_for_group"
+CREATE DIRECTED EDGE phx_dm_v2_change_from_month (FROM phx_dm_v2_revenue_change, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_change_from_month"
+CREATE DIRECTED EDGE phx_dm_v2_change_to_month (FROM phx_dm_v2_revenue_change, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_change_to_month"
+CREATE DIRECTED EDGE phx_dm_v2_driver_of_change (FROM phx_dm_v2_revenue_driver, TO phx_dm_v2_revenue_change) WITH REVERSE_EDGE="reverse_phx_dm_v2_driver_of_change"
+CREATE DIRECTED EDGE phx_dm_v2_driver_has_cause (FROM phx_dm_v2_revenue_driver, TO phx_dm_v2_driver_cause) WITH REVERSE_EDGE="reverse_phx_dm_v2_driver_has_cause"
+CREATE DIRECTED EDGE phx_dm_v2_driver_for_group (FROM phx_dm_v2_revenue_driver, TO phx_dm_v2_product_group) WITH REVERSE_EDGE="reverse_phx_dm_v2_driver_for_group"
+
+// ------------------------------------------------------- COMMENTARY & EVIDENCE
+CREATE DIRECTED EDGE phx_dm_v2_commentary_for_advisor (FROM phx_dm_v2_commentary, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_for_advisor"
+CREATE DIRECTED EDGE phx_dm_v2_commentary_from_month (FROM phx_dm_v2_commentary, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_from_month"
+CREATE DIRECTED EDGE phx_dm_v2_commentary_to_month (FROM phx_dm_v2_commentary, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_to_month"
+CREATE DIRECTED EDGE phx_dm_v2_commentary_in_version (FROM phx_dm_v2_commentary, TO phx_dm_v2_commentary_version) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_in_version"
+CREATE DIRECTED EDGE phx_dm_v2_commentary_cites_driver (FROM phx_dm_v2_commentary, TO phx_dm_v2_revenue_driver) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_cites_driver"
+CREATE DIRECTED EDGE phx_dm_v2_evidence_for_driver (FROM phx_dm_v2_evidence, TO phx_dm_v2_revenue_driver) WITH REVERSE_EDGE="reverse_phx_dm_v2_evidence_for_driver"

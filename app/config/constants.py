@@ -1,6 +1,6 @@
-APP_DISPLAY_NAME = "iPerform Insights & Coaching"
-GRAPH_NAME = "iperform_insights_coaching_demo"
-SCHEMA_PREFIX = "phx_dm_"
+APP_DISPLAY_NAME = "iPerform V2 — Revenue Trends & AI Commentary"
+GRAPH_NAME = "iperform_v2_revenue"
+SCHEMA_PREFIX = "phx_dm_v2_"
 
 PERSONAS = ["Firm", "DDW", "MDW", "Advisor"]
 HIERARCHY_LEVELS = ["Firm", "Division", "Region", "Market", "Advisor"]
