@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 2
-Resume from: P2-1
+Current phase: 3
+Resume from: P3-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -18,13 +18,13 @@ Resume from: P2-1
 | P1-1 | 1 | 01_vertices.gsql (16 vertices) | DONE | d15b6b6 | 16 vertices, all with data_source |
 | P1-2 | 1 | 02_edges.gsql (23 edges) | DONE | d15b6b6 | 25 edges (spec tables; header said 23 — tables win) |
 | P1-3 | 1 | 03_create_graph.gsql + schema_catalog.json | DONE | d15b6b6 | catalog generated from DDL; constants→iperform_v2_revenue |
-| P2-1 | 2 | GQ-001..004 reference queries | TODO | | |
-| P2-2 | 2 | GQ-005..007 trends queries | TODO | | |
-| P2-3 | 2 | GQ-008..010 driver/commentary queries | TODO | | |
-| P2-4 | 2 | GQ-011..013 evidence/drill-down queries | TODO | | |
-| P2-5 | 2 | GQ-014..015 ops queries | TODO | | |
-| P2-6 | 2 | query_catalog.json + install_all + query_cases | TODO | | |
-| P2-7 | 2 | Local-tier implementations for all queries | TODO | | |
+| P2-1 | 2 | GQ-001..004 reference queries | DONE | 8d440ab | GQ-001..004 authored + validated |
+| P2-2 | 2 | GQ-005..007 trends queries | DONE | 8d440ab | GQ-005..007 authored + validated |
+| P2-3 | 2 | GQ-008..010 driver/commentary queries | DONE | 8d440ab | GQ-008..010 authored + validated |
+| P2-4 | 2 | GQ-011..013 evidence/drill-down queries | DONE | 8d440ab | GQ-011..013 authored + validated |
+| P2-5 | 2 | GQ-014..015 ops queries | DONE | 8d440ab | GQ-014..015 authored + validated |
+| P2-6 | 2 | query_catalog.json + install_all + query_cases | DONE | 8d440ab | catalog(15) + install_all + query_cases; validator script |
+| P2-7 | 2 | Local-tier implementations for all queries | DONE | 8d440ab | v2.py impls registered; execution check vs sample data in P3 |
 | P3-1 | 3 | Extraction SQL files | TODO | | |
 | P3-2 | 3 | manifest.json + loading jobs | TODO | | |
 | P3-3 | 3 | Sample data set (exercises every cause) | TODO | | |
