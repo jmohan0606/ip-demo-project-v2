@@ -416,7 +416,8 @@ class MockGraphClient:
             id_col = entry["id_column"]
             for row in records:
                 vertex_id = str(row[id_col])
-                attrs = {graph_attr: row.get(src) for src, graph_attr in entry.get("columns", {}).items()}
+                attrs = {graph_attr: self.store.coerce_typed(vertex_type, graph_attr, row.get(src))
+                         for src, graph_attr in entry.get("columns", {}).items()}
                 existing = self.store.vertices[vertex_type].get(vertex_id, {})
                 self.store.vertices[vertex_type][vertex_id] = {**existing, **attrs}
                 self.runtime_vertices.setdefault(vertex_type, {})[vertex_id] = attrs

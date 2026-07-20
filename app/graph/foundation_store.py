@@ -26,6 +26,16 @@ class FoundationGraphStore:
         # repo; data/real is gitignored client data.
         self.sample_dir = Path("data") / settings.data_set
         self.query_catalog_path = base / "tigergraph" / "queries" / "query_catalog.json"
+        # Typed attribute map — CSV values are cast to their DDL types so e.g.
+        # month_id stays the STRING "202604" (SCHEMA_SPEC rule 2), exactly as
+        # TigerGraph would return it.
+        self.schema_types: dict[str, dict[str, str]] = {}
+        schema_path = base / "tigergraph" / "schema" / "schema_catalog.json"
+        if schema_path.exists():
+            catalog = json.loads(schema_path.read_text(encoding="utf-8"))
+            self.schema_types = {
+                vt: spec.get("attributes", {}) for vt, spec in catalog.get("vertices", {}).items()
+            }
 
         # vertices[vertex_type][vertex_id] -> attribute dict (graph attribute names)
         self.vertices: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
@@ -61,7 +71,8 @@ class FoundationGraphStore:
                 columns = entry["columns"]
                 for row in rows:
                     vertex_id = str(row[id_col]).strip()
-                    attrs = {graph_attr: _coerce(row.get(src)) for src, graph_attr in columns.items()}
+                    attrs = {graph_attr: self.coerce_typed(vertex_type, graph_attr, row.get(src))
+                             for src, graph_attr in columns.items()}
                     self.vertices[vertex_type][vertex_id] = attrs
                 vertex_rows += len(rows)
             else:
@@ -97,6 +108,30 @@ class FoundationGraphStore:
             "row_count_mismatches": mismatches,
         }
         return self.load_report
+
+    def coerce_typed(self, vertex_type: str, attr: str, value: Any) -> Any:
+        """Cast a raw CSV/upsert value to its DDL type; falls back to the generic
+        heuristic for types not in the schema catalog."""
+        ddl_type = self.schema_types.get(vertex_type, {}).get(attr)
+        if ddl_type is None:
+            return _coerce(value)
+        if value is None:
+            return None
+        if ddl_type in ("STRING", "DATETIME"):
+            return str(value)
+        text = str(value).strip()
+        if text == "":
+            return None
+        try:
+            if ddl_type == "INT":
+                return int(float(text))
+            if ddl_type == "DOUBLE":
+                return float(text)
+            if ddl_type == "BOOL":
+                return text.lower() in {"true", "1", "yes"}
+        except ValueError:
+            return _coerce(value)
+        return _coerce(value)
 
     # --- traversal helpers used by mock GQ implementations ---
 

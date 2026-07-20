@@ -18,6 +18,7 @@ from app.api.routers.env_health import router as env_health_router
 from app.api.routers.observability import router as observability_router
 from app.api.routers.ingestion import router as ingestion_router
 from app.api.routers.tigergraph_foundation import router as tigergraph_foundation_router
+from app.api.routers.v2 import router as v2_router
 configure_logging(); settings=get_settings()
 
 
@@ -33,6 +34,7 @@ app.include_router(config_router)
 app.include_router(adapters_router)
 app.include_router(manifest_router)
 app.include_router(tigergraph_foundation_router)
+app.include_router(v2_router)
 app.include_router(ingestion_router)
 app.include_router(observability_router)
 app.include_router(guardrails_router)
