@@ -5,5 +5,5 @@ set -e
 # Default 0.0.0.0 — a 127.0.0.1-only bind is NOT reachable by the Codespaces forwarder / external
 # browser. See TROUBLESHOOTING.md "Backend unreachable from the browser".
 HOST="${API_HOST:-0.0.0.0}"
-PORT="${API_PORT:-8000}"
+PORT="${API_PORT:-8001}"
 uv run uvicorn app.api.main:app --reload --host "$HOST" --port "$PORT"

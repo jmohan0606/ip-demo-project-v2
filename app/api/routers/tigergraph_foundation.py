@@ -10,8 +10,7 @@ router = APIRouter(prefix="/tigergraph-foundation", tags=["TigerGraph Foundation
 
 @router.get("/inventory")
 def schema_inventory():
-    service = TigerGraphFoundationService()
-    return ok(data=service.get_schema_inventory().model_dump())
+    return ok(data=TigerGraphFoundationService().get_schema_inventory())
 
 
 @router.get("/files")
@@ -20,7 +19,7 @@ def schema_files():
     return ok(
         data={
             "schema_files": service.list_schema_files(),
-            "v1_query_files": service.list_v1_query_files(),
+            "query_files": service.list_query_files(),
         }
     )
 

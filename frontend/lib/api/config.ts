@@ -26,7 +26,7 @@ export async function fetchRuntimeConfigStatus(): Promise<RuntimeConfigStatus> {
     return {
       app_name: "iPerform Insights & Coaching",
       app_env: "local",
-      api_base_url: "http://127.0.0.1:8000",
+      api_base_url: "http://127.0.0.1:8001",
       frontend_url: "http://localhost:3000",
       graph_access_strategy: "mcp_first",
       tigergraph_mcp_enabled: false,

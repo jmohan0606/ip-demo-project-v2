@@ -31,8 +31,6 @@ class EnvironmentHealthService:
         checks = [
             _check("TigerGraph", self._check_tigergraph),
             _check("LLM", self._check_llm),
-            _check("Embedding", self._check_embedding),
-            _check("Chroma", self._check_chroma),
         ]
         overall = "green" if all(c["status"] == "green" for c in checks) else "red"
         return {
@@ -41,7 +39,8 @@ class EnvironmentHealthService:
             "modes": {
                 "graph_client_mode": settings.graph_client_mode,
                 "llm_client_mode": settings.llm_client_mode,
-                "embedding_client_mode": settings.embedding_client_mode,
+                "data_set": settings.data_set,
+                "commentary_mode": settings.commentary_mode,
                 "guardrail_client_mode": getattr(settings, "guardrail_client_mode", "local"),
             },
             "checks": checks,
@@ -80,7 +79,17 @@ class EnvironmentHealthService:
         detail["schema_installed"] = len(counts) > 0
         detail["vertex_type_count"] = len(counts)
         detail["total_vertices"] = sum(counts.values())
-        detail["row_counts"] = dict(sorted(counts.items(), key=lambda kv: -kv[1])[:15])
+        detail["row_counts"] = dict(sorted(counts.items(), key=lambda kv: -kv[1])[:20])
+        # Honesty contract (ABSOLUTE RULE 4): if the local tier is serving while
+        # GRAPH_CLIENT_MODE=real, the health screen must go RED — never report a
+        # local-store answer as though it came from TigerGraph.
+        served_by_tier = health.get("served_by_tier") or detail.get("served_by_tier")
+        detail["served_by_tier"] = served_by_tier
+        if settings.graph_client_mode == "real" and served_by_tier not in (None, 1):
+            raise RuntimeError(
+                f"GRAPH_CLIENT_MODE=real but requests are served by tier {served_by_tier} "
+                "(local store) — TigerGraph is NOT serving"
+            )
         return detail
 
     # --- LLM: a real test generation, latency, response shown ------------------------------------
@@ -97,37 +106,3 @@ class EnvironmentHealthService:
         if not text or not text.strip():
             raise RuntimeError("LLM returned an empty response")
         return {**llm.describe(), "generation_ms": gen_ms, "response_preview": text.strip()[:160]}
-
-    # --- Embedding: a real embedding, returns the configured dimension ---------------------------
-    @staticmethod
-    def _check_embedding() -> dict[str, Any]:
-        from app.llm.embedding_client import get_embedding_client
-        settings = get_settings()
-        client = get_embedding_client()
-        vec = client.embed("environment health probe")
-        dim = len(vec)
-        described = client.describe()
-        configured = int(settings.embedding_dim)
-        # local mode legitimately uses 384; only flag a mismatch when azure is expected to match EMBEDDING_DIM
-        mismatch = settings.embedding_client_mode.lower().startswith("azure") and dim != configured
-        if mismatch:
-            raise RuntimeError(f"embedding dim {dim} != EMBEDDING_DIM {configured}")
-        return {**described, "returned_dim": dim, "configured_embedding_dim": configured,
-                "dim_matches": (dim == configured)}
-
-    # --- Chroma: reachable, collection count -----------------------------------------------------
-    @staticmethod
-    def _check_chroma() -> dict[str, Any]:
-        from app.knowledge.chroma_client import ChromaClientFactory
-        settings = get_settings()
-        client = ChromaClientFactory().create_client()
-        collections = client.list_collections()
-        names = [getattr(c, "name", str(c)) for c in collections]
-        total = 0
-        for c in collections:
-            try:
-                total += client.get_collection(getattr(c, "name", c)).count()
-            except Exception:  # noqa: BLE001
-                pass
-        return {"path": settings.chroma_path, "collection_count": len(collections),
-                "collections": names[:20], "total_vectors": total}

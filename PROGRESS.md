@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 0
-Resume from: P0-1
+Current phase: 1
+Resume from: P1-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -11,10 +11,10 @@ Resume from: P0-1
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
 |----|-------|------|--------|--------|-------|
-| P0-1 | 0 | Repair dangling imports | TODO | | |
-| P0-2 | 0 | Replace navigation.ts with V2 nav | TODO | | |
-| P0-3 | 0 | Set ports 3001/8001 (4 touchpoints) | TODO | | |
-| P0-4 | 0 | Backend + frontend both start clean | TODO | | |
+| P0-1 | 0 | Repair dangling imports | DONE | | backend+frontend dangling imports repaired |
+| P0-2 | 0 | Replace navigation.ts with V2 nav | DONE | | V2 nav: Results + Operations |
+| P0-3 | 0 | Set ports 3001/8001 (4 touchpoints) | DONE | | 3001/8001 across package.json, run scripts, env, CORS |
+| P0-4 | 0 | Backend + frontend both start clean | DONE | | uvicorn /health ok; next dev all 6 routes 200 |
 | P1-1 | 1 | 01_vertices.gsql (16 vertices) | TODO | | |
 | P1-2 | 1 | 02_edges.gsql (23 edges) | TODO | | |
 | P1-3 | 1 | 03_create_graph.gsql + schema_catalog.json | TODO | | |

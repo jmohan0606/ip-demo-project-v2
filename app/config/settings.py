@@ -9,9 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = Field(default="iPerform Insights & Coaching", alias="APP_NAME")
+    app_name: str = Field(default="iPerform V2 — Revenue Trends & AI Commentary", alias="APP_NAME")
     app_env: str = Field(default="local", alias="APP_ENV")
-    app_version: str = Field(default="11.0.1", alias="APP_VERSION")
+    app_version: str = Field(default="2.0.0", alias="APP_VERSION")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     # --- Structured logging / CloudWatch-ready sink (see app/shared/logging.py docstring) ---
@@ -33,9 +33,13 @@ class Settings(BaseSettings):
     # Register the deliberate-error diagnostics route (/_diagnostics/*). Kept out of prod.
     enable_diagnostics_routes: bool = Field(default=True, alias="ENABLE_DIAGNOSTICS_ROUTES")
 
-    # Adapter selection (Section 2 of the rebuild brief)
-    graph_client_mode: str = Field(default="mock", alias="GRAPH_CLIENT_MODE")  # mock | local_real | real
-    llm_client_mode: str = Field(default="mock", alias="LLM_CLIENT_MODE")  # mock | claude | real
+    # V2 modes (CLAUDE.md §5): real = TigerGraph tier 1, local = SQLite tier 2
+    graph_client_mode: str = Field(default="local", alias="GRAPH_CLIENT_MODE")  # real | local
+    llm_client_mode: str = Field(default="mock", alias="LLM_CLIENT_MODE")  # claude | mock
+    # Which CSV set the ingestion screen loads
+    data_set: str = Field(default="sample", alias="DATA_SET")  # sample | real
+    # Commentary is generated in batch and stored — never on read (CLAUDE.md §7)
+    commentary_mode: str = Field(default="stored", alias="COMMENTARY_MODE")
     embedding_client_mode: str = Field(default="local", alias="EMBEDDING_CLIENT_MODE")  # local | cdao_openai | azure | azure_openai
     # Input/output AI guardrails (Security & Governance poster). local = regex/heuristic (default);
     # smartsdk = JPMC SmartSDK EvaluationService (toxicity/qa_correctness/hallucination) in client env.
@@ -203,8 +207,8 @@ class Settings(BaseSettings):
     # Binding 0.0.0.0 still accepts loopback (127.0.0.1) connections, so SSR/internal tooling
     # that targets 127.0.0.1:8000 keeps working. See TROUBLESHOOTING.md "Backend unreachable".
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
-    api_port: int = Field(default=8000, alias="API_PORT")
-    api_base_url: str = Field(default="http://127.0.0.1:8000", alias="API_BASE_URL")
+    api_port: int = Field(default=8001, alias="API_PORT")
+    api_base_url: str = Field(default="http://127.0.0.1:8001", alias="API_BASE_URL")
     streamlit_port: int = Field(default=8501, alias="STREAMLIT_PORT")
 
     enable_openai: bool = Field(default=True, alias="ENABLE_OPENAI")

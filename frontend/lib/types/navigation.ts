@@ -8,6 +8,6 @@ export type NavigationItem = {
   description: string;
   href: string;
   iconName: string;
-  group: "Executive" | "Advisor" | "AI" | "Graph" | "Operations" | "Admin";
+  group: "Results" | "Operations";
   status?: "ready" | "new" | "audit";
 };
