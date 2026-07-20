@@ -1,1 +1,6 @@
 version_id,version_no,generated_at,model,prompt_version,data_snapshot_dt,status,advisor_count,transition_count,blocked_count,notes,data_source
+v1,1,2026-07-20 12:11:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:11:44,SUPERSEDED,3,6,0,first sample run,DERIVED
+v2,2,2026-07-20 12:12:31,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:12:31,SUPERSEDED,3,6,2,regeneration test,DERIVED
+v3,3,2026-07-20 12:13:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:13:44,SUPERSEDED,3,6,2,v3 — tightened prompt + guardrail regex fix,DERIVED
+v4,4,2026-07-20 12:14:29,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:14:29,SUPERSEDED,3,6,2,v4 — rounding tolerance covers truncation,DERIVED
+v5,5,2026-07-20 12:15:14,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:15:14,PUBLISHED,3,6,0,v5 — identifier digits excluded from figure extraction,DERIVED

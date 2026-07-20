@@ -62,6 +62,56 @@ def insights_drivers(advisor_id: str, from_month: str, to_month: str,
     return ok(data=V2DriverService().change_drivers(advisor_id, from_month, to_month, result_limit))
 
 
+# ---------------------------------------------------------------- commentary (stored — never generated on read)
+
+@router.get("/insights/commentary")
+def insights_commentary(advisor_id: str, version_id: str = ""):
+    from app.agents.nodes.supervisor_agent import SupervisorAgent
+
+    return ok(data=SupervisorAgent().read_commentary(advisor_id, version_id))
+
+
+@router.get("/insights/versions")
+def insights_versions():
+    from app.graph.client import get_graph_client
+    from app.graph.queries.common import v2_served_by_tier
+
+    result = get_graph_client().run_query("get_commentary_versions", {})
+    rows = []
+    for obj in result.get("results", []):
+        rows = [r.get("attributes", {}) for r in obj.get("versions", [])]
+    return ok(data={"versions": rows, "served_by_tier": v2_served_by_tier(result)})
+
+
+@router.post("/insights/generate")
+def insights_generate(notes: str = ""):
+    """Trigger the batch generation workflow — a NEW version every run; prior
+    versions are never deleted. The ONLY path that reaches the LLM."""
+    from app.v2.commentary.generation_workflow import run_generation
+
+    return ok(data=run_generation(notes))
+
+
+@router.get("/insights/generate/status")
+def insights_generate_status():
+    from app.v2.commentary.generation_workflow import get_status
+
+    return ok(data=get_status())
+
+
+@router.get("/evidence")
+def evidence(driver_id: str, version_id: str = ""):
+    from app.graph.client import get_graph_client
+    from app.graph.queries.common import v2_served_by_tier
+
+    result = get_graph_client().run_query(
+        "get_evidence", {"driver_id": driver_id, "version_id": version_id})
+    rows = []
+    for obj in result.get("results", []):
+        rows = [r.get("attributes", {}) for r in obj.get("evidence", [])]
+    return ok(data={"evidence": rows, "served_by_tier": v2_served_by_tier(result)})
+
+
 # ---------------------------------------------------------------- drill-down
 
 @router.get("/transactions")
