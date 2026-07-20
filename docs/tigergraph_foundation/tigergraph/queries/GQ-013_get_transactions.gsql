@@ -1,0 +1,37 @@
+/*
+ * GQ-013 — get_transactions
+ * Purpose: Transaction rows for the Transactions drill-down: trade_ref, dates,
+ *          product, account, credited amt, split %, file_key, rev_nature.
+ *          group_id = "" means all product groups.
+ * Outputs: transactions vertex set, each row carrying group_id (via its product).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_transactions(STRING advisor_id, STRING month_id, STRING group_id, INT result_limit) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    SumAccum<STRING> @group_id;
+    SumAccum<STRING> @product_name;
+
+    all_groups = {phx_dm_v2_product_group.*};
+    groups = SELECT g
+        FROM all_groups:g
+        WHERE group_id == "" OR g.group_id == group_id;
+
+    products = SELECT p
+        FROM groups:g -(reverse_phx_dm_v2_product_in_group:e)- phx_dm_v2_product:p
+        ACCUM p.@group_id += g.group_id;
+
+    transactions = SELECT t
+        FROM products:p -(reverse_phx_dm_v2_txn_for_product:e)- phx_dm_v2_revenue_transaction:t
+        WHERE t.advisor_sid == advisor_id
+          AND t.month_id == month_id
+        ACCUM t.@group_id += p.@group_id,
+              t.@product_name += p.product_name
+        ORDER BY t.trade_dt ASC, t.txn_id ASC
+        LIMIT result_limit;
+
+    PRINT transactions;
+}
+
+INSTALL QUERY get_transactions

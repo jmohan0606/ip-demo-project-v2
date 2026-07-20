@@ -1,0 +1,19 @@
+/*
+ * GQ-002 — get_months
+ * Purpose: Months in scope, ordered, with prior_month_id, calendar_days,
+ *          billable_days — period controls and the transition list.
+ * Outputs: months vertex set (ordered by month_id).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_months() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_months = {phx_dm_v2_month.*};
+    months = SELECT m
+        FROM all_months:m
+        ORDER BY m.month_id ASC;
+    PRINT months;
+}
+
+INSTALL QUERY get_months

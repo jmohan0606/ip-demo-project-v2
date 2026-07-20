@@ -1,0 +1,28 @@
+/*
+ * GQ-008 — get_change_drivers
+ * Purpose: Drivers for one transition, ranked by |contribution| (rank attribute),
+ *          each with cause, group, contribution amt/pct, direction, data_source
+ *          and inputs_json. Powers the commentary check-mark bullets.
+ * Outputs: drivers vertex set (ordered by rank, limited to result_limit).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_change_drivers(STRING advisor_id, STRING from_month, STRING to_month, INT result_limit) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_changes = {phx_dm_v2_revenue_change.*};
+    changes = SELECT c
+        FROM all_changes:c
+        WHERE c.advisor_sid == advisor_id
+          AND c.from_month_id == from_month
+          AND c.to_month_id == to_month;
+
+    drivers = SELECT d
+        FROM changes:c -(reverse_phx_dm_v2_driver_of_change:e)- phx_dm_v2_revenue_driver:d
+        ORDER BY d.rank ASC
+        LIMIT result_limit;
+
+    PRINT drivers;
+}
+
+INSTALL QUERY get_change_drivers

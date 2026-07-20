@@ -1,0 +1,34 @@
+/*
+ * GQ-015 — get_advisor_month_summary
+ * Purpose: Per month for one advisor: total credited revenue, txn count,
+ *          distinct products, distinct accounts. Header context bar and sanity
+ *          checks (reconciles the transaction grain against the aggregates).
+ * Outputs: one object: revenue_by_month, txn_count_by_month,
+ *          products_by_month (month -> set), accounts_by_month (month -> set).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_advisor_month_summary(STRING advisor_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    MapAccum<STRING, SumAccum<DOUBLE>> @@revenue_by_month;
+    MapAccum<STRING, SumAccum<INT>> @@txn_count_by_month;
+    MapAccum<STRING, SetAccum<STRING>> @@products_by_month;
+    MapAccum<STRING, SetAccum<STRING>> @@accounts_by_month;
+
+    all_txns = {phx_dm_v2_revenue_transaction.*};
+    rows = SELECT t
+        FROM all_txns:t
+        WHERE t.advisor_sid == advisor_id
+        ACCUM @@revenue_by_month += (t.month_id -> t.credited_amt),
+              @@txn_count_by_month += (t.month_id -> 1),
+              @@products_by_month += (t.month_id -> t.product_id),
+              @@accounts_by_month += (t.month_id -> t.account_no);
+
+    PRINT @@revenue_by_month AS revenue_by_month,
+          @@txn_count_by_month AS txn_count_by_month,
+          @@products_by_month AS products_by_month,
+          @@accounts_by_month AS accounts_by_month;
+}
+
+INSTALL QUERY get_advisor_month_summary

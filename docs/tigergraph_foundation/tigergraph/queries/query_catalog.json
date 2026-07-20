@@ -1,0 +1,339 @@
+{
+  "graph": "iperform_v2_revenue",
+  "queries": [
+    {
+      "id": "GQ-001",
+      "name": "get_advisors",
+      "file": "GQ-001_get_advisors.gsql",
+      "parameters": [],
+      "purpose": "All advisors for the advisor picker.",
+      "outputs": "advisors: vset rows {advisor_sid, advisor_name, rep_code, branch_cd, standard_id, data_source}",
+      "consumers": [
+        "frontend advisor context bar",
+        "GET /reference/advisors"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-002",
+      "name": "get_months",
+      "file": "GQ-002_get_months.gsql",
+      "parameters": [],
+      "purpose": "Months in scope, ordered, with prior_month_id, calendar_days, billable_days.",
+      "outputs": "months: vset rows {month_id, year, month_no, month_name, quarter, start_dt, end_dt, calendar_days, billable_days, prior_month_id, index_return, is_current, data_source}",
+      "consumers": [
+        "period controls",
+        "GET /reference/months"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-003",
+      "name": "get_product_hierarchy",
+      "file": "GQ-003_get_product_hierarchy.gsql",
+      "parameters": [],
+      "purpose": "class -> line -> group -> product with display order \u2014 the pivot row structure.",
+      "outputs": "classes, lines(+@parent_id=class_id), groups(+@parent_id=line_id), products(+@parent_id=group_id): vset rows",
+      "consumers": [
+        "Trends pivot rows",
+        "GET /reference/product-hierarchy"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-004",
+      "name": "get_driver_causes",
+      "file": "GQ-004_get_driver_causes.gsql",
+      "parameters": [],
+      "purpose": "The driver-cause vocabulary \u2014 legend and filters.",
+      "outputs": "causes: vset rows {cause_id, cause_name, cause_description, default_data_source, display_order, data_source}",
+      "consumers": [
+        "AI Insights legend",
+        "GET /reference/driver-causes"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-005",
+      "name": "get_monthly_revenue_by_product",
+      "file": "GQ-005_get_monthly_revenue_by_product.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "from_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "to_month",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Monthly credited revenue by product group for the Trends pivot.",
+      "outputs": "monthly_revenue: vset rows {month_id, group_id, line_id, class_id, revenue, txn_count, account_count, avg_rate_bps, recurring_amt, one_time_amt, data_source}",
+      "consumers": [
+        "app/v2/revenue/monthly_service.py",
+        "GET /api/v2/trends/revenue"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-006",
+      "name": "get_monthly_revenue_totals",
+      "file": "GQ-006_get_monthly_revenue_totals.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "from_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "to_month",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Per-month totals: revenue, recurring, non-recurring, txn count \u2014 the stacked bar chart.",
+      "outputs": "one object: revenue_by_month, recurring_by_month, non_recurring_by_month, txn_count_by_month (month_id -> value maps)",
+      "consumers": [
+        "app/v2/revenue/monthly_service.py",
+        "GET /api/v2/insights/chart"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-007",
+      "name": "get_revenue_changes",
+      "file": "GQ-007_get_revenue_changes.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "from_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "to_month",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Every revenue_change for the advisor in range, including the __TOTAL__ rows.",
+      "outputs": "changes: vset rows {change_id, advisor_sid, from_month_id, to_month_id, group_id, from_revenue, to_revenue, change_amt, change_pct, direction, data_source}",
+      "consumers": [
+        "app/v2/drivers/",
+        "GET /api/v2/trends/changes"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-008",
+      "name": "get_change_drivers",
+      "file": "GQ-008_get_change_drivers.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "from_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "to_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "result_limit",
+          "type": "INT",
+          "required": true
+        }
+      ],
+      "purpose": "Drivers for one transition, ranked by |contribution|.",
+      "outputs": "drivers: vset rows {driver_id, change_id, cause_id, group_id, contribution_amt, contribution_pct, direction, rank, inputs_json, data_source}",
+      "consumers": [
+        "app/v2/drivers/",
+        "GET /api/v2/insights/drivers"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-009",
+      "name": "get_commentary",
+      "file": "GQ-009_get_commentary.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "version_id",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Commentary rows for every transition in one version; version_id='' = latest PUBLISHED.",
+      "outputs": "commentaries: vset rows {commentary_id, version_id, advisor_sid, from_month_id, to_month_id, headline, narrative_text, bullets_json, status, blocked_reason, data_source} + resolved_version",
+      "consumers": [
+        "GET /api/v2/insights/commentary"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-010",
+      "name": "get_commentary_versions",
+      "file": "GQ-010_get_commentary_versions.gsql",
+      "parameters": [],
+      "purpose": "All commentary versions with status and counts, newest first.",
+      "outputs": "versions: vset rows {version_id, version_no, generated_at, model, prompt_version, data_snapshot_dt, status, advisor_count, transition_count, blocked_count, notes, data_source}",
+      "consumers": [
+        "version selector",
+        "GET /api/v2/insights/versions"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-011",
+      "name": "get_product_revenue_change",
+      "file": "GQ-011_get_product_revenue_change.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "product_group",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "from_month",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "to_month",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "from/to revenue, change and txn count for one advisor + group + transition \u2014 the evidence modal's runnable reproduction query.",
+      "outputs": "one object {from_revenue, to_revenue, change, txn_count}",
+      "consumers": [
+        "evidence modal section 5",
+        "GET /api/v2/evidence/reproduce"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-012",
+      "name": "get_evidence",
+      "file": "GQ-012_get_evidence.gsql",
+      "parameters": [
+        {
+          "name": "driver_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "version_id",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Full evidence record for one driver in one version; version_id='' = all versions for the driver.",
+      "outputs": "evidence: vset rows {evidence_id, driver_id, finding_text, calc_json, source_records_json, lineage_json, checks_json, gsql_query_name, gsql_params_json, gsql_result_json, source_sql, source_table, source_row_count, data_source}",
+      "consumers": [
+        "evidence modal",
+        "GET /api/v2/evidence"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-013",
+      "name": "get_transactions",
+      "file": "GQ-013_get_transactions.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "month_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "group_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "result_limit",
+          "type": "INT",
+          "required": true
+        }
+      ],
+      "purpose": "Transaction rows for the drill-down; group_id='' = all groups.",
+      "outputs": "transactions: vset rows (txn attributes + @group_id, @product_name)",
+      "consumers": [
+        "GET /api/v2/transactions"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-014",
+      "name": "get_ingestion_counts",
+      "file": "GQ-014_get_ingestion_counts.gsql",
+      "parameters": [],
+      "purpose": "Per V2 vertex type: count + data_source mix.",
+      "outputs": "one object: counts (type -> n), source_mix (type -> {data_source -> n})",
+      "consumers": [
+        "ingestion screen",
+        "env-health reconciliation",
+        "GET /api/v2/ops/counts"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-015",
+      "name": "get_advisor_month_summary",
+      "file": "GQ-015_get_advisor_month_summary.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "Per month: total revenue, txn count, distinct products, distinct accounts (from the transaction grain).",
+      "outputs": "one object: revenue_by_month, txn_count_by_month, products_by_month, accounts_by_month",
+      "consumers": [
+        "advisor context bar",
+        "reconciliation checks",
+        "GET /api/v2/ops/advisor-summary"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+/*
+ * GQ-011 — get_product_revenue_change
+ * Purpose: {from_revenue, to_revenue, change, txn_count} for one advisor +
+ *          product group + transition. THIS is the query printed in the evidence
+ *          modal's "Reproduce this result" section — it must be genuinely
+ *          runnable and return exactly the figures shown.
+ *          txn_count is the total transactions across both months of the
+ *          transition for that group.
+ * Outputs: one object {from_revenue, to_revenue, change, txn_count}.
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_product_revenue_change(STRING advisor_id, STRING product_group, STRING from_month, STRING to_month) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    SumAccum<DOUBLE> @@from_revenue;
+    SumAccum<DOUBLE> @@to_revenue;
+    SumAccum<INT> @@txn_count;
+
+    all_mpr = {phx_dm_v2_monthly_product_revenue.*};
+    rows = SELECT r
+        FROM all_mpr:r
+        WHERE r.advisor_sid == advisor_id
+          AND r.group_id == product_group
+          AND (r.month_id == from_month OR r.month_id == to_month)
+        ACCUM CASE WHEN r.month_id == from_month THEN @@from_revenue += r.revenue END,
+              CASE WHEN r.month_id == to_month THEN @@to_revenue += r.revenue END,
+              @@txn_count += r.txn_count;
+
+    PRINT @@from_revenue AS from_revenue,
+          @@to_revenue AS to_revenue,
+          @@to_revenue - @@from_revenue AS change,
+          @@txn_count AS txn_count;
+}
+
+INSTALL QUERY get_product_revenue_change

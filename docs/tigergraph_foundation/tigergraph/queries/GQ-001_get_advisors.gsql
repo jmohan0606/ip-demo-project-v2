@@ -1,0 +1,18 @@
+/*
+ * GQ-001 — get_advisors
+ * Purpose: All advisors (id, name, rep_code, branch) for the advisor picker.
+ * Outputs: advisors vertex set.
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_advisors() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_advisors = {phx_dm_v2_advisor.*};
+    advisors = SELECT a
+        FROM all_advisors:a
+        ORDER BY a.advisor_sid ASC;
+    PRINT advisors;
+}
+
+INSTALL QUERY get_advisors

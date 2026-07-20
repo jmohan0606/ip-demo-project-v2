@@ -1,0 +1,18 @@
+/*
+ * GQ-004 — get_driver_causes
+ * Purpose: The controlled cause vocabulary — legend and filters.
+ * Outputs: causes vertex set (ordered by display_order).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_driver_causes() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_causes = {phx_dm_v2_driver_cause.*};
+    causes = SELECT c
+        FROM all_causes:c
+        ORDER BY c.display_order ASC;
+    PRINT causes;
+}
+
+INSTALL QUERY get_driver_causes

@@ -1,0 +1,24 @@
+/*
+ * GQ-005 — get_monthly_revenue_by_product
+ * Purpose: One row per (month, product group) for an advisor: revenue, txn_count,
+ *          recurring/one-time split, plus group/line/class ids. Powers the Trends
+ *          pivot (01_trends_revenue_by_month). Reads the pre-aggregated
+ *          phx_dm_v2_monthly_product_revenue — does NOT scan transactions.
+ * Outputs: monthly_revenue vertex set.
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_monthly_revenue_by_product(STRING advisor_id, STRING from_month, STRING to_month) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_mpr = {phx_dm_v2_monthly_product_revenue.*};
+    monthly_revenue = SELECT r
+        FROM all_mpr:r
+        WHERE r.advisor_sid == advisor_id
+          AND r.month_id >= from_month
+          AND r.month_id <= to_month
+        ORDER BY r.month_id ASC, r.group_id ASC;
+    PRINT monthly_revenue;
+}
+
+INSTALL QUERY get_monthly_revenue_by_product

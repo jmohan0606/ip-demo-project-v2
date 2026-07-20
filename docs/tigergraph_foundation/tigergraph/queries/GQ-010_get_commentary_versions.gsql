@@ -1,0 +1,19 @@
+/*
+ * GQ-010 — get_commentary_versions
+ * Purpose: All commentary versions with status and counts, newest first — the
+ *          version selector.
+ * Outputs: versions vertex set (ordered by version_no DESC).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_commentary_versions() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_versions = {phx_dm_v2_commentary_version.*};
+    versions = SELECT v
+        FROM all_versions:v
+        ORDER BY v.version_no DESC;
+    PRINT versions;
+}
+
+INSTALL QUERY get_commentary_versions

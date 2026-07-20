@@ -7,17 +7,30 @@ from app.graph.foundation_store import FoundationGraphStore
 
 logger = logging.getLogger(__name__)
 
-# Vertex type constants (schema prefix phx_dm_)
-FIRM = "phx_dm_firm"
-DIVISION = "phx_dm_division"
-REGION = "phx_dm_region"
-MARKET = "phx_dm_market"
-BRANCH = "phx_dm_branch"
-ADVISOR = "phx_dm_advisor"
-USER = "phx_dm_persona_user"
-HOUSEHOLD = "phx_dm_household"
-ACCOUNT = "phx_dm_account"
-PRODUCT = "phx_dm_product"
+# Vertex type constants (schema prefix phx_dm_v2_)
+ADVISOR = "phx_dm_v2_advisor"
+MONTH = "phx_dm_v2_month"
+REVENUE_CLASS = "phx_dm_v2_revenue_class"
+PRODUCT_LINE = "phx_dm_v2_product_line"
+PRODUCT_GROUP = "phx_dm_v2_product_group"
+PRODUCT = "phx_dm_v2_product"
+ACCOUNT = "phx_dm_v2_account"
+DRIVER_CAUSE = "phx_dm_v2_driver_cause"
+REVENUE_TRANSACTION = "phx_dm_v2_revenue_transaction"
+MONTHLY_PRODUCT_REVENUE = "phx_dm_v2_monthly_product_revenue"
+ACCOUNT_MONTH_BALANCE = "phx_dm_v2_account_month_balance"
+REVENUE_CHANGE = "phx_dm_v2_revenue_change"
+REVENUE_DRIVER = "phx_dm_v2_revenue_driver"
+COMMENTARY_VERSION = "phx_dm_v2_commentary_version"
+COMMENTARY = "phx_dm_v2_commentary"
+EVIDENCE = "phx_dm_v2_evidence"
+
+V2_VERTEX_TYPES = [
+    ADVISOR, MONTH, REVENUE_CLASS, PRODUCT_LINE, PRODUCT_GROUP, PRODUCT,
+    ACCOUNT, DRIVER_CAUSE, REVENUE_TRANSACTION, MONTHLY_PRODUCT_REVENUE,
+    ACCOUNT_MONTH_BALANCE, REVENUE_CHANGE, REVENUE_DRIVER, COMMENTARY_VERSION,
+    COMMENTARY, EVIDENCE,
+]
 
 
 def vertex_out(store: FoundationGraphStore, vertex_type: str, vertex_id: str) -> dict | None:
@@ -42,45 +55,13 @@ def vset(store: FoundationGraphStore, vertex_type: str, ids: Iterable[str]) -> l
     return out
 
 
-def date10(value: Any) -> str:
-    """Normalize a date/datetime string to its ISO date prefix for comparison."""
-    return str(value or "")[:10]
-
-
-def in_window(value: Any, start_date: Any, end_date: Any) -> bool:
-    d = date10(value)
-    return bool(d) and date10(start_date) <= d <= date10(end_date)
-
-
-def resolve_scope_advisor_ids(store: FoundationGraphStore, scope_type: str, scope_id: str) -> list[str]:
-    """Mirror of the GSQL scope-resolution block shared by GQ-004..007, 039, 041:
-    FIRM -> divisions -> regions -> markets -> advisors (via advisor_in_market),
-    BRANCH -> advisors via advisor_in_branch, ADVISOR -> itself, ALL -> everyone.
-    """
-    scope_type = (scope_type or "").upper()
-    if scope_type == "ALL":
-        return list(store.all_vertices(ADVISOR).keys())
-    if scope_type == "ADVISOR":
-        return [scope_id] if store.vertex(ADVISOR, scope_id) else []
-    if scope_type == "BRANCH":
-        return store.in_ids("phx_dm_advisor_in_branch", scope_id)
-    if scope_type == "MARKET":
-        return store.in_ids("phx_dm_advisor_in_market", scope_id)
-
-    market_ids: list[str] = []
-    if scope_type == "REGION":
-        market_ids = store.in_ids("phx_dm_market_in_region", scope_id)
-    elif scope_type == "DIVISION":
-        for region_id in store.in_ids("phx_dm_region_in_division", scope_id):
-            market_ids.extend(store.in_ids("phx_dm_market_in_region", region_id))
-    elif scope_type == "FIRM":
-        for division_id in store.in_ids("phx_dm_division_in_firm", scope_id):
-            for region_id in store.in_ids("phx_dm_region_in_division", division_id):
-                market_ids.extend(store.in_ids("phx_dm_market_in_region", region_id))
-    advisor_ids: list[str] = []
-    for market_id in market_ids:
-        advisor_ids.extend(store.in_ids("phx_dm_advisor_in_market", market_id))
-    return sorted(set(advisor_ids))
+def vrows(store: FoundationGraphStore, vertex_type: str, predicate=None) -> list[dict]:
+    """All vertices of a type as RESTPP rows, optionally filtered on attributes."""
+    out = []
+    for vid, attrs in store.all_vertices(vertex_type).items():
+        if predicate is None or predicate(attrs):
+            out.append({"v_id": str(vid), "v_type": vertex_type, "attributes": attrs})
+    return out
 
 
 def run_catalog_query(graph: Any, query_name: str, params: dict) -> list[dict] | None:
@@ -89,7 +70,7 @@ def run_catalog_query(graph: Any, query_name: str, params: dict) -> list[dict] |
     Returns the `results` list on success, or None when the query raised or came
     back as an error envelope — callers treat None as "use the local-store
     fallback" and that fallback is always logged (never silent). Also logs when
-    a real graph mode is configured but the mock tier (4) served the request.
+    GRAPH_CLIENT_MODE=real but the local tier served the request (ABSOLUTE RULE 4).
     """
     try:
         result = graph.run_query(query_name, params)
@@ -108,14 +89,23 @@ def run_catalog_query(graph: Any, query_name: str, params: dict) -> list[dict] |
         return None
     from app.config.settings import get_settings
 
-    mode = (get_settings().graph_client_mode or "mock").lower()
-    if result.get("served_by_tier") == 4 and mode != "mock":
+    mode = (get_settings().graph_client_mode or "local").lower()
+    if v2_served_by_tier(result) == 2 and mode == "real":
         logger.warning(
-            "run_query(%s) served by MOCK tier (4) while GRAPH_CLIENT_MODE=%s — "
-            "expected in the Codespace (no reachable TigerGraph); must be tier 2 on the client machine",
-            query_name, mode,
+            "run_query(%s) served by the LOCAL store (tier 2) while GRAPH_CLIENT_MODE=real — "
+            "TigerGraph is not serving; the env-health screen must show RED",
+            query_name,
         )
     return result.get("results", [])
+
+
+def v2_served_by_tier(result: dict) -> int:
+    """Map the internal tier chain (1 mcp / 2 pytg / 3 restpp / 4 local store) onto
+    the V2 two-tier contract: 1 = TigerGraph, 2 = local store."""
+    internal = result.get("served_by_tier")
+    if internal is None:
+        internal = 4 if result.get("mode") == "mock" else 1
+    return 1 if internal in (1, 2, 3) else 2
 
 
 def graph_fallback_store(graph: Any) -> FoundationGraphStore:
@@ -128,70 +118,9 @@ def graph_fallback_store(graph: Any) -> FoundationGraphStore:
     return get_foundation_store()
 
 
-def resolve_scope_advisor_ids_graph(graph: Any, scope_type: str, scope_id: str) -> list[str]:
-    """Scope -> advisor ids via the installed GQ-002 get_scope_descendants query
-    (real TigerGraph in real mode, identical-shape mock in mock mode). The direct
-    store traversal below remains ONLY as the logged fallback."""
-    st = (scope_type or "").upper()
-    results = run_catalog_query(
-        graph,
-        "get_scope_descendants",
-        {"scope_type": st, "scope_id": str(scope_id), "entity_type": "ADVISOR"},
-    )
-    if results is not None:
-        for entry in results:
-            advisors = entry.get("advisor_descendants")
-            if advisors is not None:
-                return sorted({str(v.get("v_id")) for v in advisors if v.get("v_id") is not None})
-        logger.warning(
-            "get_scope_descendants returned no advisor_descendants entry for %s/%s — "
-            "falling back to local store traversal", st, scope_id,
-        )
-    return resolve_scope_advisor_ids(graph_fallback_store(graph), st, scope_id)
-
-
-def scope_advisor_placements(graph: Any, scope_type: str, scope_id: str) -> dict[str, dict] | None:
-    """advisor_id -> full ancestor placement (branch/market/region/division/firm
-    ids + names + branch_state) via GQ-053 get_scope_advisor_placements. Returns
-    None when the query is unavailable — callers then use their logged local-store
-    fallback path."""
-    results = run_catalog_query(
-        graph,
-        "get_scope_advisor_placements",
-        {"scope_type": (scope_type or "").upper(), "scope_id": str(scope_id)},
-    )
-    if results is not None:
-        for entry in results:
-            placements = entry.get("advisor_placements")
-            if placements is not None:
-                return {str(p.get("v_id")): p.get("attributes", {}) for p in placements}
-        logger.warning(
-            "get_scope_advisor_placements returned no advisor_placements entry for %s/%s",
-            scope_type, scope_id,
-        )
-    return None
-
-
-def advisor_transactions(
-    store: FoundationGraphStore, advisor_ids: Iterable[str], start_date: Any = None, end_date: Any = None
-) -> list[tuple[str, dict]]:
-    """(transaction_id, attrs) for the advisors, optionally date-filtered
-    (edge phx_dm_transaction_for_advisor points transaction -> advisor)."""
-    rows: list[tuple[str, dict]] = []
-    for advisor_id in advisor_ids:
-        for tx_id in store.in_ids("phx_dm_transaction_for_advisor", advisor_id):
-            attrs = store.vertex("phx_dm_revenue_transaction", tx_id)
-            if attrs is None:
-                continue
-            if start_date is not None and not in_window(attrs.get("transaction_date"), start_date, end_date):
-                continue
-            rows.append((tx_id, attrs))
-    return rows
-
-
 def group_accum(rows: Iterable[dict], keys: list[str], sums: dict[str, str]) -> list[dict]:
     """GroupByAccum equivalent: group `rows` by `keys`, summing the mappings in
-    `sums` (output_field -> input_field, input may be a literal 1 for counts)."""
+    `sums` (output_field -> input_field, input may be the literal __count__)."""
     grouped: dict[tuple, dict] = {}
     for row in rows:
         key = tuple(row.get(k) for k in keys)

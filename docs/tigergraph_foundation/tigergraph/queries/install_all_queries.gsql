@@ -1,0 +1,19 @@
+// iPerform V2 — run every GQ file in order, then install.
+// Usage: gsql install_all_queries.gsql (or paste per-file).
+USE GRAPH iperform_v2_revenue
+
+@GQ-001_get_advisors.gsql
+@GQ-002_get_months.gsql
+@GQ-003_get_product_hierarchy.gsql
+@GQ-004_get_driver_causes.gsql
+@GQ-005_get_monthly_revenue_by_product.gsql
+@GQ-006_get_monthly_revenue_totals.gsql
+@GQ-007_get_revenue_changes.gsql
+@GQ-008_get_change_drivers.gsql
+@GQ-009_get_commentary.gsql
+@GQ-010_get_commentary_versions.gsql
+@GQ-011_get_product_revenue_change.gsql
+@GQ-012_get_evidence.gsql
+@GQ-013_get_transactions.gsql
+@GQ-014_get_ingestion_counts.gsql
+@GQ-015_get_advisor_month_summary.gsql

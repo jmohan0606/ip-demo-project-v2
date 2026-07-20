@@ -1,0 +1,23 @@
+/*
+ * GQ-007 — get_revenue_changes
+ * Purpose: Every phx_dm_v2_revenue_change for an advisor in the month range,
+ *          including the __TOTAL__ rows. Powers 02_trends_mom_change and the
+ *          chart connector arrows.
+ * Outputs: changes vertex set.
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_revenue_changes(STRING advisor_id, STRING from_month, STRING to_month) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_changes = {phx_dm_v2_revenue_change.*};
+    changes = SELECT c
+        FROM all_changes:c
+        WHERE c.advisor_sid == advisor_id
+          AND c.from_month_id >= from_month
+          AND c.to_month_id <= to_month
+        ORDER BY c.to_month_id ASC, c.group_id ASC;
+    PRINT changes;
+}
+
+INSTALL QUERY get_revenue_changes

@@ -1,0 +1,83 @@
+/*
+ * GQ-014 — get_ingestion_counts
+ * Purpose: Per V2 vertex type: row count + data_source mix. Ingestion screen
+ *          loaded-counts and the env-health reconciliation panel.
+ * Outputs: one object: counts (type -> n), source_mix (type -> {data_source -> n}).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_ingestion_counts() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    MapAccum<STRING, SumAccum<INT>> @@counts;
+    MapAccum<STRING, MapAccum<STRING, SumAccum<INT>>> @@source_mix;
+
+    s01 = {phx_dm_v2_advisor.*};
+    r01 = SELECT v FROM s01:v
+        ACCUM @@counts += ("phx_dm_v2_advisor" -> 1),
+              @@source_mix += ("phx_dm_v2_advisor" -> (v.data_source -> 1));
+    s02 = {phx_dm_v2_month.*};
+    r02 = SELECT v FROM s02:v
+        ACCUM @@counts += ("phx_dm_v2_month" -> 1),
+              @@source_mix += ("phx_dm_v2_month" -> (v.data_source -> 1));
+    s03 = {phx_dm_v2_revenue_class.*};
+    r03 = SELECT v FROM s03:v
+        ACCUM @@counts += ("phx_dm_v2_revenue_class" -> 1),
+              @@source_mix += ("phx_dm_v2_revenue_class" -> (v.data_source -> 1));
+    s04 = {phx_dm_v2_product_line.*};
+    r04 = SELECT v FROM s04:v
+        ACCUM @@counts += ("phx_dm_v2_product_line" -> 1),
+              @@source_mix += ("phx_dm_v2_product_line" -> (v.data_source -> 1));
+    s05 = {phx_dm_v2_product_group.*};
+    r05 = SELECT v FROM s05:v
+        ACCUM @@counts += ("phx_dm_v2_product_group" -> 1),
+              @@source_mix += ("phx_dm_v2_product_group" -> (v.data_source -> 1));
+    s06 = {phx_dm_v2_product.*};
+    r06 = SELECT v FROM s06:v
+        ACCUM @@counts += ("phx_dm_v2_product" -> 1),
+              @@source_mix += ("phx_dm_v2_product" -> (v.data_source -> 1));
+    s07 = {phx_dm_v2_account.*};
+    r07 = SELECT v FROM s07:v
+        ACCUM @@counts += ("phx_dm_v2_account" -> 1),
+              @@source_mix += ("phx_dm_v2_account" -> (v.data_source -> 1));
+    s08 = {phx_dm_v2_driver_cause.*};
+    r08 = SELECT v FROM s08:v
+        ACCUM @@counts += ("phx_dm_v2_driver_cause" -> 1),
+              @@source_mix += ("phx_dm_v2_driver_cause" -> (v.data_source -> 1));
+    s09 = {phx_dm_v2_revenue_transaction.*};
+    r09 = SELECT v FROM s09:v
+        ACCUM @@counts += ("phx_dm_v2_revenue_transaction" -> 1),
+              @@source_mix += ("phx_dm_v2_revenue_transaction" -> (v.data_source -> 1));
+    s10 = {phx_dm_v2_monthly_product_revenue.*};
+    r10 = SELECT v FROM s10:v
+        ACCUM @@counts += ("phx_dm_v2_monthly_product_revenue" -> 1),
+              @@source_mix += ("phx_dm_v2_monthly_product_revenue" -> (v.data_source -> 1));
+    s11 = {phx_dm_v2_account_month_balance.*};
+    r11 = SELECT v FROM s11:v
+        ACCUM @@counts += ("phx_dm_v2_account_month_balance" -> 1),
+              @@source_mix += ("phx_dm_v2_account_month_balance" -> (v.data_source -> 1));
+    s12 = {phx_dm_v2_revenue_change.*};
+    r12 = SELECT v FROM s12:v
+        ACCUM @@counts += ("phx_dm_v2_revenue_change" -> 1),
+              @@source_mix += ("phx_dm_v2_revenue_change" -> (v.data_source -> 1));
+    s13 = {phx_dm_v2_revenue_driver.*};
+    r13 = SELECT v FROM s13:v
+        ACCUM @@counts += ("phx_dm_v2_revenue_driver" -> 1),
+              @@source_mix += ("phx_dm_v2_revenue_driver" -> (v.data_source -> 1));
+    s14 = {phx_dm_v2_commentary_version.*};
+    r14 = SELECT v FROM s14:v
+        ACCUM @@counts += ("phx_dm_v2_commentary_version" -> 1),
+              @@source_mix += ("phx_dm_v2_commentary_version" -> (v.data_source -> 1));
+    s15 = {phx_dm_v2_commentary.*};
+    r15 = SELECT v FROM s15:v
+        ACCUM @@counts += ("phx_dm_v2_commentary" -> 1),
+              @@source_mix += ("phx_dm_v2_commentary" -> (v.data_source -> 1));
+    s16 = {phx_dm_v2_evidence.*};
+    r16 = SELECT v FROM s16:v
+        ACCUM @@counts += ("phx_dm_v2_evidence" -> 1),
+              @@source_mix += ("phx_dm_v2_evidence" -> (v.data_source -> 1));
+
+    PRINT @@counts AS counts, @@source_mix AS source_mix;
+}
+
+INSTALL QUERY get_ingestion_counts

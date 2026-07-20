@@ -1,0 +1,45 @@
+/*
+ * GQ-003 — get_product_hierarchy
+ * Purpose: class -> line -> group -> product with display order — the pivot row
+ *          structure. Each level carries its parent id via a vertex accumulator
+ *          (1:1 per row, so SumAccum<STRING> is safe).
+ * Outputs: classes, lines (+class_id), groups (+line_id), products (+group_id).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_product_hierarchy() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    SumAccum<STRING> @parent_id;
+
+    all_classes = {phx_dm_v2_revenue_class.*};
+    all_lines = {phx_dm_v2_product_line.*};
+    all_groups = {phx_dm_v2_product_group.*};
+    all_products = {phx_dm_v2_product.*};
+
+    classes = SELECT c
+        FROM all_classes:c
+        ORDER BY c.display_order ASC;
+
+    lines = SELECT l
+        FROM all_lines:l -(phx_dm_v2_line_in_class:e)- phx_dm_v2_revenue_class:c
+        ACCUM l.@parent_id += c.class_id
+        ORDER BY l.display_order ASC;
+
+    groups = SELECT g
+        FROM all_groups:g -(phx_dm_v2_group_in_line:e)- phx_dm_v2_product_line:l
+        ACCUM g.@parent_id += l.line_id
+        ORDER BY g.display_order ASC;
+
+    products = SELECT p
+        FROM all_products:p -(phx_dm_v2_product_in_group:e)- phx_dm_v2_product_group:g
+        ACCUM p.@parent_id += g.group_id
+        ORDER BY p.product_id ASC;
+
+    PRINT classes;
+    PRINT lines;
+    PRINT groups;
+    PRINT products;
+}
+
+INSTALL QUERY get_product_hierarchy

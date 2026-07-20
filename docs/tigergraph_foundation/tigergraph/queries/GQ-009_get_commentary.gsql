@@ -1,0 +1,39 @@
+/*
+ * GQ-009 — get_commentary
+ * Purpose: Commentary rows for every transition of an advisor in one version.
+ *          version_id = "" resolves to the latest PUBLISHED version.
+ *          Powers 03_ai_insights_walk cards and 06_ai_commentary_table.
+ * Outputs: commentaries vertex set + resolved_version (the version actually used).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_commentary(STRING advisor_id, STRING version_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    MaxAccum<INT> @@latest_no;
+    STRING target_version;
+
+    all_versions = {phx_dm_v2_commentary_version.*};
+    published = SELECT v
+        FROM all_versions:v
+        WHERE v.status == "PUBLISHED"
+        ACCUM @@latest_no += v.version_no;
+
+    IF version_id == "" THEN
+        target_version = "v" + to_string(@@latest_no);
+    ELSE
+        target_version = version_id;
+    END;
+
+    all_commentary = {phx_dm_v2_commentary.*};
+    commentaries = SELECT cm
+        FROM all_commentary:cm
+        WHERE cm.advisor_sid == advisor_id
+          AND cm.version_id == target_version
+        ORDER BY cm.to_month_id ASC;
+
+    PRINT commentaries;
+    PRINT target_version AS resolved_version;
+}
+
+INSTALL QUERY get_commentary

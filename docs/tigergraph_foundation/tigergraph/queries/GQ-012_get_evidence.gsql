@@ -1,0 +1,23 @@
+/*
+ * GQ-012 — get_evidence
+ * Purpose: The full evidence record for one driver in one commentary version:
+ *          finding, calc, source records, lineage, checks, gsql name/params/
+ *          result, source SQL, source table, row count.
+ *          version_id = "" returns every evidence record for the driver.
+ * Outputs: evidence vertex set.
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_evidence(STRING driver_id, STRING version_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_evidence = {phx_dm_v2_evidence.*};
+    evidence = SELECT e
+        FROM all_evidence:e
+        WHERE e.driver_id == driver_id
+          AND (version_id == "" OR e.evidence_id == driver_id + "|" + version_id)
+        ORDER BY e.evidence_id ASC;
+    PRINT evidence;
+}
+
+INSTALL QUERY get_evidence

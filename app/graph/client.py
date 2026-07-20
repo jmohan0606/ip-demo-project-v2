@@ -411,7 +411,8 @@ def get_graph_client() -> GraphClient:
     global _graph_client
     if _graph_client is None:
         mode = get_settings().graph_client_mode.lower()
-        if mode == "mock":
+        if mode in {"mock", "local"}:
+            # V2 tier 2 — the local store serves directly.
             _graph_client = MockGraphClient()
         elif mode in {"auto", "tiered", "mcp", "local_real", "real"}:
             from app.graph.tiered_client import TieredGraphClient  # lazy: avoids import cycle
@@ -419,7 +420,7 @@ def get_graph_client() -> GraphClient:
             _graph_client = TieredGraphClient.for_mode(mode)
         else:
             raise GraphClientError(
-                f"Unknown GRAPH_CLIENT_MODE '{mode}' (expected mock|auto|tiered|mcp|local_real|real)"
+                f"Unknown GRAPH_CLIENT_MODE '{mode}' (expected local|real|mock|auto|tiered|mcp|local_real)"
             )
     return _graph_client
 

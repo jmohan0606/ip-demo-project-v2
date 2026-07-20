@@ -1,0 +1,36 @@
+/*
+ * GQ-006 — get_monthly_revenue_totals
+ * Purpose: Per month for an advisor: total revenue, recurring total,
+ *          non-recurring total, txn count. Powers the stacked bar chart on
+ *          03_ai_insights_walk.
+ * Outputs: one map object: revenue_by_month, recurring_by_month,
+ *          non_recurring_by_month, txn_count_by_month (month_id -> value).
+ * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_monthly_revenue_totals(STRING advisor_id, STRING from_month, STRING to_month) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    MapAccum<STRING, SumAccum<DOUBLE>> @@revenue_by_month;
+    MapAccum<STRING, SumAccum<DOUBLE>> @@recurring_by_month;
+    MapAccum<STRING, SumAccum<DOUBLE>> @@non_recurring_by_month;
+    MapAccum<STRING, SumAccum<INT>> @@txn_count_by_month;
+
+    all_mpr = {phx_dm_v2_monthly_product_revenue.*};
+    rows = SELECT r
+        FROM all_mpr:r
+        WHERE r.advisor_sid == advisor_id
+          AND r.month_id >= from_month
+          AND r.month_id <= to_month
+        ACCUM @@revenue_by_month += (r.month_id -> r.revenue),
+              @@recurring_by_month += (r.month_id -> r.recurring_amt),
+              @@non_recurring_by_month += (r.month_id -> r.one_time_amt),
+              @@txn_count_by_month += (r.month_id -> r.txn_count);
+
+    PRINT @@revenue_by_month AS revenue_by_month,
+          @@recurring_by_month AS recurring_by_month,
+          @@non_recurring_by_month AS non_recurring_by_month,
+          @@txn_count_by_month AS txn_count_by_month;
+}
+
+INSTALL QUERY get_monthly_revenue_totals
