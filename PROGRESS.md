@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 6
-Resume from: P6-1
+Current phase: 7
+Resume from: P7-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -29,7 +29,7 @@ Resume from: P6-1
 | P3-2 | 3 | manifest.json + loading jobs | DONE | b89cf88 | manifest 41 files + load_v2_all.gsql |
 | P3-3 | 3 | Sample data set (exercises every cause) | DONE | b89cf88 | SMPL001-3; all 12 causes; reconciles to $0 |
 | P3-4 | 3 | Delete capability on client interface (both tiers) | DONE | b89cf88 | both tiers + tiered dispatch; verified via delete-all |
-| P3-5 | 3 | Ingestion screen wired: load/reload/ordered delete | IN_PROGRESS | b89cf88 | backend endpoints + checkpoint clearing done; UI screen lands in P6-8 |
+| P3-5 | 3 | Ingestion screen wired: load/reload/ordered delete | DONE | 6a15498 | screen wired: load/reload/ordered delete verified |
 | P4-1 | 4 | app/v2/revenue — monthly aggregation + MoM | DONE | 3bd6ced | aggregation+MoM in app/v2/revenue; service + endpoints |
 | P4-2 | 4 | app/v2/drivers — attribution + causes | DONE | 3bd6ced | 11-step attribution in app/v2/drivers; service + endpoints |
 | P4-3 | 4 | Reconciliation check | DONE | 3bd6ced | /api/v2/ops/reconciliation recomputes from stored graph data; passes |
@@ -39,15 +39,15 @@ Resume from: P6-1
 | P5-4 | 5 | explainability_agent (evidence) | DONE | fac5dfc | 5-section evidence; GQ actually run + result stored |
 | P5-5 | 5 | Guardrails validation (5 checks) | DONE | fac5dfc | 5 checks; caught real LLM arithmetic in v2-v4; negative-tested |
 | P5-6 | 5 | Batch generation workflow + versioning | DONE | fac5dfc | v1..v5 generated; supersede + blocked persistence verified |
-| P6-1 | 6 | Shell, V2 nav, design tokens, advisor context bar | TODO | | |
-| P6-2 | 6 | Trends pivot (01) | TODO | | |
-| P6-3 | 6 | Trends MoM (02) | TODO | | |
-| P6-4 | 6 | AI Insights chart + cards (03) | TODO | | |
-| P6-5 | 6 | Commentary table (06) | TODO | | |
-| P6-6 | 6 | Evidence modal (04) | TODO | | |
-| P6-7 | 6 | Transactions drill-down | TODO | | |
-| P6-8 | 6 | Ingestion screen (05) | TODO | | |
-| P6-9 | 6 | Env health screen | TODO | | |
+| P6-1 | 6 | Shell, V2 nav, design tokens, advisor context bar | DONE | 1b73430 | shell, tokens, context bar, tier pill, banner |
+| P6-2 | 6 | Trends pivot (01) | DONE | 8508b58 | pivot verified headless, 0 console errors |
+| P6-3 | 6 | Trends MoM (02) | DONE | 8508b58 | MoM card same page; n/a + >=15% pills |
+| P6-4 | 6 | AI Insights chart + cards (03) | DONE | e30e174 | SVG chart w/ arrows + driver cards |
+| P6-5 | 6 | Commentary table (06) | DONE | e30e174 | monthly walk table w/ baseline note |
+| P6-6 | 6 | Evidence modal (04) | DONE | 123acc5 | 5 sections incl. runnable GSQL + result; Esc/focus ok |
+| P6-7 | 6 | Transactions drill-down | DONE | 123acc5 | filters, sort, pagination, API credited total |
+| P6-8 | 6 | Ingestion screen (05) | DONE | 6a15498 | manifest table, run-all polling, ordered delete-all |
+| P6-9 | 6 | Env health screen | DONE | 6a15498 | probes, tier detail, 3-way reconciliation |
 | P7-1 | 7 | End-to-end verification with sample data | TODO | | |
 | P7-2 | 7 | BUILD_REPORT.md complete | TODO | | |
 
