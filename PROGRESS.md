@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 4
-Resume from: P4-1
+Current phase: 5
+Resume from: P5-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -30,9 +30,9 @@ Resume from: P4-1
 | P3-3 | 3 | Sample data set (exercises every cause) | DONE | b89cf88 | SMPL001-3; all 12 causes; reconciles to $0 |
 | P3-4 | 3 | Delete capability on client interface (both tiers) | DONE | b89cf88 | both tiers + tiered dispatch; verified via delete-all |
 | P3-5 | 3 | Ingestion screen wired: load/reload/ordered delete | IN_PROGRESS | b89cf88 | backend endpoints + checkpoint clearing done; UI screen lands in P6-8 |
-| P4-1 | 4 | app/v2/revenue — monthly aggregation + MoM | TODO | | |
-| P4-2 | 4 | app/v2/drivers — attribution + causes | TODO | | |
-| P4-3 | 4 | Reconciliation check | TODO | | |
+| P4-1 | 4 | app/v2/revenue — monthly aggregation + MoM | DONE | 3bd6ced | aggregation+MoM in app/v2/revenue; service + endpoints |
+| P4-2 | 4 | app/v2/drivers — attribution + causes | DONE | 3bd6ced | 11-step attribution in app/v2/drivers; service + endpoints |
+| P4-3 | 4 | Reconciliation check | DONE | 3bd6ced | /api/v2/ops/reconciliation recomputes from stored graph data; passes |
 | P5-1 | 5 | supervisor_agent | TODO | | |
 | P5-2 | 5 | revenue_agent | TODO | | |
 | P5-3 | 5 | commentary_agent | TODO | | |
