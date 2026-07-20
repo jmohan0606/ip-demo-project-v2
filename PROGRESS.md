@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 1
-Resume from: P1-1
+Current phase: 2
+Resume from: P2-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -15,9 +15,9 @@ Resume from: P1-1
 | P0-2 | 0 | Replace navigation.ts with V2 nav | DONE | 2fd53f9 | V2 nav: Results + Operations |
 | P0-3 | 0 | Set ports 3001/8001 (4 touchpoints) | DONE | 2fd53f9 | 3001/8001 across package.json, run scripts, env, CORS |
 | P0-4 | 0 | Backend + frontend both start clean | DONE | 2fd53f9 | uvicorn /health ok; next dev all 6 routes 200 |
-| P1-1 | 1 | 01_vertices.gsql (16 vertices) | TODO | | |
-| P1-2 | 1 | 02_edges.gsql (23 edges) | TODO | | |
-| P1-3 | 1 | 03_create_graph.gsql + schema_catalog.json | TODO | | |
+| P1-1 | 1 | 01_vertices.gsql (16 vertices) | DONE | d15b6b6 | 16 vertices, all with data_source |
+| P1-2 | 1 | 02_edges.gsql (23 edges) | DONE | d15b6b6 | 25 edges (spec tables; header said 23 — tables win) |
+| P1-3 | 1 | 03_create_graph.gsql + schema_catalog.json | DONE | d15b6b6 | catalog generated from DDL; constants→iperform_v2_revenue |
 | P2-1 | 2 | GQ-001..004 reference queries | TODO | | |
 | P2-2 | 2 | GQ-005..007 trends queries | TODO | | |
 | P2-3 | 2 | GQ-008..010 driver/commentary queries | TODO | | |
@@ -54,6 +54,8 @@ Resume from: P1-1
 ## Decisions
 | When | Decision | Why |
 |------|----------|-----|
+| 2026-07-20 | Created 25 edge types, not 23 | SCHEMA_SPEC header count conflicts with its own edge tables; the tables are the detailed authority |
+| 2026-07-20 | Deleted ai-insight-summary.tsx (with severity-badge, formatted-answer) | It imported deleted ai-content-card and V1 severity concepts; Phase 6 builds commentary cards fresh from the reference PNGs |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
