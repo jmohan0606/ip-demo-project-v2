@@ -22,7 +22,9 @@ class FoundationGraphStore:
         base = Path(foundation_dir or settings.foundation_dir)
         self.base_dir = base
         self.manifest_path = base / "data" / "manifest.json"
-        self.sample_dir = base / "data" / "sample"
+        # CSV set selected by DATA_SET (CLAUDE.md §5): data/sample ships with the
+        # repo; data/real is gitignored client data.
+        self.sample_dir = Path("data") / settings.data_set
         self.query_catalog_path = base / "tigergraph" / "queries" / "query_catalog.json"
 
         # vertices[vertex_type][vertex_id] -> attribute dict (graph attribute names)
@@ -119,6 +121,36 @@ class FoundationGraphStore:
             for dst, lst in self.in_index.get(edge_name, {}).items():
                 self.in_index[edge_name][dst] = [(f, a) for (f, a) in lst if f != vid]
         return removed
+
+    def remove_vertex_type(self, vertex_type: str) -> int:
+        """Delete every vertex of a type and cascade-remove its edges (both
+        directions), mirroring TigerGraph's vertex-delete semantics. Returns the
+        number of vertices removed."""
+        removed = len(self.vertices.get(vertex_type, {}))
+        self.vertices.pop(vertex_type, None)
+        for edge_name in list(self.edges.keys()):
+            meta = self.edge_meta.get(edge_name, {})
+            before = self.edges[edge_name]
+            kept = [e for e in before if e.get("from_type") != vertex_type and e.get("to_type") != vertex_type]
+            if len(kept) != len(before) or vertex_type in (meta.get("from_type"), meta.get("to_type")):
+                self.edges[edge_name] = kept
+                self._rebuild_edge_indexes(edge_name)
+        return removed
+
+    def remove_edge_type(self, edge_name: str) -> int:
+        """Delete every edge of a type. Returns the number of edges removed."""
+        removed = len(self.edges.get(edge_name, []))
+        self.edges.pop(edge_name, None)
+        self.out_index.pop(edge_name, None)
+        self.in_index.pop(edge_name, None)
+        return removed
+
+    def _rebuild_edge_indexes(self, edge_name: str) -> None:
+        self.out_index[edge_name] = defaultdict(list)
+        self.in_index[edge_name] = defaultdict(list)
+        for e in self.edges.get(edge_name, []):
+            self.out_index[edge_name][e["from_id"]].append((e["to_id"], e.get("attrs", {})))
+            self.in_index[edge_name][e["to_id"]].append((e["from_id"], e.get("attrs", {})))
 
     def all_vertices(self, vertex_type: str) -> dict[str, dict[str, Any]]:
         return self.vertices.get(vertex_type, {})

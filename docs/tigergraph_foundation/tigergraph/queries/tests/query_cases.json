@@ -4,49 +4,49 @@
   "get_product_hierarchy": {},
   "get_driver_causes": {},
   "get_monthly_revenue_by_product": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "from_month": "202604",
     "to_month": "202606"
   },
   "get_monthly_revenue_totals": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "from_month": "202604",
     "to_month": "202606"
   },
   "get_revenue_changes": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "from_month": "202604",
     "to_month": "202606"
   },
   "get_change_drivers": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "from_month": "202605",
     "to_month": "202606",
     "result_limit": 5
   },
   "get_commentary": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "version_id": ""
   },
   "get_commentary_versions": {},
   "get_product_revenue_change": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "product_group": "structured_products",
     "from_month": "202605",
     "to_month": "202606"
   },
   "get_evidence": {
-    "driver_id": "V236209|202605|202606|__TOTAL__|ONE_TIME|1",
-    "version_id": "v1"
+    "driver_id": "SMPL001|202605|202606|structured_products|ONE_TIME|1",
+    "version_id": ""
   },
   "get_transactions": {
-    "advisor_id": "V236209",
+    "advisor_id": "SMPL001",
     "month_id": "202606",
     "group_id": "",
     "result_limit": 200
   },
   "get_ingestion_counts": {},
   "get_advisor_month_summary": {
-    "advisor_id": "V236209"
+    "advisor_id": "SMPL001"
   }
 }

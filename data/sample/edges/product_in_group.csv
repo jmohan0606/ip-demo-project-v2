@@ -1,0 +1,10 @@
+from_id,to_id
+UMA|FEE,unified_managed_account
+JPMCAP|FEE,jpmcap
+ADV|FEE,advisory
+MFT|12B1,mutual_fund_trails
+STRP|SYND,structured_products
+ALTS|QFEE,alternative_investments
+EQ|COMM,equities
+CASH|SWP,cash_management
+ANNU|COMM,annuities

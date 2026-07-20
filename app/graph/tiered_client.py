@@ -379,6 +379,29 @@ class PyTigerGraphClient:
             )
         return {"error": False, "accepted_vertices": 0, "accepted_edges": accepted, "mode": "pytigergraph"}
 
+    def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict:
+        conn = self._connection()
+        deleted = conn.delVerticesById(vertex_type, [str(v) for v in ids])
+        _tg_log.info(
+            "TigerGraph vertices deleted",
+            extra={"vertex_type": vertex_type, "requested": len(ids), "deleted": deleted,
+                   "graph": self.graph_name},
+        )
+        return {"error": False, "deleted": int(deleted or 0), "mode": "pytigergraph", "target": vertex_type}
+
+    def delete_all(self, target: str, kind: str = "vertex") -> dict:
+        if kind != "vertex":
+            raise GraphClientError(
+                f"pyTigerGraph cannot bulk-delete edge type {target}; delete its endpoint vertices instead"
+            )
+        conn = self._connection()
+        deleted = conn.delVertices(target)
+        _tg_log.info(
+            "TigerGraph vertex type cleared",
+            extra={"vertex_type": target, "deleted": deleted, "graph": self.graph_name},
+        )
+        return {"error": False, "deleted": int(deleted or 0), "mode": "pytigergraph", "target": target}
+
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         conn = self._connection()
         if kind == "vertex":
@@ -491,6 +514,12 @@ class TieredGraphClient:
 
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         return self._dispatch("statistics", f"{kind}:{target_type}", lambda c: c.statistics(kind, target_type))
+
+    def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict:
+        return self._dispatch("delete_vertices", vertex_type, lambda c: c.delete_vertices(vertex_type, ids))
+
+    def delete_all(self, target: str, kind: str = "vertex") -> dict:
+        return self._dispatch("delete_all", target, lambda c: c.delete_all(target, kind))
 
     def health(self) -> dict:
         # probe each tier (cached 30s — the MCP probe spawns a subprocess)

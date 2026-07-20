@@ -217,6 +217,14 @@ class CheckpointRepository:
             )
             conn.commit()
 
+    def clear_entity(self, entity_name: str) -> None:
+        """Drop the row hashes and batch checkpoints for an entity after its data
+        is deleted — a stale checkpoint must never suppress a real re-load."""
+        with self.db.connect() as conn:
+            conn.execute("DELETE FROM phx_dm_ingestion_record_hash WHERE entity_name = ?", (entity_name,))
+            conn.execute("DELETE FROM phx_dm_ingestion_batch WHERE entity_name = ?", (entity_name,))
+            conn.commit()
+
     def list_batches(self, limit: int = 50) -> list[dict]:
         return self.db.query(
             "SELECT * FROM phx_dm_ingestion_batch ORDER BY updated_at DESC LIMIT ?",

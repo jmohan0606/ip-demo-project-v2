@@ -1,0 +1,8 @@
+line_id,line_name,display_order,data_source
+managed,Managed,1,REAL
+trails,Trails,2,REAL
+structured_products,Structured Products,3,REAL
+alternative_investments,Alternative Investments,4,REAL
+equities_and_options,Equities and Options,5,REAL
+cash_management,Cash Management,6,REAL
+annuities,Annuities,7,REAL

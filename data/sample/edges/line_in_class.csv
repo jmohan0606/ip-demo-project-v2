@@ -1,0 +1,8 @@
+from_id,to_id
+managed,RECURRING
+trails,RECURRING
+structured_products,NON_RECURRING
+alternative_investments,NON_RECURRING
+equities_and_options,NON_RECURRING
+cash_management,NON_RECURRING
+annuities,NON_RECURRING

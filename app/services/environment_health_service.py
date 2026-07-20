@@ -82,13 +82,21 @@ class EnvironmentHealthService:
         detail["row_counts"] = dict(sorted(counts.items(), key=lambda kv: -kv[1])[:20])
         # Honesty contract (ABSOLUTE RULE 4): if the local tier is serving while
         # GRAPH_CLIENT_MODE=real, the health screen must go RED — never report a
-        # local-store answer as though it came from TigerGraph.
-        served_by_tier = health.get("served_by_tier") or detail.get("served_by_tier")
-        detail["served_by_tier"] = served_by_tier
-        if settings.graph_client_mode == "real" and served_by_tier not in (None, 1):
+        # local-store answer as though it came from TigerGraph. The tiered client
+        # reports the internal chain (1 mcp / 2 pytg / 3 restpp / 4 local store);
+        # V2 exposes 1 = TigerGraph, 2 = local store.
+        internal_tier = health.get("active_tier")
+        if internal_tier is None:
+            internal_tier = 4 if health.get("mode") == "mock" else 1
+        v2_tier = 1 if internal_tier in (1, 2, 3) else 2
+        detail["active_tier"] = v2_tier
+        detail["active_tier_name"] = "TigerGraph" if v2_tier == 1 else "Local store"
+        detail["counts_served_by_tier"] = v2_tier
+        detail["counts_source"] = "getVertexCount" if v2_tier == 1 else "local store statistics"
+        if settings.graph_client_mode == "real" and v2_tier != 1:
             raise RuntimeError(
-                f"GRAPH_CLIENT_MODE=real but requests are served by tier {served_by_tier} "
-                "(local store) — TigerGraph is NOT serving"
+                "GRAPH_CLIENT_MODE=real but requests are served by the LOCAL store (tier 2) "
+                "— TigerGraph is NOT serving"
             )
         return detail
 

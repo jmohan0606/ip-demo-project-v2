@@ -1,0 +1,4 @@
+advisor_sid,advisor_name,rep_code,branch_cd,standard_id,data_source
+SMPL001,Sample Advisor One,SR01,SMPLBR1,SMPL001,REAL
+SMPL002,Sample Advisor Two,SR02,SMPLBR1,SMPL002,REAL
+SMPL003,Sample Advisor Three,SR03,SMPLBR2,SMPL003,REAL

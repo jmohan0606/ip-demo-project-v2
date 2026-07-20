@@ -32,12 +32,59 @@ class IngestionService:
         self.validator = ValidationEngine()
         self.delta = DeltaDetector(self.checkpoints)
         self.upsert = TigerGraphUpsertClient()
-        # Source-of-truth foundation sample data root (manifest file paths are
-        # relative to it: vertices/*.csv and edges/*.csv). See TIGERGRAPH_AUDIT.md.
-        self.sample_data_dir = Path(self.settings.foundation_dir) / "data" / "sample"
+        # CSV set selected by DATA_SET (manifest file paths are relative to it:
+        # vertices/*.csv and edges/*.csv). data/sample ships with the repo;
+        # data/real is gitignored client data.
+        self.sample_data_dir = Path("data") / self.settings.data_set
 
     def list_entities(self) -> list[dict]:
         return [config.model_dump() for config in list_entity_configs()]
+
+    # ------------------------------------------------------------- delete
+
+    def delete_plan(self) -> list[dict]:
+        """The ordered delete sequence, shown in the confirm dialog: edges first
+        (reverse manifest order), then vertices (reverse manifest order) — facts
+        before dimensions."""
+        configs = list_entity_configs()
+        edges = [c for c in configs if c.kind == "edge"]
+        vertices = [c for c in configs if c.kind == "vertex"]
+        plan = list(reversed(edges)) + list(reversed(vertices))
+        return [{"entity_name": c.entity_name, "kind": c.kind, "target": c.tigergraph_vertex}
+                for c in plan]
+
+    def delete_entity(self, entity_name: str) -> dict:
+        """Delete one entity's rows from the graph and clear its checkpoints.
+
+        Edge types: bulk-deletable on the local tier; on a real TigerGraph edges
+        can only disappear with their endpoint vertices, and that limitation is
+        REPORTED, never silently swallowed."""
+        config = get_entity_config(entity_name)
+        graph = self.upsert.graph
+        if config.kind == "vertex":
+            result = graph.delete_all(config.tigergraph_vertex, kind="vertex")
+        else:
+            try:
+                result = graph.delete_all(config.tigergraph_vertex, kind="edge")
+            except Exception as exc:  # noqa: BLE001 — surfaced, not hidden
+                result = {
+                    "error": False, "deleted": 0, "target": config.tigergraph_vertex,
+                    "note": f"edge type not bulk-deletable on this tier ({exc}); "
+                            "its edges are removed when their endpoint vertices are deleted",
+                }
+        self.checkpoints.clear_entity(config.entity_name)
+        return {"entity_name": config.entity_name, "kind": config.kind, **result}
+
+    def delete_all_entities(self) -> dict:
+        """Ordered full delete: every entity per delete_plan(). Checkpoints are
+        cleared so the next load re-writes everything."""
+        results = [self.delete_entity(step["entity_name"]) for step in self.delete_plan()]
+        return {
+            "deleted_entities": len(results),
+            "total_rows_deleted": sum(int(r.get("deleted") or 0) for r in results),
+            "order": [r["entity_name"] for r in results],
+            "results": results,
+        }
 
     def list_batches(self) -> list[dict]:
         return self.checkpoints.list_batches()

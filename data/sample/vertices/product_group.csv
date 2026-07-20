@@ -1,0 +1,10 @@
+group_id,group_name,display_order,data_source
+unified_managed_account,Unified Managed Account,1,REAL
+jpmcap,JPMCAP,2,REAL
+advisory,Advisory,3,REAL
+mutual_fund_trails,Mutual Fund Trails,4,REAL
+structured_products,Structured Products,5,REAL
+alternative_investments,Alternative Investments,6,REAL
+equities,Equities,7,REAL
+cash_management,Cash Management,8,REAL
+annuities,Annuities,9,REAL

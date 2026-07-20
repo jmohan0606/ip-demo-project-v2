@@ -15,7 +15,7 @@ from app.models.ingestion import IngestionEntityConfig
 # "advisor_in_market"). Legacy hand-written names used by earlier sessions map via
 # _LEGACY_ALIASES so old checkpoints/requests keep working.
 
-_PREFIX = "phx_dm_"
+_PREFIX = "phx_dm_v2_"
 
 _LEGACY_ALIASES: dict[str, str] = {
     "transaction": "revenue_transaction",

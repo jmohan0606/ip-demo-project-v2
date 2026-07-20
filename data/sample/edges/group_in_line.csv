@@ -1,0 +1,10 @@
+from_id,to_id
+unified_managed_account,managed
+jpmcap,managed
+advisory,managed
+mutual_fund_trails,trails
+structured_products,structured_products
+alternative_investments,alternative_investments
+equities,equities_and_options
+cash_management,cash_management
+annuities,annuities

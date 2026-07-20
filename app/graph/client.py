@@ -59,6 +59,10 @@ class GraphClient(Protocol):
 
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict: ...
 
+    def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict: ...
+
+    def delete_all(self, target: str, kind: str = "vertex") -> dict: ...
+
 
 class RealGraphClient:
     """RESTPP-backed client, ported from the TigerGraph Foundation package
@@ -270,6 +274,59 @@ class RealGraphClient:
             )
         return data
 
+    @logged_adapter_call("graph")
+    def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict:
+        """RESTPP per-id vertex delete (edges cascade server-side)."""
+        start = time.perf_counter()
+        deleted = 0
+        try:
+            self._ensure_auth()
+            with self._client() as client:
+                for vid in ids:
+                    response = client.delete(
+                        f"{self.base}/graph/{self.graph_name}/vertices/{vertex_type}/{vid}",
+                        headers=self.headers,
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    if data.get("error"):
+                        raise GraphClientError(data.get("message") or f"delete failed for {vertex_type}/{vid}")
+                    deleted += int((data.get("results") or {}).get("deleted_vertices", 1))
+        except Exception as exc:
+            _record_direct(3, "delete_vertices", vertex_type, start, ok=False, error=str(exc))
+            raise
+        _record_direct(3, "delete_vertices", vertex_type, start, ok=True)
+        return {"error": False, "deleted": deleted, "mode": "real", "target": vertex_type}
+
+    @logged_adapter_call("graph")
+    def delete_all(self, target: str, kind: str = "vertex") -> dict:
+        """RESTPP delete of every vertex of a type (edges cascade). Edge types
+        cannot be bulk-deleted over RESTPP — they disappear with their endpoint
+        vertices; callers delete vertices in reverse dependency order instead."""
+        start = time.perf_counter()
+        if kind != "vertex":
+            raise GraphClientError(
+                f"RESTPP cannot bulk-delete edge type {target}; delete its endpoint vertices instead"
+            )
+        try:
+            self._ensure_auth()
+            with self._client() as client:
+                response = client.delete(
+                    f"{self.base}/graph/{self.graph_name}/vertices/{target}",
+                    headers=self.headers,
+                    params={"permanent": "false"},
+                )
+                response.raise_for_status()
+                data = response.json()
+            if data.get("error"):
+                raise GraphClientError(data.get("message") or f"delete_all failed for {target}")
+        except Exception as exc:
+            _record_direct(3, "delete_all", target, start, ok=False, error=str(exc))
+            raise
+        _record_direct(3, "delete_all", target, start, ok=True)
+        deleted = int((data.get("results") or {}).get("deleted_vertices", 0))
+        return {"error": False, "deleted": deleted, "mode": "real", "target": target}
+
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         if kind not in {"vertex", "edge"}:
             raise ValueError("kind must be vertex or edge")
@@ -385,6 +442,25 @@ class MockGraphClient:
             self.runtime_edges.append({"edge": edge_name, **row})
             accepted += 1
         return {"error": False, "accepted_vertices": 0, "accepted_edges": accepted, "mode": "mock"}
+
+    @logged_adapter_call("graph")
+    def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict:
+        start = time.perf_counter()
+        deleted = sum(1 for vid in ids if self.store.remove_vertex(vertex_type, str(vid)))
+        self.runtime_vertices.get(vertex_type, {}).clear()
+        _record_direct(4, "delete_vertices", vertex_type, start, ok=True)
+        return {"error": False, "deleted": deleted, "mode": "mock", "target": vertex_type}
+
+    @logged_adapter_call("graph")
+    def delete_all(self, target: str, kind: str = "vertex") -> dict:
+        start = time.perf_counter()
+        if kind == "vertex":
+            deleted = self.store.remove_vertex_type(target)
+            self.runtime_vertices.pop(target, None)
+        else:
+            deleted = self.store.remove_edge_type(target)
+        _record_direct(4, "delete_all", target, start, ok=True)
+        return {"error": False, "deleted": deleted, "mode": "mock", "target": target}
 
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         stats = self.store.statistics()

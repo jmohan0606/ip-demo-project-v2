@@ -39,3 +39,20 @@ def run_all_status():
     from app.ingestion.run_all import get_run_all_manager
 
     return ok(data=get_run_all_manager().status().model_dump())
+
+
+@router.get("/delete-plan")
+def delete_plan():
+    """The dependency-ordered delete sequence (edges, then vertices, both in
+    reverse manifest order) — rendered in the UI's confirm dialog."""
+    return ok(data=IngestionService().delete_plan())
+
+
+@router.post("/delete/{entity_name}")
+def delete_entity(entity_name: str):
+    return ok(data=IngestionService().delete_entity(entity_name))
+
+
+@router.post("/delete-all")
+def delete_all():
+    return ok(data=IngestionService().delete_all_entities())

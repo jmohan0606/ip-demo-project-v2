@@ -1,0 +1,3 @@
+class_id,class_name,display_order,data_source
+RECURRING,Recurring,1,REAL
+NON_RECURRING,Non-recurring,2,REAL

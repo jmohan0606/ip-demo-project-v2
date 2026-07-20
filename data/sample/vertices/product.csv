@@ -1,0 +1,10 @@
+product_id,product_cd,product_sub_cd,product_name,data_source
+UMA|FEE,UMA,FEE,UMA Advisory Fee,REAL
+JPMCAP|FEE,JPMCAP,FEE,JPMCAP Program Fee,REAL
+ADV|FEE,ADV,FEE,Advisory Fee,REAL
+MFT|12B1,MFT,12B1,Mutual Fund 12b-1 Trail,REAL
+STRP|SYND,STRP,SYND,Structured Product Syndicate,REAL
+ALTS|QFEE,ALTS,QFEE,Alternatives Quarterly Fee,REAL
+EQ|COMM,EQ,COMM,Equity Commission,REAL
+CASH|SWP,CASH,SWP,Cash Sweep Revenue,REAL
+ANNU|COMM,ANNU,COMM,Annuity Commission,REAL
