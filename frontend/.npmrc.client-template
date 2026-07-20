@@ -1,0 +1,10 @@
+# Client-machine npm registry config — COPY to frontend/.npmrc on the client machine.
+# (Committed as a template only; frontend/.npmrc itself is NOT committed so local
+# builds keep using the public registry. NO real token belongs in git — parallel
+# to the TigerGraph secret handling in CLIENT_ENV_SETUP.md.)
+registry=https://artifacts-read.gkp.jpmchase.net/artifactory/api/npm/npm/
+
+# If `npm install` returns an auth/401 error, uncomment BOTH lines below and
+# supply a token issued by the artifactory (do not commit the resulting file):
+#always-auth=true
+#//artifacts-read.gkp.jpmchase.net/artifactory/api/npm/npm/:_authToken=YOUR_TOKEN_HERE

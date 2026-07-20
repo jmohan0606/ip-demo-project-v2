@@ -1,0 +1,4 @@
+# Replace with your organization Artifactory npm registry before npm install.
+# registry=https://<artifactory-host>/artifactory/api/npm/<repo-name>/
+# always-auth=true
+# //<artifactory-host>/artifactory/api/npm/<repo-name>/:_authToken=<token>

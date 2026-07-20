@@ -1,0 +1,560 @@
+[
+  {
+    "id": "GQ-001",
+    "name": "get_org_hierarchy",
+    "parameters": "scope_type STRING, scope_id STRING, max_depth INT",
+    "purpose": "Return the organizational hierarchy rooted at a selected scope.",
+    "outputs": "firms, divisions, regions, markets, branches, advisors",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-001_get_org_hierarchy.gsql"
+  },
+  {
+    "id": "GQ-002",
+    "name": "get_scope_descendants",
+    "parameters": "scope_type STRING, scope_id STRING, entity_type STRING",
+    "purpose": "Resolve authorized descendants for any hierarchy scope.",
+    "outputs": "advisor_descendants, household_descendants, account_descendants",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-002_get_scope_descendants.gsql"
+  },
+  {
+    "id": "GQ-003",
+    "name": "get_management_chain",
+    "parameters": "user_id STRING, advisor_id STRING",
+    "purpose": "Return DDW \u2192 RDW \u2192 MDW \u2192 Advisor management chain and requester context.",
+    "outputs": "requester, ddw, rdw, mdw, advisor",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-003_get_management_chain.gsql"
+  },
+  {
+    "id": "GQ-004",
+    "name": "get_revenue_summary_by_scope",
+    "parameters": "scope_type STRING, scope_id STRING, period_type STRING, start_date DATETIME, end_date DATETIME",
+    "purpose": "Aggregate revenue, AUM, NCF, NNM and entity counts for a hierarchy scope.",
+    "outputs": "scope summary accumulator object",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-004_get_revenue_summary_by_scope.gsql"
+  },
+  {
+    "id": "GQ-005",
+    "name": "get_revenue_trend_by_scope",
+    "parameters": "scope_type STRING, scope_id STRING, period_grain STRING, start_date DATETIME, end_date DATETIME",
+    "purpose": "Return revenue trend grouped by graph time period.",
+    "outputs": "revenue_trend grouped accumulator",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-005_get_revenue_trend_by_scope.gsql"
+  },
+  {
+    "id": "GQ-006",
+    "name": "get_product_mix_by_scope",
+    "parameters": "scope_type STRING, scope_id STRING, start_date DATETIME, end_date DATETIME",
+    "purpose": "Return product-level revenue mix for a hierarchy scope.",
+    "outputs": "total_revenue, product_mix, product hierarchy vertices",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-006_get_product_mix_by_scope.gsql"
+  },
+  {
+    "id": "GQ-007",
+    "name": "get_top_bottom_advisors",
+    "parameters": "scope_type STRING, scope_id STRING, start_date DATETIME, end_date DATETIME, direction STRING, result_limit INT",
+    "purpose": "Rank advisors by revenue within an authorized scope.",
+    "outputs": "top_advisors or bottom_advisors with revenue",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-007_get_top_bottom_advisors.gsql"
+  },
+  {
+    "id": "GQ-008",
+    "name": "get_peer_benchmark",
+    "parameters": "advisor_id STRING, peer_method STRING, start_date DATETIME, end_date DATETIME",
+    "purpose": "Compare an advisor with market peers and embedding-based similar advisors.",
+    "outputs": "advisor revenue, peer totals and peer details",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-008_get_peer_benchmark.gsql"
+  },
+  {
+    "id": "GQ-009",
+    "name": "get_advisor_360",
+    "parameters": "advisor_id STRING",
+    "purpose": "Return a connected Advisor 360 view across business, CRM, AGP and AI artifacts.",
+    "outputs": "all Advisor 360 connected sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-009_get_advisor_360.gsql"
+  },
+  {
+    "id": "GQ-010",
+    "name": "get_advisor_book_of_business",
+    "parameters": "advisor_id STRING, result_limit INT",
+    "purpose": "Return households, accounts and household revenue summary for an advisor.",
+    "outputs": "advisor, households, accounts, household_revenue_summary",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-010_get_advisor_book_of_business.gsql"
+  },
+  {
+    "id": "GQ-011",
+    "name": "get_household_360",
+    "parameters": "household_id STRING",
+    "purpose": "Return complete household context and AI artifacts.",
+    "outputs": "household, accounts, CRM, AI and memory context",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-011_get_household_360.gsql"
+  },
+  {
+    "id": "GQ-012",
+    "name": "get_account_holdings_and_activity",
+    "parameters": "account_id STRING",
+    "purpose": "Return holdings, activities, transactions and AI artifacts for an account.",
+    "outputs": "account, holdings, activity, transactions and AI artifacts",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-012_get_account_holdings_and_activity.gsql"
+  },
+  {
+    "id": "GQ-013",
+    "name": "get_agp_enrollment_summary",
+    "parameters": "advisor_id STRING",
+    "purpose": "Return AGP enrollment, program, current progress and goal/KPI context.",
+    "outputs": "advisor, enrollment, program, progress, milestones, goals, KPIs",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-013_get_agp_enrollment_summary.gsql"
+  },
+  {
+    "id": "GQ-014",
+    "name": "get_agp_milestone_timeline",
+    "parameters": "enrollment_id STRING",
+    "purpose": "Return all eight AGP milestone progress records and KPI measurements.",
+    "outputs": "enrollment, progress, milestones, measurements, KPIs",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-014_get_agp_milestone_timeline.gsql"
+  },
+  {
+    "id": "GQ-015",
+    "name": "get_agp_kpi_measurements",
+    "parameters": "enrollment_id STRING, milestone_id STRING",
+    "purpose": "Return KPI measurements for an AGP enrollment and optional milestone.",
+    "outputs": "milestone progress, measurements and KPI definitions",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-015_get_agp_kpi_measurements.gsql"
+  },
+  {
+    "id": "GQ-016",
+    "name": "get_agp_coaching_history",
+    "parameters": "advisor_id STRING",
+    "purpose": "Return coaching sessions and manager reviews for an AGP advisor.",
+    "outputs": "advisor, enrollment, coaching and review timelines",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-016_get_agp_coaching_history.gsql"
+  },
+  {
+    "id": "GQ-017",
+    "name": "get_agp_crm_work_summary",
+    "parameters": "advisor_id STRING",
+    "purpose": "Aggregate AGP advisor lead, referral and CRM opportunity work.",
+    "outputs": "CRM work summary, pipeline and item sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-017_get_agp_crm_work_summary.gsql"
+  },
+  {
+    "id": "GQ-018",
+    "name": "get_crm_leads",
+    "parameters": "advisor_id STRING, status STRING, result_limit INT",
+    "purpose": "Return advisor CRM leads filtered by status and urgency.",
+    "outputs": "advisor, leads, related households and CRM opportunities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-018_get_crm_leads.gsql"
+  },
+  {
+    "id": "GQ-019",
+    "name": "get_crm_referrals",
+    "parameters": "advisor_id STRING, status STRING, result_limit INT",
+    "purpose": "Return advisor CRM referrals filtered by status.",
+    "outputs": "advisor, referrals, related households and CRM opportunities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-019_get_crm_referrals.gsql"
+  },
+  {
+    "id": "GQ-020",
+    "name": "get_crm_opportunities",
+    "parameters": "advisor_id STRING, status STRING, result_limit INT",
+    "purpose": "Return advisor CRM opportunities with related clients, accounts and products.",
+    "outputs": "opportunities with related household, account and product sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-020_get_crm_opportunities.gsql"
+  },
+  {
+    "id": "GQ-021",
+    "name": "get_crm_pipeline_by_stage",
+    "parameters": "advisor_id STRING",
+    "purpose": "Aggregate CRM pipeline by sales stage.",
+    "outputs": "pipeline_by_stage and opportunities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-021_get_crm_pipeline_by_stage.gsql"
+  },
+  {
+    "id": "GQ-022",
+    "name": "get_feature_snapshot",
+    "parameters": "entity_type STRING, entity_id STRING",
+    "purpose": "Return all versioned feature snapshots for an entity.",
+    "outputs": "feature_snapshots",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-022_get_feature_snapshot.gsql"
+  },
+  {
+    "id": "GQ-023",
+    "name": "get_feature_lineage",
+    "parameters": "feature_snapshot_id STRING",
+    "purpose": "Trace a feature snapshot to dependent predictions, opportunities, recommendations and reasoning.",
+    "outputs": "feature snapshot ownership and downstream lineage",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-023_get_feature_lineage.gsql"
+  },
+  {
+    "id": "GQ-024",
+    "name": "get_embeddings_for_entity",
+    "parameters": "entity_type STRING, entity_id STRING",
+    "purpose": "Return embedding metadata for an entity.",
+    "outputs": "embeddings",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-024_get_embeddings_for_entity.gsql"
+  },
+  {
+    "id": "GQ-025",
+    "name": "get_similar_entities",
+    "parameters": "entity_type STRING, entity_id STRING, result_limit INT, min_score DOUBLE",
+    "purpose": "Return nearest-neighbor similarity records and target entities.",
+    "outputs": "similarity matches and typed target sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-025_get_similar_entities.gsql"
+  },
+  {
+    "id": "GQ-026",
+    "name": "get_predictions",
+    "parameters": "target_type STRING, target_id STRING",
+    "purpose": "Return predictions with feature snapshots and reasoning evidence.",
+    "outputs": "predictions, feature snapshots and reasoning",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-026_get_predictions.gsql"
+  },
+  {
+    "id": "GQ-027",
+    "name": "get_ai_opportunities",
+    "parameters": "target_type STRING, target_id STRING",
+    "purpose": "Return AI opportunities with prediction, CRM, feature and recommendation lineage.",
+    "outputs": "opportunities and complete lineage",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-027_get_ai_opportunities.gsql"
+  },
+  {
+    "id": "GQ-028",
+    "name": "get_recommendations",
+    "parameters": "target_type STRING, target_id STRING",
+    "purpose": "Return recommendations and their complete supporting lineage.",
+    "outputs": "recommendations and complete lineage",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-028_get_recommendations.gsql"
+  },
+  {
+    "id": "GQ-029",
+    "name": "get_recommendation_detail",
+    "parameters": "recommendation_id STRING",
+    "purpose": "Return one recommendation with evidence, feedback and downstream learning.",
+    "outputs": "one recommendation and full explainability/learning chain",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-029_get_recommendation_detail.gsql"
+  },
+  {
+    "id": "GQ-030",
+    "name": "get_feedback_learning_history",
+    "parameters": "recommendation_id STRING",
+    "purpose": "Return the recommendation feedback, outcome and learning lifecycle.",
+    "outputs": "recommendation, feedback, outcomes and learning signals",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-030_get_feedback_learning_history.gsql"
+  },
+  {
+    "id": "GQ-031",
+    "name": "get_context_for_agent",
+    "parameters": "persona_user_id STRING, subject_id STRING, query_intent STRING",
+    "purpose": "Build a persona-aware agent context bundle for an advisor subject.",
+    "outputs": "persona authorization and ranked subject context sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-031_get_context_for_agent.gsql"
+  },
+  {
+    "id": "GQ-032",
+    "name": "get_memory_timeline",
+    "parameters": "subject_type STRING, subject_id STRING",
+    "purpose": "Return active and historical memory for a subject.",
+    "outputs": "memory timeline, source conversation and reasoning use",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-032_get_memory_timeline.gsql"
+  },
+  {
+    "id": "GQ-033",
+    "name": "get_reasoning_trace",
+    "parameters": "artifact_type STRING, artifact_id STRING",
+    "purpose": "Return reasoning trace and direct evidence objects for an AI artifact.",
+    "outputs": "reasoning records and direct graph evidence",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-033_get_reasoning_trace.gsql"
+  },
+  {
+    "id": "GQ-034",
+    "name": "get_graph_subgraph",
+    "parameters": "root_type STRING, root_id STRING, max_depth INT, node_limit INT",
+    "purpose": "Return a bounded business subgraph for Graph Explorer.",
+    "outputs": "bounded typed subgraph sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-034_get_graph_subgraph.gsql"
+  },
+  {
+    "id": "GQ-035",
+    "name": "get_notifications_for_user",
+    "parameters": "user_id STRING, status STRING, result_limit INT",
+    "purpose": "Return persona notifications ordered by severity and due date.",
+    "outputs": "user and notifications",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-035_get_notifications_for_user.gsql"
+  },
+  {
+    "id": "GQ-036",
+    "name": "get_data_health_summary",
+    "parameters": "",
+    "purpose": "Return vertex cardinalities and connected-edge traversal counts by type.",
+    "outputs": "vertex counts and edge traversal counts",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-036_get_data_health_summary.gsql"
+  },
+  {
+    "id": "GQ-037",
+    "name": "get_agent_execution_trace",
+    "parameters": "execution_id STRING",
+    "purpose": "Return agent execution, tool calls, evaluations, guardrails and reasoning.",
+    "outputs": "agent execution trace and related operational artifacts",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-037_get_agent_execution_trace.gsql"
+  },
+  {
+    "id": "GQ-038",
+    "name": "get_what_if_baseline",
+    "parameters": "scenario_type STRING, scope_type STRING, scope_id STRING",
+    "purpose": "Return stored what-if scenarios and current advisor baseline artifacts.",
+    "outputs": "stored scenario plus current baseline artifacts",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-038_get_what_if_baseline.gsql"
+  },
+  {
+    "id": "GQ-039",
+    "name": "get_agp_program_cohort_summary",
+    "parameters": "program_id STRING, cohort STRING, scope_type STRING, scope_id STRING",
+    "purpose": "Aggregate AGP cohort enrollment and milestone status within an organizational scope.",
+    "outputs": "cohort counts, milestone summary and member sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-039_get_agp_program_cohort_summary.gsql"
+  },
+  {
+    "id": "GQ-040",
+    "name": "get_insight_coaching_context",
+    "parameters": "persona_user_id STRING, scope_type STRING, scope_id STRING, subject_id STRING",
+    "purpose": "Return the combined business and AI context used for insight/coaching cards.",
+    "outputs": "user, subject and supporting insight/coaching context",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-040_get_insight_coaching_context.gsql"
+  },
+  {
+    "id": "GQ-041",
+    "name": "get_recommendation_adoption_learning_summary",
+    "parameters": "scope_type STRING, scope_id STRING",
+    "purpose": "Aggregate recommendation adoption, impact and feedback learning for a scope.",
+    "outputs": "adoption, feedback and learning aggregates with source sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-041_get_recommendation_adoption_learning_summary.gsql"
+  },
+  {
+    "id": "GQ-042",
+    "name": "get_persona_scope_assignments",
+    "parameters": "user_id STRING",
+    "purpose": "Return all explicit persona scope assignments and management relationships.",
+    "outputs": "user scopes and management assignments",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-042_get_persona_scope_assignments.gsql"
+  },
+  {
+    "id": "GQ-043",
+    "name": "get_data_quality_issues",
+    "parameters": "domain STRING, severity STRING, result_limit INT",
+    "purpose": "Detect missing mandatory graph relationships for core domains.",
+    "outputs": "issue count and typed issue vertex sets",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-043_get_data_quality_issues.gsql"
+  },
+  {
+    "id": "GQ-044",
+    "name": "get_learning_weights",
+    "parameters": "family STRING",
+    "purpose": "RL/bandit learning weights (StateRepository).",
+    "outputs": "learning_weight vertices",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-044_get_learning_weights.gsql"
+  },
+  {
+    "id": "GQ-045",
+    "name": "get_impact_ledger",
+    "parameters": "advisor_id STRING, recommendation_id STRING",
+    "purpose": "Impact-ledger entries by traversal (StateRepository).",
+    "outputs": "impact_ledger vertices",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-045_get_impact_ledger.gsql"
+  },
+  {
+    "id": "GQ-046",
+    "name": "get_rec_status_transitions",
+    "parameters": "recommendation_id STRING",
+    "purpose": "Recommendation status-transition audit trail by traversal.",
+    "outputs": "rec_status_transition vertices",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-046_get_rec_status_transitions.gsql"
+  },
+  {
+    "id": "GQ-047",
+    "name": "get_context_memory_by_scope",
+    "parameters": "scope_type STRING, scope_id STRING, memory_type STRING, result_limit INT",
+    "purpose": "Context memory by graph traversal of memory_for_<scope> edges.",
+    "outputs": "context_memory vertices",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-047_get_context_memory_by_scope.gsql"
+  },
+  {
+    "id": "GQ-048",
+    "name": "advisor_reasoning_traversal",
+    "parameters": "advisor_id STRING, similar_limit INT",
+    "purpose": "Graph relational reasoning traversal.",
+    "outputs": "traversal path + entities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-048_advisor_reasoning_traversal.gsql"
+  },
+  {
+    "id": "GQ-049",
+    "name": "scope_reasoning_traversal",
+    "parameters": "scope_type STRING, scope_id STRING",
+    "purpose": "Graph relational reasoning traversal.",
+    "outputs": "traversal path + entities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-049_scope_reasoning_traversal.gsql"
+  },
+  {
+    "id": "GQ-050",
+    "name": "get_reasoning_traces_for_scope",
+    "parameters": "scope_id STRING, result_limit INT",
+    "purpose": "Graph relational reasoning traversal.",
+    "outputs": "traversal path + entities",
+    "status": "implemented-static-reviewed-live-compile-pending",
+    "file": "GQ-050_get_reasoning_traces_for_scope.gsql"
+  },
+  {
+    "id": "GQ-051",
+    "name": "get_scope_transactions",
+    "parameters": "scope_type STRING, scope_id STRING, start_date DATETIME, end_date DATETIME",
+    "purpose": "Raw revenue-transaction rows for a scope with advisor/product/household context (revenue analytics, trend explorer, dashboard readers).",
+    "outputs": "transactions vertex set: advisor_id, advisor_name, transaction_date, revenue_amount, transaction_type, product_id, product_name, household_id, household_name",
+    "status": "created-batch1-NEEDS-LIVE-INSTALL",
+    "file": "GQ-051_get_scope_transactions.gsql"
+  },
+  {
+    "id": "GQ-052",
+    "name": "get_product_category_map",
+    "parameters": "",
+    "purpose": "Product -> subcategory -> business-line category mapping for transaction classification.",
+    "outputs": "products vertex set: product_name, subcategory_id, subcategory_name, category_id, category_name",
+    "status": "created-batch1-NEEDS-LIVE-INSTALL",
+    "file": "GQ-052_get_product_category_map.gsql"
+  },
+  {
+    "id": "GQ-053",
+    "name": "get_scope_advisor_placements",
+    "parameters": "scope_type STRING, scope_id STRING",
+    "purpose": "Full ancestor placement (branch+state/market/region/division/firm ids and names) for every advisor in a scope.",
+    "outputs": "advisor_placements vertex set: advisor_name, branch_id, branch_name, branch_state, market_id, market_name, region_id, region_name, division_id, division_name, firm_id, firm_name",
+    "status": "created-batch1-NEEDS-LIVE-INSTALL",
+    "file": "GQ-053_get_scope_advisor_placements.gsql"
+  },
+  {
+    "id": "GQ-054",
+    "name": "get_embeddings_by_type",
+    "parameters": "entity_type STRING",
+    "purpose": "All persisted embedding vertices for one entity type (ADVISOR/HOUSEHOLD/ACCOUNT) plus that type's display vertices, for live cosine similar-entities computation (GQ-024 is per-entity; GQ-025 uses precomputed matches).",
+    "outputs": "embeddings vertex set (entity_type, entity_id, vector_preview, dimensions, model_name, generated_at); households / accounts / advisors display vertex sets (exactly one non-empty per call)",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-054_get_embeddings_by_type.gsql"
+  },
+  {
+    "id": "GQ-055",
+    "name": "get_agp_kpi_scorecard",
+    "parameters": "advisor_id STRING",
+    "purpose": "Flat per-measurement KPI scorecard rows for one advisor's AGP enrollment \u2014 each measurement joined to its KPI (measurement_for_kpi) and milestone month (progress_for_milestone); GQ-014/015 print these as disjoint sets with no pairing.",
+    "outputs": "kpi_measurement_rows vertex set: kpi_id, kpi_name, unit, direction, milestone_month, target_value, actual_value, attainment_pct, status, measured_at",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-055_get_agp_kpi_scorecard.gsql"
+  },
+  {
+    "id": "GQ-056",
+    "name": "get_memory_counts_by_type",
+    "parameters": "",
+    "purpose": "Global count of phx_dm_context_memory vertices grouped by memory_type across ALL scopes (StateRepository memory-coverage read; GQ-047 is per-scope, GQ-036 counts whole vertex types only).",
+    "outputs": "memory_counts MapAccum: memory_type -> count",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-056_get_memory_counts_by_type.gsql"
+  },
+  {
+    "id": "GQ-057",
+    "name": "get_coaching_tasks",
+    "parameters": "advisor_id STRING",
+    "purpose": "Manager-assigned coaching tasks for an advisor plus assigning persona users (no prior query touches phx_dm_coaching_task; pairing recoverable via task.created_by_user_id).",
+    "outputs": "tasks (phx_dm_coaching_task) and assigners (phx_dm_persona_user) vertex sets",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-057_get_coaching_tasks.gsql"
+  },
+  {
+    "id": "GQ-058",
+    "name": "get_documents",
+    "parameters": "result_limit INT",
+    "purpose": "Bounded listing of phx_dm_document vertices for global search title matching (no existing query lists documents).",
+    "outputs": "documents vertex set: document_id, title, document_type, source, version, status, published_date",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-058_get_documents.gsql"
+  },
+  {
+    "id": "GQ-059",
+    "name": "get_playbooks",
+    "parameters": "",
+    "purpose": "Full playbook listing for recommendation generation (existing queries reach playbooks only as lineage of persisted recommendations, unusable at generation time).",
+    "outputs": "playbooks vertex set: playbook_id, playbook_name, category, version, status, summary",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-059_get_playbooks.gsql"
+  },
+  {
+    "id": "GQ-060",
+    "name": "get_recommendation_advisor",
+    "parameters": "recommendation_id STRING",
+    "purpose": "The advisor a recommendation belongs to (rec->advisor hop via phx_dm_recommendation_for_advisor); GQ-029 excludes the advisor and the rec vertex has no advisor attribute.",
+    "outputs": "advisor vertex set (phx_dm_advisor)",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-060_get_recommendation_advisor.gsql"
+  },
+  {
+    "id": "GQ-061",
+    "name": "get_recommendation_status_counts",
+    "parameters": "",
+    "purpose": "Per-status counts across ALL phx_dm_recommendation vertices including household-level REC_HH_* (GQ-041 scope=ALL reaches advisor-attached recs only \u2014 verified undercount).",
+    "outputs": "status_counts MapAccum: status -> count",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-061_get_recommendation_status_counts.gsql"
+  },
+  {
+    "id": "GQ-062",
+    "name": "get_coaching_task",
+    "parameters": "task_id STRING",
+    "purpose": "Single coaching task by id \u2014 read-before-write for task status updates (no other query reads phx_dm_coaching_task by task_id).",
+    "outputs": "task vertex set (phx_dm_coaching_task)",
+    "status": "created-batch2-NEEDS-LIVE-INSTALL",
+    "file": "GQ-062_get_coaching_task.gsql"
+  }
+]

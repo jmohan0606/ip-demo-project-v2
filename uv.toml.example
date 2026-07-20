@@ -1,0 +1,5 @@
+# Copy to uv.toml and replace with your organization's Python Artifactory URL.
+[[index]]
+name = "artifacts"
+url = "https://<artifactory-host>/artifactory/api/pypi/<repo-name>/simple"
+default = true

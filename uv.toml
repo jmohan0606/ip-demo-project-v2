@@ -1,0 +1,36 @@
+# uv configuration for the CLIENT (JPMC) environment.
+# Confirmed artifactory index (SMARTSDK_REFERENCE.md §8). Making it the sole default index means
+# EVERY dependency — including smart_sdk, which is not on public PyPI — resolves from here.
+#
+# On a NON-client machine (this build box, public internet), do NOT use this file: rename it or
+# run `uv ... --index-url https://pypi.org/simple` so public PyPI is used instead. smart_sdk is
+# only needed when LLM_CLIENT_MODE=azure / EMBEDDING_CLIENT_MODE=azure (guarded imports), so the
+# app installs and runs fine from public PyPI without it in mock/claude/real mode.
+
+[[index]]
+name = "artifacts"
+url = "https://artifacts-read.gkp.jpmchase.net/artifactory/api/pypi/pypi/simple"
+default = true
+
+# --- Notes on at-risk dependencies when this is the SOLE index (see CLIENT_ENV_SETUP.md) ---
+# torch / torch-geometric : large native wheels. If the artifactory lacks a CPU wheel for the
+#                           exact torch version, install torch first from the artifactory's
+#                           torch channel, then torch-geometric matching that torch/CPU tag.
+#                           Fallback: the app runs without them — app/ml/gnn.py + real_scoring.py
+#                           guard these imports and fall back to deterministic scorers.
+# sentence-transformers   : pulls torch + transformers + huggingface-hub. If model download is
+#                           blocked, pre-stage the model or set EMBEDDING_CLIENT_MODE=azure so no
+#                           local model is needed at all.
+# chromadb                : normally fine; needs onnxruntime for its default embedder, which we do
+#                           not use (we pass our own vectors). Fallback: pin onnxruntime if the
+#                           default resolves to an unavailable build.
+# pyTigerGraph[gds]       : the [gds] extra adds torch/pandas GDS helpers for GraphSAGE. If the
+#                           extra fails, base pyTigerGraph still connects; GNN falls back to the
+#                           local PyG path (app/ml/gnn.py) or deterministic projection.
+# smart_sdk               : CLIENT-ARTIFACTORY ONLY — intentionally absent from pyproject.toml.
+#                           Install explicitly in the client env: `uv pip install smart_sdk`.
+#                           Guarded imports mean its absence never blocks boot in other modes.
+# cdaosdk-all[openai]     : CLIENT-ARTIFACTORY ONLY — the cdao SDK behind CdaoOpenAILLMClient
+#                           (LLM_CLIENT_MODE=cdao_openai, the PRIMARY client LLM path). Declared
+#                           in pyproject's [cdao] optional group, pinned to this index via
+#                           [tool.uv.sources]. Install: `uv pip install -e ".[cdao]"`.

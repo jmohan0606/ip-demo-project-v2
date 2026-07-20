@@ -1,0 +1,154 @@
+[project]
+name = "iperform-insights-coaching"
+version = "11.0.1"
+description = "iPerform Insights & Coaching local enterprise demo platform foundation"
+readme = "README.md"
+# Client's supported range (their reference project). NOTE: this app is developed and
+# verified on 3.12; scripts/check_client_deps.py uses tomllib (needs >=3.11).
+requires-python = ">=3.10, <=3.14.2"
+dependencies = [
+    "pyTigerGraph>=1.8.0",
+    "tigergraph-mcp>=1.0.0",
+    "mcp>=1.9.0",
+    "langchain-core>=0.3.0",
+    "langchain>=0.3.0",
+    # fastapi/uvicorn floors LOWERED to the client reference project's pins (>=0.100.0 /
+    # >=0.23.2, replacing our >=0.115.0 / >=0.30.0) so resolution matches what the client
+    # artifactory actually serves. Verified: the app boots and runs with the currently
+    # installed newer versions, which still satisfy these looser floors.
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.2",
+    # From the client reference project (public packages, safe in core):
+    "google-genai>=1.41.0",
+    "PyYAML>=5.4.1",
+    "langgraph>=0.2.0",
+    "openai>=1.40.0",
+    "anthropic>=0.40.0",
+    "httpx>=0.27.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0.0",
+    "pypdf>=5.0.0",
+    "python-docx>=1.1.0",
+    "python-pptx>=1.0.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.5.0",
+    "networkx>=3.3",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "python-dotenv>=1.0.1",
+    "requests>=2.32.0",
+    "aiohttp>=3.9.0",
+    "loguru>=0.7.2",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2.0", "pytest-asyncio>=0.23.0", "ruff>=0.5.0"]
+# LOG_SINK=cloudwatch (direct push). Not needed for LOG_SINK=stdout on Fargate,
+# where the awslogs/FireLens driver ships stdout to CloudWatch without an SDK.
+aws = ["watchtower>=3.2.0", "boto3>=1.34.0"]
+# Real ML/DL/GNN tier (Section 11). These are imported ONLY via guarded imports in app/ml/*
+# (torch/torch_geometric/xgboost/shap) and fall back to deterministic scorers when absent — so
+# they are optional, not core. Declared here so the client install is reproducible from one
+# index (see uv.toml). All Python 3.12-compatible.
+ml = [
+    "torch>=2.2.0",
+    "torch-geometric>=2.5.0",
+    "xgboost>=2.0.0",
+    "shap>=0.45.0",
+]
+# TigerGraph GDS extra for pyTigerGraph[gds] (GraphSAGE neighborLoader, Featurizer).
+# Not used yet — required only for the native TigerGraph GDS/GNN conversion on the client
+# machine; see GRAPH_ML_AND_GDS.md Part 2. Uncomment when doing that conversion.
+# Today: graph algorithms run in networkx and GraphSAGE runs in local PyTorch Geometric (the
+# `ml` group's torch-geometric), so the app installs and boots fully WITHOUT this extra.
+# gds = ["pyTigerGraph[gds]>=1.8.0"]
+# cdao / cdaosmart SDKs (JPMC) — CLIENT-ARTIFACTORY ONLY (not on public PyPI); every import is
+# GUARDED, so the app installs and boots in the codespace WITHOUT this group (mock/claude mode).
+# Kept as an optional group precisely so `pip install -e .` works off the client network; on the
+# client machine install with `uv pip install -e ".[cdao]"`. Sourced from the "artifacts" index
+# — see [tool.uv.sources] below. cdaosdk-all backs CdaoOpenAILLMClient (LLM_CLIENT_MODE=
+# cdao_openai, the PRIMARY client LLM path); cdaosmart-sdk / cdaosmart-evals mirror the client
+# reference project's agent/eval stack.
+cdao = [
+    "cdaosmart-sdk[a2a,tracing]==2.2.0",
+    "cdaosdk-all[openai]>=10.0.0",
+    "cdaosmart-evals==0.2.3",
+]
+# smart_sdk (JPMC SmartSDK/Fusion) is CLIENT-ARTIFACTORY ONLY and not on public PyPI, so it is
+# intentionally NOT declared here — install it explicitly in the client env (see CLIENT_ENV_SETUP.md).
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.uv]
+package = false
+
+# --- Client uv indexes (exactly as in the client's reference project). NOTE: when a
+# uv.toml is present in the project root, uv reads configuration from it INSTEAD of
+# [tool.uv] here — uv.toml defines the same default "artifacts" index, so resolution is
+# identical either way; these blocks make pyproject self-contained per the client setup. ---
+[[tool.uv.index]]
+name = "artifacts"
+url = "https://artifacts-read.gkp.jpmchase.net/artifactory/api/pypi/pypi/simple"
+publish-url = "https://artifacts-publish.gkp.jpmchase.net/artifactory/api/pypi/pypi"
+default = true
+
+[[tool.uv.index]]
+name = "artifacts-sandbox"
+url = "https://artifacts-read.gkp.jpmchase.net/artifactory/api/pypi/pypi-sandbox/simple"
+publish-url = "https://artifacts-publish.gkp.jpmchase.net/artifactory/api/pypi/pypi-sandbox"
+explicit = true
+
+# cdao* packages resolve ONLY from the client artifactory — never from public PyPI.
+[tool.uv.sources]
+cdaosmart-sdk = { index = "artifacts" }
+cdaosdk-all = { index = "artifacts" }
+cdaosmart-evals = { index = "artifacts" }
+
+# From the client reference project verbatim: pre-declared resolution metadata for
+# google-adk (lets uv resolve it without fetching/building its metadata from the index).
+[[tool.uv.dependency-metadata]]
+name = "google-adk"
+version = "1.22.1"
+requires-dist = [
+    "pydantic>=2.0,<3",
+    "google-genai>=1.0.0",
+    "google-auth>=2.23.0",
+    "google-cloud-storage>=2.0.0",
+    "google-cloud-core>=2.0.0",
+    "authlib>=1.2.0",
+    "click>=8.1.3",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.2",
+    "starlette>=0.27.0",
+    "pyyaml>=6.0.1",
+    "python-dotenv>=1.0.0",
+    "typing-extensions>=4.5.0",
+    "requests>=2.31.0",
+    "mcp>=1.0.0",
+    "aiosqlite>=0.19.0",
+    "sqlalchemy>=2.0.0",
+    "anyio>=4.0.0",
+    "tzlocal>=5.0",
+    "graphviz>=0.20.0",
+    "opentelemetry-api>=1.0.0",
+    "opentelemetry-sdk>=1.0.0",
+    "websockets>=10.0",
+    "watchdog>=4.0.0",
+    "a2a-sdk>=0.2.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

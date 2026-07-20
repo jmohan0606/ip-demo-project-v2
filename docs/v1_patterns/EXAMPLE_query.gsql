@@ -1,0 +1,121 @@
+/*
+ * GQ-051 — get_scope_transactions
+ * Purpose: Return the raw revenue-transaction rows for every advisor in a hierarchy
+ *          scope, each row carrying its advisor / product / household context, so the
+ *          revenue analytics, trend explorer and dashboard readers can compute their
+ *          dimensions (month, channel, business line, geography, child scope) from
+ *          real graph rows instead of the in-memory mock store.
+ * Outputs: transactions vertex set — per transaction: advisor_id, advisor_name,
+ *          transaction_date, revenue_amount, transaction_type, product_id,
+ *          product_name, household_id, household_name.
+ * Created: store->run_query migration BATCH ONE (2026-07-10). NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_insights_coaching_demo
+
+CREATE QUERY get_scope_transactions(STRING scope_type, STRING scope_id, DATETIME start_date, DATETIME end_date) FOR GRAPH iperform_insights_coaching_demo SYNTAX V1 {
+    SumAccum<STRING> @advisor_id;
+    SumAccum<STRING> @advisor_name;
+    SumAccum<STRING> @product_id;
+    SumAccum<STRING> @product_name;
+    SumAccum<STRING> @household_id;
+    SumAccum<STRING> @household_name;
+
+    all_advisors = {phx_dm_advisor.*};
+    all_branches = {phx_dm_branch.*};
+    all_markets = {phx_dm_market.*};
+    all_regions = {phx_dm_region.*};
+    all_divisions = {phx_dm_division.*};
+    all_firms = {phx_dm_firm.*};
+
+    direct_advisors = SELECT a
+        FROM all_advisors:a
+        WHERE (scope_type == "ADVISOR" AND a.advisor_id == scope_id)
+           OR scope_type == "ALL";
+
+    selected_branches = SELECT b
+        FROM all_branches:b
+        WHERE scope_type == "BRANCH" AND b.branch_id == scope_id;
+    branch_advisors = SELECT a
+        FROM selected_branches:b
+            -(rev_phx_dm_advisor_in_branch:e_a)- phx_dm_advisor:a;
+
+    selected_markets = SELECT m
+        FROM all_markets:m
+        WHERE scope_type == "MARKET" AND m.market_id == scope_id;
+    market_advisors = SELECT a
+        FROM selected_markets:m
+            -(rev_phx_dm_advisor_in_market:e_a)- phx_dm_advisor:a;
+
+    selected_regions = SELECT r
+        FROM all_regions:r
+        WHERE scope_type == "REGION" AND r.region_id == scope_id;
+    region_markets = SELECT m
+        FROM selected_regions:r
+            -(rev_phx_dm_market_in_region:e_m)- phx_dm_market:m;
+    region_advisors = SELECT a
+        FROM region_markets:m
+            -(rev_phx_dm_advisor_in_market:e_a)- phx_dm_advisor:a;
+
+    selected_divisions = SELECT d
+        FROM all_divisions:d
+        WHERE scope_type == "DIVISION" AND d.division_id == scope_id;
+    division_regions = SELECT r
+        FROM selected_divisions:d
+            -(rev_phx_dm_region_in_division:e_r)- phx_dm_region:r;
+    division_markets = SELECT m
+        FROM division_regions:r
+            -(rev_phx_dm_market_in_region:e_m)- phx_dm_market:m;
+    division_advisors = SELECT a
+        FROM division_markets:m
+            -(rev_phx_dm_advisor_in_market:e_a)- phx_dm_advisor:a;
+
+    selected_firms = SELECT f
+        FROM all_firms:f
+        WHERE scope_type == "FIRM" AND f.firm_id == scope_id;
+    firm_divisions = SELECT d
+        FROM selected_firms:f
+            -(rev_phx_dm_division_in_firm:e_d)- phx_dm_division:d;
+    firm_regions = SELECT r
+        FROM firm_divisions:d
+            -(rev_phx_dm_region_in_division:e_r)- phx_dm_region:r;
+    firm_markets = SELECT m
+        FROM firm_regions:r
+            -(rev_phx_dm_market_in_region:e_m)- phx_dm_market:m;
+    firm_advisors = SELECT a
+        FROM firm_markets:m
+            -(rev_phx_dm_advisor_in_market:e_a)- phx_dm_advisor:a;
+
+    advisors = direct_advisors UNION branch_advisors UNION market_advisors
+        UNION region_advisors UNION division_advisors UNION firm_advisors;
+
+    transactions = SELECT tx FROM advisors:a
+        -(rev_phx_dm_transaction_for_advisor:e_tx)- phx_dm_revenue_transaction:tx
+        WHERE tx.transaction_date >= start_date AND tx.transaction_date <= end_date
+        ACCUM tx.@advisor_id += a.advisor_id,
+              tx.@advisor_name += a.advisor_name;
+
+    tx_products = SELECT tx FROM transactions:tx
+        -(phx_dm_transaction_for_product:e_p)- phx_dm_product:p
+        ACCUM tx.@product_id += p.product_id,
+              tx.@product_name += p.product_name;
+
+    tx_households = SELECT tx FROM transactions:tx
+        -(phx_dm_transaction_for_household:e_h)- phx_dm_household:h
+        ACCUM tx.@household_id += h.household_id,
+              tx.@household_name += h.household_name;
+
+    PRINT transactions[
+        transactions.@advisor_id AS advisor_id,
+        transactions.@advisor_name AS advisor_name,
+        transactions.transaction_date AS transaction_date,
+        transactions.revenue_amount AS revenue_amount,
+        transactions.transaction_type AS transaction_type,
+        transactions.@product_id AS product_id,
+        transactions.@product_name AS product_name,
+        transactions.@household_id AS household_id,
+        transactions.@household_name AS household_name
+    ] AS transactions;
+}
+
+INSTALL QUERY get_scope_transactions

@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+.next/
+*.db
+*.sqlite
+.env
+.env.local
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+models/
+# real client data never goes to git
+data/real/
+logs/
+docs/qa_screenshots/
+*.sqlite3
+*.tsbuildinfo
