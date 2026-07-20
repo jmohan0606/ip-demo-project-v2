@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 3
-Resume from: P3-1
+Current phase: 4
+Resume from: P4-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -25,11 +25,11 @@ Resume from: P3-1
 | P2-5 | 2 | GQ-014..015 ops queries | DONE | 8d440ab | GQ-014..015 authored + validated |
 | P2-6 | 2 | query_catalog.json + install_all + query_cases | DONE | 8d440ab | catalog(15) + install_all + query_cases; validator script |
 | P2-7 | 2 | Local-tier implementations for all queries | DONE | 8d440ab | v2.py impls registered; execution check vs sample data in P3 |
-| P3-1 | 3 | Extraction SQL files | TODO | | |
-| P3-2 | 3 | manifest.json + loading jobs | TODO | | |
-| P3-3 | 3 | Sample data set (exercises every cause) | TODO | | |
-| P3-4 | 3 | Delete capability on client interface (both tiers) | TODO | | |
-| P3-5 | 3 | Ingestion screen wired: load/reload/ordered delete | TODO | | |
+| P3-1 | 3 | Extraction SQL files | DONE | b89cf88 | 3 SQL files (lineage-only) |
+| P3-2 | 3 | manifest.json + loading jobs | DONE | b89cf88 | manifest 41 files + load_v2_all.gsql |
+| P3-3 | 3 | Sample data set (exercises every cause) | DONE | b89cf88 | SMPL001-3; all 12 causes; reconciles to $0 |
+| P3-4 | 3 | Delete capability on client interface (both tiers) | DONE | b89cf88 | both tiers + tiered dispatch; verified via delete-all |
+| P3-5 | 3 | Ingestion screen wired: load/reload/ordered delete | IN_PROGRESS | b89cf88 | backend endpoints + checkpoint clearing done; UI screen lands in P6-8 |
 | P4-1 | 4 | app/v2/revenue — monthly aggregation + MoM | TODO | | |
 | P4-2 | 4 | app/v2/drivers — attribution + causes | TODO | | |
 | P4-3 | 4 | Reconciliation check | TODO | | |
