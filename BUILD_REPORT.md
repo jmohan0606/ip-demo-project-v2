@@ -27,7 +27,7 @@ runnable query.
 | e30e174 | Phase 6 — AI Insights (chart, commentary cards, monthly walk) |
 | 123acc5 | Phase 6 — evidence modal + transactions drill-down |
 | 6a15498 | Phase 6 — ingestion + env-health screens |
-| (final) | Phase 7 — verification suite + this report |
+| e99499f | Phase 7 — verification suite + this report |
 
 ### Parallelisation actually used
 - Phases 0–5 ran serially on the main thread (tight data dependencies; the

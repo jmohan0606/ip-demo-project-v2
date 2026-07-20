@@ -48,8 +48,8 @@ Resume from: — (build complete)
 | P6-7 | 6 | Transactions drill-down | DONE | 123acc5 | filters, sort, pagination, API credited total |
 | P6-8 | 6 | Ingestion screen (05) | DONE | 6a15498 | manifest table, run-all polling, ordered delete-all |
 | P6-9 | 6 | Env health screen | DONE | 6a15498 | probes, tier detail, 3-way reconciliation |
-| P7-1 | 7 | End-to-end verification with sample data | DONE | HEAD | verify_end_to_end.py OVERALL PASS; headless UI verified, 0 console errors |
-| P7-2 | 7 | BUILD_REPORT.md complete | DONE | HEAD | BUILD_REPORT.md complete |
+| P7-1 | 7 | End-to-end verification with sample data | DONE | e99499f | verify_end_to_end.py OVERALL PASS; headless UI verified, 0 console errors |
+| P7-2 | 7 | BUILD_REPORT.md complete | DONE | e99499f | BUILD_REPORT.md complete |
 
 ## Decisions
 | When | Decision | Why |
