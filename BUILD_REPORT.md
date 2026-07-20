@@ -1,7 +1,6 @@
 # BUILD REPORT — iPerform V2: Revenue Trends & AI Commentary
 
-Build date: 2026-07-20 · Built autonomously per CLAUDE.md. Status: **in progress — Phase 6**.
-(This file is updated as the build proceeds; the final summary lands in Phase 7.)
+Build date: 2026-07-20 · Built autonomously per CLAUDE.md. Status: **COMPLETE** — all seven phases done; Definition of Done met (see §2 Phase 7).
 
 ---
 
@@ -24,7 +23,11 @@ runnable query.
 | 3bd6ced | Phase 4 — V2 services, /api/v2 router, reconciliation, typed coercion |
 | fac5dfc | Phase 5 — four agents, guardrails gate, batch workflow + versioning |
 | 1b73430 | Phase 6 — V2 shell, tokens, context bar, tier pill |
-| … | (updated as later commits land) |
+| 8508b58 | Phase 6 — Trends screen (pivot + MoM change) |
+| e30e174 | Phase 6 — AI Insights (chart, commentary cards, monthly walk) |
+| 123acc5 | Phase 6 — evidence modal + transactions drill-down |
+| 6a15498 | Phase 6 — ingestion + env-health screens |
+| (final) | Phase 7 — verification suite + this report |
 
 ### Parallelisation actually used
 - Phases 0–5 ran serially on the main thread (tight data dependencies; the
@@ -111,11 +114,40 @@ shown plainly, exactly as specified. v5: 6/6 transitions published, 0 blocked,
 85 evidence records. Negative tests confirm invented figures, minus signs and
 missing evidence each block.
 
-### Phase 6 — UI (in progress)
+### Phase 6 — UI
 Shell (navy top nav, Results sub-nav, sample-data banner, advisor context bar
-with persisted selection, honest tier pill) + v2 design tokens + shared
-formatter (negatives parenthesised everywhere) committed. Screen builds running
-in parallel subagents; verification pending.
+with persisted selection, honest tier pill — RED on real-mode-local-serve) +
+v2 design tokens + one shared formatter. Five screens built by four parallel
+subagents against the reference PNGs, then verified on the main thread in
+headless Chromium against the live sample-data backend:
+- Trends: hierarchical pivot + MoM change (clickable leaves → Transactions,
+  n/a on zero base, ≥15% pills).
+- AI Insights: stacked chart with MoM connector arrows/pills, one commentary
+  card per transition (ranked bullets, provenance badges, cause tags, BLOCKED
+  notices, version selector, Regenerate as the only LLM path), monthly walk
+  table with the baseline-month note.
+- Evidence modal: all five sections including the actually-run GSQL with its
+  stored result and the lineage-only PostgreSQL block; Esc/overlay close with
+  focus return.
+- Transactions: filter chips, sortable columns, pagination, API-computed
+  credited total (the pivot-cell equality).
+- Ingestion + env-health: manifest table with provenance badges, run-all with
+  polling, ordered delete-all with the real plan in the confirm dialog,
+  three-way count reconciliation.
+**Verified:** every screen screenshot-compared to its reference; ZERO browser
+console errors across all five screens; evidence modal opened/closed via
+keyboard. Fixes applied during review: split_pct rendered as percent; dollar
+vs count components separated in the modal's calculation totals.
+
+### Phase 7 — Verification
+`scripts/verify_end_to_end.py` (run on a FRESH process so everything reloads
+from disk): reconciliation per advisor/transition all $0.00 · every one of the
+85 drivers has a complete latest-version evidence record (425 records total,
+all sections populated) · all cited drivers resolve · 6/6 transitions
+PUBLISHED, exactly one PUBLISHED version · stored GSQL results byte-identical
+to live reruns (10 sampled, 0 mismatches) · data_source set on all 1,022
+vertices · all 12 causes exercised. `scripts/validate_v2_queries.py` ALL PASS.
+OVERALL: PASS.
 
 ---
 
