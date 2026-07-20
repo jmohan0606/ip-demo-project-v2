@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-20T00:00:00Z
-Current phase: 5
-Resume from: P5-1
+Current phase: 6
+Resume from: P6-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -33,12 +33,12 @@ Resume from: P5-1
 | P4-1 | 4 | app/v2/revenue — monthly aggregation + MoM | DONE | 3bd6ced | aggregation+MoM in app/v2/revenue; service + endpoints |
 | P4-2 | 4 | app/v2/drivers — attribution + causes | DONE | 3bd6ced | 11-step attribution in app/v2/drivers; service + endpoints |
 | P4-3 | 4 | Reconciliation check | DONE | 3bd6ced | /api/v2/ops/reconciliation recomputes from stored graph data; passes |
-| P5-1 | 5 | supervisor_agent | TODO | | |
-| P5-2 | 5 | revenue_agent | TODO | | |
-| P5-3 | 5 | commentary_agent | TODO | | |
-| P5-4 | 5 | explainability_agent (evidence) | TODO | | |
-| P5-5 | 5 | Guardrails validation (5 checks) | TODO | | |
-| P5-6 | 5 | Batch generation workflow + versioning | TODO | | |
+| P5-1 | 5 | supervisor_agent | DONE | fac5dfc | routing + generation sequence + retrieval-only read |
+| P5-2 | 5 | revenue_agent | DONE | fac5dfc | thin node over app/v2; contract implemented |
+| P5-3 | 5 | commentary_agent | DONE | fac5dfc | Claude narration, verbatim-figures prompt, fallback |
+| P5-4 | 5 | explainability_agent (evidence) | DONE | fac5dfc | 5-section evidence; GQ actually run + result stored |
+| P5-5 | 5 | Guardrails validation (5 checks) | DONE | fac5dfc | 5 checks; caught real LLM arithmetic in v2-v4; negative-tested |
+| P5-6 | 5 | Batch generation workflow + versioning | DONE | fac5dfc | v1..v5 generated; supersede + blocked persistence verified |
 | P6-1 | 6 | Shell, V2 nav, design tokens, advisor context bar | TODO | | |
 | P6-2 | 6 | Trends pivot (01) | TODO | | |
 | P6-3 | 6 | Trends MoM (02) | TODO | | |
