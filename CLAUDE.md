@@ -213,6 +213,10 @@ months (Apr/May/Jun 2026) for ten advisors, extracted from the client's PostgreS
 8. **Negative numbers are shown in parentheses** — `($90,685)`, `(17.7%)` — never with a
    minus sign. Everywhere: charts, tables, commentary, evidence.
 
+8a. **Model-authored language is visibly marked.** Any text a model wrote carries an
+   "AI Generated" chip in the UI. Computed figures never carry it — the distinction between
+   generated wording and computed numbers must be obvious to a reader at a glance.
+
 9. **Do not touch V1.** Never modify anything under `docs/v1_patterns/`. Never import
    from it.
 
