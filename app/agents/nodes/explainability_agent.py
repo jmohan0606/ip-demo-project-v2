@@ -38,8 +38,26 @@ _CAUSE_FINDING = {
 }
 
 
+def _component_unit(key: str) -> str:
+    """Unit for a from_*/to_* component, inferred from the key name (FIX_SPEC
+    R2-1). The UI switches formatter on this — a txn count must never render
+    as currency."""
+    stem = key[5:] if key.startswith(("from_", "to_")) else key
+    if stem.endswith("_count") or stem.endswith("_rows"):
+        return "count"
+    if stem.endswith("_pct"):
+        return "percent"
+    if stem.endswith("_bps"):
+        return "bps"
+    if stem.endswith("_days") or stem == "billable_days":
+        return "days"
+    return "currency"
+
+
 def _calc_components(driver: dict) -> list[dict]:
-    """Component rows for section 2, from the recorded attribution inputs."""
+    """Component rows for section 2, from the recorded attribution inputs.
+    Each row carries a `unit` (currency | count | percent | bps | days);
+    only `currency` rows may be summed into totals (R2-1)."""
     inputs = driver.get("inputs") or {}
     pairs = []
     for key, value in inputs.items():
@@ -49,16 +67,20 @@ def _calc_components(driver: dict) -> list[dict]:
                 label = key[5:].replace("_", " ")
                 pairs.append({
                     "label": label,
+                    "unit": _component_unit(key),
                     "from": inputs[key],
                     "to": inputs[to_key],
                     "change": round(inputs[to_key] - inputs[key], 2),
                 })
     if not pairs:
-        pairs.append({"label": "contribution", "from": 0.0,
+        pairs.append({"label": "contribution", "unit": "currency", "from": 0.0,
                       "to": driver["contribution_amt"], "change": driver["contribution_amt"]})
-    total_abs = sum(abs(p["change"]) for p in pairs) or 1.0
+    currency_abs = sum(abs(p["change"]) for p in pairs if p["unit"] == "currency") or 1.0
     for p in pairs:
-        p["share_of_mom"] = round(abs(p["change"]) / total_abs * 100, 1)
+        # share_of_mom only means anything for currency components; others get 0
+        # and the UI shows a dash.
+        p["share_of_mom"] = (round(abs(p["change"]) / currency_abs * 100, 1)
+                             if p["unit"] == "currency" else 0.0)
     return pairs
 
 

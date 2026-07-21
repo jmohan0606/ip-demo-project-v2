@@ -19,6 +19,7 @@ import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badg
 
 interface CalcComponent {
   label: string;
+  unit?: string; // currency | count | percent | bps | days (R2-1)
   from: number;
   to: number;
   change: number;
@@ -215,11 +216,32 @@ export function EvidenceModal({
     [evidence],
   );
 
-  // Dollar components only — count/day/rate components are context rows and must
-  // not be summed into a dollar figure.
-  const isDollar = (c: { label: string }) =>
-    !/count|days|rows|rate|bps|accounts/i.test(c.label);
-  const dollarComponents = calc.components.filter(isDollar);
+  // Component units (R2-1): the backend stamps each component with a unit and
+  // the formatter switches on it. Only `currency` components may be summed.
+  // The label heuristic remains as a fallback for evidence stored before units.
+  const unitOf = (c: CalcComponent): string => {
+    if (c.unit) return c.unit;
+    if (/count|rows|accounts/i.test(c.label)) return "count";
+    if (/bps|rate/i.test(c.label)) return "bps";
+    if (/days/i.test(c.label)) return "days";
+    if (/pct|percent/i.test(c.label)) return "percent";
+    return "currency";
+  };
+  const fmtUnit = (value: number, unit: string): string => {
+    switch (unit) {
+      case "count":
+        return Math.round(value).toLocaleString("en-US");
+      case "percent":
+        return `${value.toFixed(1)}%`;
+      case "bps":
+        return `${value.toFixed(1)} bps`;
+      case "days":
+        return `${Math.round(value)} days`;
+      default:
+        return fmtMoney(value);
+    }
+  };
+  const dollarComponents = calc.components.filter((c) => unitOf(c) === "currency");
   const netChange = dollarComponents.reduce((sum, c) => sum + (c.change ?? 0), 0);
   const gsqlCall = evidence ? gsqlCallText(evidence.gsql_query_name, gsqlParams) : "";
   const resultText = evidence ? JSON.stringify(gsqlResult) : "";
@@ -314,16 +336,18 @@ export function EvidenceModal({
                         {calc.components.map((c) => (
                           <tr key={c.label} className="border-b border-v2-border-subtle">
                             <td className="px-3 py-1.5">{c.label}</td>
-                            <td className="px-3 py-1.5 text-right">{fmtMoney(c.from)}</td>
-                            <td className="px-3 py-1.5 text-right">{fmtMoney(c.to)}</td>
+                            <td className="px-3 py-1.5 text-right">{fmtUnit(c.from, unitOf(c))}</td>
+                            <td className="px-3 py-1.5 text-right">{fmtUnit(c.to, unitOf(c))}</td>
                             <td
                               className={`px-3 py-1.5 text-right ${
                                 c.change < 0 ? "text-v2-negative" : c.change > 0 ? "text-v2-positive" : "text-v2-faint"
                               }`}
                             >
-                              {fmtMoney(c.change)}
+                              {fmtUnit(c.change, unitOf(c))}
                             </td>
-                            <td className="px-3 py-1.5 text-right">{c.share_of_mom}%</td>
+                            <td className="px-3 py-1.5 text-right">
+                              {unitOf(c) === "currency" ? `${c.share_of_mom}%` : "—"}
+                            </td>
                           </tr>
                         ))}
                         <tr className="bg-v2-total-bg font-semibold">
