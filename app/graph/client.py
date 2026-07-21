@@ -344,7 +344,7 @@ class RealGraphClient:
 
 
 # Registry of Python implementations of the GQ-### catalog queries, keyed by the
-# installed query name (e.g. "get_org_hierarchy"). Populated by app/graph/queries/
+# installed query name (e.g. "get_advisors"). Populated by app/graph/queries/
 # modules via the @mock_query decorator (Phase 3).
 MOCK_QUERY_IMPLS: dict[str, Callable[[FoundationGraphStore, dict], list[dict]]] = {}
 

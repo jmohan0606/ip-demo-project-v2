@@ -11,7 +11,7 @@ node_modules/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-models/
+/models/
 # real client data never goes to git
 data/real/
 logs/
