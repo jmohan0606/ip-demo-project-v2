@@ -1,6 +1,7 @@
 # BUILD REPORT — iPerform V2: Revenue Trends & AI Commentary
 
 Build date: 2026-07-20 · Built autonomously per CLAUDE.md. Status: **COMPLETE** — all seven phases done; Definition of Done met (see §2 Phase 7).
+**Round 2 (2026-07-21): corrections & enhancements per FIX_SPEC.md — see §8.**
 
 ---
 
@@ -268,3 +269,84 @@ Both DUMMY causes are emitted per transition with contribution 0 on the
    review a sample of narratives against the guardrail report.
 6. pyTigerGraph `delVertices`/`delVerticesById` delete paths — exercised only
    against the local tier here.
+
+---
+
+## 8. Round 2 (FIX_SPEC.md, 2026-07-21)
+
+### 8.1 R1 — Credited revenue corrected (the material fix)
+
+**What was wrong:** the app summed every `post_split_credited_amt` and called it
+Credited Revenue. The client's definition (Confluence *"Revenue Summary Data
+Mapping"*) excludes ineligible reason codes; we never extracted `reason_cd`.
+Every figure in the app was Total Revenue mislabelled.
+
+**The fix — eligibility is data, not code:**
+- New vertex `phx_dm_v2_reason_code` (15 codes seeded from the client doc,
+  `data_source=REAL`) with three states: CREDITED (`__NONE__`, 91, 92, 9L),
+  NON_CREDITED (9E, 9G, 9C, 9S, 94), EXCLUDED (9R, 98, 99, 9H, 9X, XX — not
+  revenue at all, in no total). Edge `phx_dm_v2_txn_has_reason` (+reverse).
+- Transaction vertex gains `reason_cd, rm_sid, cs_sid, revenue_eligibility,
+  incentive_eligible, days_to_process, posting_month_id`; product vertex gains
+  `grid_type` (stored, not filtered at extraction).
+- `credited_revenue = Σ post_split_credited_amt WHERE reason_code.include_in_credited
+  (read from the graph) AND product.grid_type IN CREDITED_GRID_TYPES (config,
+  default ['PRODUCT_TYPE']) AND days_to_process <= MAX_PROCESSING_DAYS (config,
+  default 90)`. Verified: relaxing the grid config changed the drill-down
+  credited total 16,640 → 36,640 with zero code change.
+- `monthly_product_revenue` stores the client's own breakdown alongside:
+  `total_revenue / non_credited_amt / excluded_amt / late_excluded_amt`, with
+  the identity `revenue = total − non_credited − late_excluded` verified on
+  every cell by the e2e suite.
+- New driver cause **ELIGIBILITY** (REAL), slotted immediately after ONE_TIME:
+  `-(Δ non-credited)` per group, with accounts already claimed by
+  NEW/LOST_ACCOUNT excluded, and advisor account-presence now counting
+  non-credited activity (a household going 9E is an eligibility move, not a
+  lost account). 13 causes total.
+- Sample data regenerated: every eligibility path exercised (`__NONE__`, 91,
+  9E, 9G, 9X, one >90-day row, PAY_TYPE_SUMMARY rows). The 9E story produces a
+  visible ($6,290.00) ELIGIBILITY driver for SMPL001 May→Jun. Commentary
+  v1–v5 history preserved (regeneration is additive).
+- Commentary regenerated as **v6** (6/6 published, 0 blocked, 86 evidence
+  records); reconciliation $0.00 on every transition, recomputed from stored
+  graph data.
+
+**Interpretations & assumptions recorded (R1):**
+- *EXCLUDED third state* — the client doc names two states; codes with no UI
+  mapping are read as "not revenue at all". To confirm with the client.
+- *91/92/9L are credited but incentive-ineligible* — client-confirmed for now,
+  flagged for re-confirmation.
+- *posting_month_id = trade month*, `ASSUMED` — prior-period adjustments post
+  to the proc_dt month; without the iComp feed closed months cannot be
+  identified. PPA logic deliberately not implemented this round.
+- *Unknown reason codes → NON_CREDITED* — never credit unclassifiable revenue;
+  kept in Total for honesty.
+- *LATE (>90d) rows* stay in Total, out of Credited, tracked as
+  `late_excluded_amt` ("ignored … not sent to iComp").
+
+### 8.2 R2/R3 — Defects + source catalog
+- **R2-1**: evidence calculation components now carry a `unit`
+  (currency|count|percent|bps|days) inferred from the input key; the modal
+  switches formatter on it, shows "—" share for non-currency rows, and sums
+  only currency components. Counts can no longer render as dollars.
+- **R2-2/R3**: `docs/data/source_catalog.json` is the single source of truth
+  for source-system metadata (tables, grain, full column→vertex mapping). The
+  three extraction SQL files are *generated* from it
+  (`scripts/generate_extraction_sql.py`) with the corrected table names
+  (`pcr.fpic_daily_trade_details_tb_prod`, `pcr.product_hierarchy`), and the
+  evidence builder reads `source_table` from it. No PostgreSQL table name
+  remains as a Python literal.
+- Also hardened: `schema_catalog.json` and `load_v2_all.gsql` are now generated
+  from the GSQL DDL (`scripts/generate_schema_artifacts.py`) — the drift class
+  behind R2-2 is closed structurally.
+
+### 8.3 R5 schema — LLM-as-judge storage
+`phx_dm_v2_commentary_evaluation` vertex + `phx_dm_v2_evaluation_of_commentary`
+edge; GQ-017 `get_commentary_evaluations` on both tiers; `JUDGE_MODEL`
+(different from the writer) + `JUDGE_ENABLED` settings. Judge is ADVISORY only
+— the deterministic guardrail gate (which caught real LLM arithmetic in v2–v4)
+remains the blocking control.
+
+### 8.4 Round 2 continued
+(sections for R4/R5 wiring, R6 harness, R7 polish/AI-marking, R8 cleanup and R9
+guide are appended below as those work-streams land.)
