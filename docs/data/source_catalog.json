@@ -1,0 +1,85 @@
+{
+  "system": "PostgreSQL",
+  "database": "fpicdb",
+  "schema": "pcr",
+  "note": "Production dump used for demo development. Single source of truth for source-system metadata (FIX_SPEC R3): the extraction SQL files are GENERATED from this catalog (scripts/generate_extraction_sql.py) and the evidence builder reads table names and column mappings from it. No table name may appear as a literal in Python.",
+  "scope": {
+    "months": "2026-04-01 <= trade_dt < 2026-07-01",
+    "advisors": ["V236209", "U869485", "R452497", "F074537", "D194202",
+                 "Z166924", "I090694", "V077477", "I069872", "U713250"]
+  },
+  "tables": {
+    "trade_details": {
+      "name": "pcr.fpic_daily_trade_details_tb_prod",
+      "grain": "one row per trade split (trade_ref_no + split_seq_no)",
+      "feeds": "phx_dm_v2_revenue_transaction",
+      "columns": {
+        "trade_ref_no": {"maps_to": "phx_dm_v2_revenue_transaction.trade_ref_no"},
+        "split_seq_no": {"maps_to": "phx_dm_v2_revenue_transaction.split_seq_no"},
+        "advisor_sid": {"maps_to": "phx_dm_v2_revenue_transaction.advisor_sid"},
+        "trade_dt": {"maps_to": "phx_dm_v2_revenue_transaction.trade_dt",
+                     "note": "revenue month = to_char(trade_dt,'YYYYMM'); year_month_no is only 2% populated — cross-check only"},
+        "proc_dt": {"maps_to": "phx_dm_v2_revenue_transaction.proc_dt",
+                    "note": "days_to_process = proc_dt - trade_dt feeds the 90-day rule"},
+        "product_cd": {"maps_to": "phx_dm_v2_revenue_transaction.product_id (with product_sub_cd)"},
+        "product_sub_cd": {"maps_to": "phx_dm_v2_revenue_transaction.product_id (with product_cd)"},
+        "account_no": {"maps_to": "phx_dm_v2_revenue_transaction.account_no"},
+        "post_split_credited_amt": {"maps_to": "phx_dm_v2_revenue_transaction.credited_amt",
+                                    "note": "credited revenue base field (pre_split x split_pct double-counts across advisors)"},
+        "pre_split_credited_amt": {"maps_to": "phx_dm_v2_revenue_transaction.pre_split_amt"},
+        "split_pct": {"maps_to": "phx_dm_v2_revenue_transaction.split_pct"},
+        "client_rate_bps": {"maps_to": "phx_dm_v2_revenue_transaction.client_rate_bps"},
+        "std_tier_rate": {"maps_to": "phx_dm_v2_revenue_transaction.std_tier_rate"},
+        "concession_type": {"maps_to": "phx_dm_v2_revenue_transaction.concession_type"},
+        "discount_amt": {"maps_to": "phx_dm_v2_revenue_transaction.discount_amt"},
+        "eff_disc_pct": {"maps_to": "phx_dm_v2_revenue_transaction.eff_disc_pct"},
+        "avg_balance_amt": {"maps_to": "phx_dm_v2_revenue_transaction.avg_balance_amt",
+                            "note": "0% populated for Managed — see SCHEMA_SPEC §5"},
+        "file_key": {"maps_to": "phx_dm_v2_revenue_transaction.file_key",
+                     "note": "rev_nature is DERIVED from file_key + trade_description"},
+        "trade_description": {"maps_to": "phx_dm_v2_revenue_transaction.trade_description"},
+        "reason_cd": {"maps_to": "phx_dm_v2_revenue_transaction.reason_cd",
+                      "note": "R1: drives credited eligibility via phx_dm_v2_reason_code; null/blank maps to __NONE__"},
+        "rm_sid": {"maps_to": "phx_dm_v2_revenue_transaction.rm_sid"},
+        "cs_sid": {"maps_to": "phx_dm_v2_revenue_transaction.cs_sid"}
+      }
+    },
+    "product_hierarchy": {
+      "name": "pcr.product_hierarchy",
+      "grain": "one row per (product_code, sub_product_code, grid_type)",
+      "feeds": "phx_dm_v2_product / _product_group / _product_line",
+      "columns": {
+        "product_code": {"maps_to": "phx_dm_v2_product.product_cd"},
+        "sub_product_code": {"maps_to": "phx_dm_v2_product.product_sub_cd"},
+        "level_two_product": {"maps_to": "phx_dm_v2_product_group.group_name"},
+        "level_one_product": {"maps_to": "phx_dm_v2_product_line.line_name"},
+        "grid_type": {"maps_to": "phx_dm_v2_product.grid_type",
+                      "note": "R1-4: pulled as a COLUMN, not filtered at extraction; the revenue computation filters on CREDITED_GRID_TYPES config"},
+        "level_one_pay_type_product_cd": {"maps_to": "(reference only, not loaded)"},
+        "level_two_pay_type_product_cd": {"maps_to": "(reference only, not loaded)"}
+      }
+    },
+    "advisor": {
+      "name": "pcr.fpic_prm_rr_tb",
+      "grain": "one row per rep (standard_id)",
+      "feeds": "phx_dm_v2_advisor",
+      "columns": {
+        "standard_id": {"maps_to": "phx_dm_v2_advisor.advisor_sid",
+                        "note": "verify equals trade_details.advisor_sid; fall back to (prm_ofc_no, prm_rr_no) if not"},
+        "prm_rr_no": {"maps_to": "phx_dm_v2_advisor.rep_code"},
+        "cwm_branch_cd": {"maps_to": "phx_dm_v2_advisor.branch_cd"}
+      }
+    },
+    "employee": {
+      "name": "pcr.fpic_employee_tb",
+      "grain": "one row per employee (em_standard_id)",
+      "feeds": "phx_dm_v2_advisor.advisor_name",
+      "columns": {
+        "em_standard_id": {"maps_to": "join key to fpic_prm_rr_tb.standard_id"},
+        "em_name_txt": {"maps_to": "phx_dm_v2_advisor.advisor_name",
+                        "note": "may be blank -> UI shows the advisor id; never invent names"}
+      }
+    }
+  },
+  "reason_codes_source": "Confluence: Revenue Summary Data Mapping (CWM PCR) — seeded into phx_dm_v2_reason_code, data_source REAL"
+}

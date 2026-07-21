@@ -16,6 +16,7 @@ from app.agents.state.agent_state import AgentWorkflowState
 from app.v2.format import fmt_money
 from app.v2.revenue.aggregation import TOTAL_GROUP
 from app.v2.revenue.service import V2RevenueService
+from app.v2.source_catalog import table_name
 
 _EXTRACTION_SQL_PATH = Path("docs/data/extraction/extract_revenue_transaction.sql")
 
@@ -157,7 +158,7 @@ def build_evidence(revenue_output: dict, driver: dict, version_id: str) -> dict:
         "gsql_params_json": json.dumps(gsql_params, sort_keys=True),
         "gsql_result_json": json.dumps(result, sort_keys=True),
         "source_sql": source_sql,
-        "source_table": "pcr.fpic_daily_trade_details_tb",
+        "source_table": table_name("trade_details"),  # from the source catalog (R3) — never a literal
         "source_row_count": contributing_count,
         "data_source": driver["data_source"] if driver["data_source"] == "DUMMY" else "DERIVED",
     }
