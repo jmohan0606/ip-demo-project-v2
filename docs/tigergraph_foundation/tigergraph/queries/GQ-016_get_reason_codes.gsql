@@ -1,0 +1,23 @@
+/*
+ * GQ-016 — get_reason_codes
+ * Purpose: The reason-code reference rows that drive credited-revenue
+ *          eligibility (FIX_SPEC R1). The revenue computation and the
+ *          transactions drill-down read include_in_credited / eligibility /
+ *          incentive_eligible from these rows — seeding a new code changes
+ *          behaviour with no code change.
+ * Outputs: reason_codes vertex set ordered by display_order.
+ * Created: V2 round 2 2026-07-21. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_reason_codes() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_codes = {phx_dm_v2_reason_code.*};
+    reason_codes = SELECT r
+        FROM all_codes:r
+        ORDER BY r.display_order ASC;
+
+    PRINT reason_codes;
+}
+
+INSTALL QUERY get_reason_codes

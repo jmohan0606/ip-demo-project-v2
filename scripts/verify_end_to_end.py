@@ -79,7 +79,26 @@ def main() -> int:
           f"{sum(len(r) for r in c.store.vertices.values())} vertices")
 
     causes = {a["cause_id"] for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values()}
-    check("all 12 causes exercised", len(causes) == 12, str(sorted(causes)))
+    check("all 13 causes exercised (incl. ELIGIBILITY)", len(causes) == 13, str(sorted(causes)))
+
+    # R1-6: the stored credited breakdown must satisfy the client's identity
+    # revenue = total_revenue - non_credited_amt - late_excluded_amt per cell.
+    bad_cells = []
+    for mid, a in c.store.all_vertices("phx_dm_v2_monthly_product_revenue").items():
+        lhs = round(float(a.get("revenue") or 0), 2)
+        rhs = round(float(a.get("total_revenue") or 0)
+                    - float(a.get("non_credited_amt") or 0)
+                    - float(a.get("late_excluded_amt") or 0), 2)
+        if abs(lhs - rhs) > 0.01:
+            bad_cells.append(mid)
+    check("credited identity holds on every mpr cell", not bad_cells, str(bad_cells[:3]))
+
+    reasons = c.store.all_vertices("phx_dm_v2_reason_code")
+    check("reason codes seeded (15)", len(reasons) == 15, str(len(reasons)))
+    buckets = {a.get("revenue_eligibility")
+               for a in c.store.all_vertices("phx_dm_v2_revenue_transaction").values()}
+    check("all reason eligibility states present in transactions",
+          buckets >= {"CREDITED", "NON_CREDITED", "EXCLUDED"}, str(sorted(map(str, buckets))))
 
     print("\nOVERALL:", "PASS" if not failures else f"FAIL ({failures})")
     return 1 if failures else 0

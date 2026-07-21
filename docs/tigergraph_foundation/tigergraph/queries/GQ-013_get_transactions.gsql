@@ -12,6 +12,7 @@ USE GRAPH iperform_v2_revenue
 CREATE QUERY get_transactions(STRING advisor_id, STRING month_id, STRING group_id, INT result_limit) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
     SumAccum<STRING> @group_id;
     SumAccum<STRING> @product_name;
+    SumAccum<STRING> @grid_type;
 
     all_groups = {phx_dm_v2_product_group.*};
     groups = SELECT g
@@ -27,7 +28,8 @@ CREATE QUERY get_transactions(STRING advisor_id, STRING month_id, STRING group_i
         WHERE t.advisor_sid == advisor_id
           AND t.month_id == month_id
         ACCUM t.@group_id += p.@group_id,
-              t.@product_name += p.product_name
+              t.@product_name += p.product_name,
+              t.@grid_type += p.grid_type
         ORDER BY t.trade_dt ASC, t.txn_id ASC
         LIMIT result_limit;
 

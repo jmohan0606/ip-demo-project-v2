@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.config.settings import get_settings
 from app.graph.client import get_graph_client
 from app.graph.queries.common import v2_served_by_tier
+from app.v2.revenue import eligibility as elig
 
 
 def _attrs(row: dict) -> dict:
@@ -58,6 +60,13 @@ class V2RevenueService:
         rows = [_attrs(r) for r in results[0].get("causes", [])] if results else []
         return {"causes": rows, "served_by_tier": tier}
 
+    def reason_codes(self) -> dict:
+        """The eligibility reference rows (FIX_SPEC R1) — read from the graph so
+        seeding a new code changes behaviour with no code change."""
+        results, tier = self._run("get_reason_codes", {})
+        rows = [_attrs(r) for r in results[0].get("reason_codes", [])] if results else []
+        return {"reason_codes": rows, "served_by_tier": tier}
+
     # ---------------------------------------------------------- trends
 
     def monthly_revenue(self, advisor_id: str, from_month: str, to_month: str) -> dict:
@@ -88,17 +97,33 @@ class V2RevenueService:
     # ---------------------------------------------------------- drill-down & ops
 
     def transactions(self, advisor_id: str, month_id: str, group_id: str, result_limit: int) -> dict:
+        """Drill-down rows. Every extracted transaction is shown (source-record
+        honesty), each classified per the credited definition (R1-6):
+        eligibility_bucket = CREDITED | NON_CREDITED | EXCLUDED | LATE |
+        OUT_OF_GRID. credited_total sums ONLY the CREDITED rows, so it equals
+        the pivot cell it is opened from."""
         results, tier = self._run(
             "get_transactions",
             {"advisor_id": advisor_id, "month_id": month_id,
              "group_id": group_id, "result_limit": result_limit},
         )
+        settings = get_settings()
+        reasons = elig.reason_map(self.reason_codes()["reason_codes"])
+        grid_types = settings.credited_grid_type_set
+        max_days = int(settings.max_processing_days)
         rows = []
-        if results:
-            for r in results[0].get("transactions", []):
-                a = _attrs(r)
-                rows.append({**a, "group_id": a.get("@group_id", ""), "product_name": a.get("@product_name", "")})
-        total = round(sum(float(r.get("credited_amt") or 0) for r in rows), 2)
+        for r in (results[0].get("transactions", []) if results else []):
+            a = _attrs(r)
+            bucket = elig.classify(
+                a.get("reason_cd"), a.get("@grid_type") or "PRODUCT_TYPE",
+                int(float(a.get("days_to_process") or 0)), reasons, grid_types, max_days,
+            )
+            rows.append({**a, "group_id": a.get("@group_id", ""),
+                         "product_name": a.get("@product_name", ""),
+                         "grid_type": a.get("@grid_type", ""),
+                         "eligibility_bucket": bucket})
+        total = round(sum(float(r.get("credited_amt") or 0) for r in rows
+                          if r["eligibility_bucket"] == elig.CREDITED), 2)
         return {"transactions": rows, "row_count": len(rows),
                 "credited_total": total, "served_by_tier": tier}
 

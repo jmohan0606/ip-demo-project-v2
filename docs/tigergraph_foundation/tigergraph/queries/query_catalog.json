@@ -334,6 +334,19 @@
         "GET /api/v2/ops/advisor-summary"
       ],
       "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-016",
+      "name": "get_reason_codes",
+      "file": "GQ-016_get_reason_codes.gsql",
+      "parameters": [],
+      "purpose": "Reason-code reference driving credited-revenue eligibility (R1); data-driven, never hardcoded.",
+      "outputs": "reason_codes: vset rows ordered by display_order",
+      "consumers": [
+        "GET /api/v2/reference/reason-codes",
+        "V2RevenueService.transactions credited classification"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
     }
   ]
 }

@@ -23,6 +23,8 @@ _EXTRACTION_SQL_PATH = Path("docs/data/extraction/extract_revenue_transaction.sq
 _CAUSE_FINDING = {
     "VOLUME": "transaction volume changed at broadly similar rates",
     "ONE_TIME": "one-time items in one month did not repeat in the other",
+    "ELIGIBILITY": "revenue moved between credited and non-credited reason codes "
+                   "(e.g. a household crossing the minimum-household threshold)",
     "TIMING": "quarterly billing fell in only one month of the pair",
     "FEE_RATE": "the effective fee rate on the recurring base moved",
     "DISCOUNT": "discounting changed between the months",

@@ -36,6 +36,7 @@ Respond with ONLY a JSON object:
 _CAUSE_FALLBACK = {
     "VOLUME": "Transaction volume changed at broadly similar rates.",
     "ONE_TIME": "One-time items in one month did not repeat in the other.",
+    "ELIGIBILITY": "Revenue moved between credited and non-credited reason codes month over month.",
     "TIMING": "Quarterly billing fell in one month of the pair, not the other.",
     "FEE_RATE": "The effective fee rate on the recurring base moved between the months.",
     "DISCOUNT": "Discounting changed between the months.",

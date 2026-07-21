@@ -25,6 +25,7 @@ from app.graph.queries.common import (
     PRODUCT,
     PRODUCT_GROUP,
     PRODUCT_LINE,
+    REASON_CODE,
     REVENUE_CHANGE,
     REVENUE_CLASS,
     REVENUE_DRIVER,
@@ -96,6 +97,13 @@ def get_driver_causes(store: FoundationGraphStore, params: dict) -> list[dict]:
     rows = vrows(store, DRIVER_CAUSE)
     rows.sort(key=lambda r: _int(_attr(r, "display_order")))
     return [{"causes": rows}]
+
+
+@mock_query("get_reason_codes")
+def get_reason_codes(store: FoundationGraphStore, params: dict) -> list[dict]:
+    rows = vrows(store, REASON_CODE)
+    rows.sort(key=lambda r: _int(_attr(r, "display_order")))
+    return [{"reason_codes": rows}]
 
 
 # ---------------------------------------------------------------- trends
@@ -279,6 +287,7 @@ def get_transactions(store: FoundationGraphStore, params: dict) -> list[dict]:
                         **attrs,
                         "@group_id": str(gid),
                         "@product_name": str(product_attrs.get("product_name") or ""),
+                        "@grid_type": str(product_attrs.get("grid_type") or ""),
                     },
                 })
     rows.sort(key=lambda r: (str(_attr(r, "trade_dt")), str(_attr(r, "txn_id") or r["v_id"])))

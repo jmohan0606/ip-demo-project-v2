@@ -37,6 +37,13 @@ def driver_causes():
     return ok(data=V2RevenueService().driver_causes())
 
 
+@router.get("/reference/reason-codes")
+def reason_codes():
+    """Eligibility reference (R1): the reason-code rows that define credited
+    revenue, straight from the graph."""
+    return ok(data=V2RevenueService().reason_codes())
+
+
 # ---------------------------------------------------------------- trends
 
 @router.get("/trends/revenue")

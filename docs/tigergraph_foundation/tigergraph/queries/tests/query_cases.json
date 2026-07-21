@@ -48,5 +48,6 @@
   "get_ingestion_counts": {},
   "get_advisor_month_summary": {
     "advisor_id": "SMPL001"
-  }
+  },
+  "get_reason_codes": {}
 }
