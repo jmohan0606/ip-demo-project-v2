@@ -26,6 +26,7 @@ from app.graph.client import get_graph_client
 from app.graph.queries.common import COMMENTARY_VERSION
 from app.ingestion.tigergraph_upsert import TigerGraphUpsertClient
 from app.shared.logging import get_logger
+from app.v2.commentary import judge as judge_mod
 
 _log = get_logger("app.v2.commentary")
 _lock = threading.Lock()
@@ -138,6 +139,33 @@ def _run(notes: str = "") -> dict:
     blocked = 0
     commentary_rows, evidence_rows = [], []
     e_cfa, e_cfm, e_ctm, e_civ, e_ccd, e_efd = [], [], [], [], [], []
+    # LLM-as-judge (FIX_SPEC R5). ADVISORY ONLY — verdicts are persisted for
+    # human attention and never publish or suppress a commentary.
+    evaluation_rows, e_eoc = [], []
+    judge_llm = judge_mod.get_judge_llm() if settings.judge_enabled else None
+
+    def run_judge(commentary_id: str, revenue_output: dict, commentary: dict) -> None:
+        """Judge one transition (after guardrails). Skips when there is no
+        narrative to judge; BLOCKED transitions with text are judged too."""
+        if not settings.judge_enabled or not (commentary.get("narrative_text") or "").strip():
+            return
+        evaluation = judge_mod.judge_commentary(revenue_output, commentary, judge_llm)
+        evaluation_id = f"{commentary_id}|j1"
+        evaluation_rows.append({
+            "evaluation_id": evaluation_id,
+            "commentary_id": commentary_id,
+            "version_id": version_id,
+            "judge_model": evaluation["judge_model"],
+            "faithfulness_score": evaluation["faithfulness_score"],
+            "hallucination_flag": evaluation["hallucination_flag"],
+            "completeness_score": evaluation["completeness_score"],
+            "clarity_score": evaluation["clarity_score"],
+            "verdict": evaluation["verdict"],
+            "reasoning": evaluation["reasoning"],
+            "evaluated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            "data_source": "DERIVED",
+        })
+        e_eoc.append({"from_id": evaluation_id, "to_id": commentary_id})
 
     for advisor_results in per_advisor:
         for item in advisor_results:
@@ -182,6 +210,9 @@ def _run(notes: str = "") -> dict:
             e_civ.append({"from_id": commentary_id, "to_id": version_id})
             for b in commentary["bullets"]:
                 e_ccd.append({"from_id": commentary_id, "to_id": b["driver_id"]})
+            # R5-2: judge runs AFTER guardrails validation — BLOCKED transitions
+            # with a narrative are judged too (diagnostic value).
+            run_judge(commentary_id, state.context["revenue_output"], commentary)
             # Evidence persists even for blocked transitions (diagnostic value);
             # publication of the COMMENTARY is what the gate controls.
             for e in evidence:
@@ -199,6 +230,10 @@ def _run(notes: str = "") -> dict:
     _persist(upsert_client, "commentary_in_version", "edge", "edges/commentary_in_version.csv", e_civ)
     _persist(upsert_client, "commentary_cites_driver", "edge", "edges/commentary_cites_driver.csv", e_ccd)
     _persist(upsert_client, "evidence_for_driver", "edge", "edges/evidence_for_driver.csv", e_efd)
+    _persist(upsert_client, "commentary_evaluation", "vertex",
+             "vertices/commentary_evaluation.csv", evaluation_rows, "evaluation_id")
+    _persist(upsert_client, "evaluation_of_commentary", "edge",
+             "edges/evaluation_of_commentary.csv", e_eoc)
 
     # Publish this version; supersede prior PUBLISHED versions (never delete).
     version_row.update({"status": "PUBLISHED", "blocked_count": blocked})
@@ -232,6 +267,12 @@ def _run(notes: str = "") -> dict:
         "advisors": len(advisors), "transitions": len(advisors) * len(transitions),
         "published": sum(1 for c in commentary_rows if c["status"] == "PUBLISHED"),
         "blocked": blocked, "evidence_records": len(evidence_rows),
+        # Advisory judge tally (R5) — informational only, never a gate.
+        "judge": {
+            "pass": sum(1 for e in evaluation_rows if e["verdict"] == "PASS"),
+            "review": sum(1 for e in evaluation_rows if e["verdict"] == "REVIEW"),
+            "fail": sum(1 for e in evaluation_rows if e["verdict"] == "FAIL"),
+        },
     }
     _log.info("commentary generation complete: %s", summary)
     return summary

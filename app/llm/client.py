@@ -131,14 +131,17 @@ class ClaudeLLMClient:
     do not default to a more expensive model without being asked.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, model_override: str | None = None) -> None:
+        """`model_override` lets a second role (the LLM-as-judge, FIX_SPEC R5)
+        run on a DIFFERENT model than the writer without touching the shared
+        singleton — e.g. ClaudeLLMClient(model_override=settings.judge_model)."""
         settings = get_settings()
         if not settings.anthropic_api_key:
             raise LLMClientError("LLM_CLIENT_MODE=claude requires ANTHROPIC_API_KEY in .env")
         import anthropic  # imported here so nothing outside this class depends on the SDK
 
         self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-        self.model = settings.anthropic_model
+        self.model = model_override or settings.anthropic_model
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:

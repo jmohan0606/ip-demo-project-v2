@@ -90,6 +90,13 @@ def insights_versions():
     return ok(data={"versions": rows, "served_by_tier": v2_served_by_tier(result)})
 
 
+@router.get("/insights/evaluations")
+def insights_evaluations(version_id: str = ""):
+    """LLM-as-judge verdicts (R5) for a commentary version ("" = all versions).
+    Advisory only — surfaced in the UI, never a publication gate."""
+    return ok(data=V2RevenueService().commentary_evaluations(version_id))
+
+
 @router.post("/insights/generate")
 def insights_generate(notes: str = ""):
     """Trigger the batch generation workflow — a NEW version every run; prior

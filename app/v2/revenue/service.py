@@ -67,6 +67,13 @@ class V2RevenueService:
         rows = [_attrs(r) for r in results[0].get("reason_codes", [])] if results else []
         return {"reason_codes": rows, "served_by_tier": tier}
 
+    def commentary_evaluations(self, version_id: str = "") -> dict:
+        """LLM-as-judge evaluations (FIX_SPEC R5-4) — stored, advisory-only
+        verdicts per commentary. version_id "" returns all versions."""
+        results, tier = self._run("get_commentary_evaluations", {"version_id": version_id})
+        rows = [_attrs(r) for r in results[0].get("evaluations", [])] if results else []
+        return {"evaluations": rows, "served_by_tier": tier}
+
     # ---------------------------------------------------------- trends
 
     def monthly_revenue(self, advisor_id: str, from_month: str, to_month: str) -> dict:

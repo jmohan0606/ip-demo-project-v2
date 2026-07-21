@@ -14,7 +14,8 @@ from pathlib import Path
 from app.agents.core.base_agent import BaseAgent
 from app.agents.state.agent_state import AgentWorkflowState
 from app.v2.format import fmt_money
-from app.v2.revenue.aggregation import TOTAL_GROUP
+from app.v2.revenue import eligibility as elig
+from app.v2.revenue.aggregation import TOTAL_GROUP, derive_rev_nature
 from app.v2.revenue.service import V2RevenueService
 from app.v2.source_catalog import table_name
 
@@ -36,6 +37,322 @@ _CAUSE_FINDING = {
     "MARKET": "market performance effect — placeholder, no index-return source",
     "NET_FLOW": "net client flow effect — placeholder, flows feed unavailable",
 }
+
+# ---------------------------------------------------------------- R4-2 order
+# The attribution order (app/v2/drivers/attribution.py). NEW_ACCOUNT and
+# LOST_ACCOUNT share step 1 (one presence test, two signs).
+ATTRIBUTION_ORDER = [
+    "NEW_ACCOUNT/LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "CLAWBACK", "TIMING",
+    "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "MARKET", "NET_FLOW", "MIX",
+]
+_CAUSE_STEP = {
+    "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
+    "CLAWBACK": 4, "TIMING": 5, "FEE_RATE": 6, "DISCOUNT": 7,
+    "BILLABLE_DAYS": 8, "VOLUME": 9, "MARKET": 10, "NET_FLOW": 11, "MIX": 12,
+}
+# Deterministic per-cause ordering for the waterfall (step order, split pairs).
+_WATERFALL_CAUSE_ORDER = [
+    "NEW_ACCOUNT", "LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "CLAWBACK",
+    "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
+    "MARKET", "NET_FLOW", "MIX",
+]
+
+# R4-4 — the rev_nature classification rule, stated once, verbatim from
+# app/v2/revenue/aggregation.derive_rev_nature.
+_REV_NATURE_RULE = (
+    "ADJUSTMENT if description starts ADJUSTMENT or file_key=manual_adj; "
+    "ONE_TIME if file_key in (twhs,l_a_ancomm,pb_rfrrl,refrl_401k,sitn_ptnr) "
+    "or description starts ANNUITY ISSUED; else RECURRING"
+)
+
+# ---------------------------------------------------------------- R4-1 why
+# Why-this-cause: the rule in plain words, the inputs the attribution tested,
+# and why competing causes were rejected. Sourced from the attribution code
+# (app/v2/drivers/attribution.attribute_group) so it cannot drift. `{from_m}`
+# and `{to_m}` are substituted with the transition's month ids at build time.
+_CAUSE_WHY: dict[str, dict] = {
+    "NEW_ACCOUNT": {
+        "rule": "Accounts trading in {to_m} that did not trade in {from_m}. Evaluated at "
+                "advisor level, not product level, so an account merely switching products "
+                "is not miscounted as a new account.",
+        "inputs_tested": ["account_no presence per month (advisor level, credited + non-credited)",
+                          "credited_amt of the new accounts' to-month rows"],
+        "rejected": [
+            {"cause": "ONE_TIME", "reason": "new-account revenue is claimed at step 1, before "
+             "rev_nature is tested, so it is not double-counted as a one-time item"},
+            {"cause": "VOLUME", "reason": "count growth caused by accounts present in only one "
+             "month is an account opening, not organic volume — those rows are removed first"},
+            {"cause": "MIX", "reason": "a genuinely new account is an explicit cause and is "
+             "claimed before anything falls to the residual"},
+        ],
+    },
+    "LOST_ACCOUNT": {
+        "rule": "Accounts that traded in {from_m} but not in {to_m}. Evaluated at advisor "
+                "level, not product level, so an account merely switching products is not "
+                "miscounted as a lost account. An account whose rows only became "
+                "non-credited is still trading — that is ELIGIBILITY, not a lost account.",
+        "inputs_tested": ["account_no presence per month (advisor level, credited + non-credited)",
+                          "credited_amt of the lost accounts' from-month rows"],
+        "rejected": [
+            {"cause": "ELIGIBILITY", "reason": "presence counts credited AND non-credited "
+             "activity, so a household crossing an eligibility threshold is not read as lost"},
+            {"cause": "VOLUME", "reason": "count decline caused by accounts absent in {to_m} is "
+             "an account closure, not organic volume — those rows are removed first"},
+            {"cause": "MIX", "reason": "a genuinely lost account is an explicit cause and is "
+             "claimed before anything falls to the residual"},
+        ],
+    },
+    "ONE_TIME": {
+        "rule": "Rows whose rev_nature is ONE_TIME (derived from file_key and "
+                "trade_description) in either month, after new/lost accounts were removed; "
+                "contribution = to-month one-time total less from-month one-time total.",
+        "inputs_tested": ["rev_nature per row", "file_key", "trade_description",
+                          "one-time totals per month"],
+        "rejected": [
+            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "accounts present in only one month "
+             "were already claimed at step 1 and their rows removed"},
+            {"cause": "VOLUME", "reason": "a one-time item not repeating is not volume "
+             "behaviour; those rows are removed before counts are compared"},
+        ],
+    },
+    "ELIGIBILITY": {
+        "rule": "Revenue whose reason code moved it between credited and non-credited month "
+                "over month (e.g. a household crossing the minimum-household threshold){codes}. "
+                "Contribution = -(change in non-credited revenue): non-credited rising means "
+                "credited fell by that amount. Accounts already claimed by "
+                "NEW_ACCOUNT/LOST_ACCOUNT are excluded to prevent double-counting.",
+        "inputs_tested": ["reason_cd per row (vs the phx_dm_v2_reason_code eligibility rows)",
+                          "non-credited totals per month",
+                          "accounts already claimed by NEW/LOST_ACCOUNT"],
+        "rejected": [
+            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "accounts claimed at step 1 are "
+             "excluded here, so an opening/closure is never also counted as an eligibility move"},
+            {"cause": "LOST_ACCOUNT", "reason": "an account whose rows merely became "
+             "non-credited is still trading — an eligibility move, not a lost account"},
+            {"cause": "MIX", "reason": "the movement is explained by reason-code eligibility, "
+             "so it is claimed before the residual"},
+        ],
+    },
+    "CLAWBACK": {
+        "rule": "Change in negative-amount (reversal) rows among transactions no earlier step "
+                "claimed: to-month negative total less from-month negative total.",
+        "inputs_tested": ["credited_amt sign per row", "negative totals and row counts per month"],
+        "rejected": [
+            {"cause": "ONE_TIME", "reason": "clawback is tested by amount sign, not rev_nature; "
+             "one-time rows were already removed at step 2"},
+            {"cause": "VOLUME", "reason": "reversals are not count behaviour; negative rows are "
+             "removed before counts are compared"},
+        ],
+    },
+    "TIMING": {
+        "rule": "The group is quarterly-billed and its remaining revenue appears in exactly one "
+                "month of the pair, so the whole remaining movement is billing-cycle timing.",
+        "inputs_tested": ["group billing cycle (quarterly-billed set)",
+                          "presence of remaining rows in each month"],
+        "rejected": [
+            {"cause": "LOST_ACCOUNT", "reason": "the accounts still exist at the advisor; only "
+             "the billing month differs"},
+            {"cause": "VOLUME", "reason": "a quarterly cycle falling in one month is calendar "
+             "timing, not a change in transaction volume"},
+        ],
+    },
+    "FEE_RATE": {
+        "rule": "The revenue-weighted effective rate on the remaining recurring base moved: "
+                "contribution = assets_proxy x (to_rate - from_rate) / 10000, with "
+                "assets_proxy = from_revenue / (from_rate/10000).",
+        "inputs_tested": ["client_rate_bps per row (revenue-weighted)",
+                          "from-month revenue of the remaining base"],
+        "rejected": [
+            {"cause": "VOLUME", "reason": "the rate is measured on the surviving base after "
+             "account, one-time and clawback rows were removed, so count effects are excluded"},
+            {"cause": "MIX", "reason": "a measurable rate change is claimed explicitly rather "
+             "than left to the residual"},
+        ],
+    },
+    "DISCOUNT": {
+        "rule": "Discounting changed between the months: contribution = from-month discount "
+                "total less to-month discount total (growth in discounting reduces revenue).",
+        "inputs_tested": ["discount_amt per row", "concession_type = 'Discount' row counts"],
+        "rejected": [
+            {"cause": "FEE_RATE", "reason": "discounting is measured from discount_amt, "
+             "separately from the standard-rate movement"},
+            {"cause": "MIX", "reason": "a measurable discount change is claimed explicitly "
+             "rather than left to the residual"},
+        ],
+    },
+    "BILLABLE_DAYS": {
+        "rule": "Recurring/fee-based groups only: fee accrual scales with the billing-day "
+                "count, so contribution = from_revenue x (to_days - from_days) / from_days.",
+        "inputs_tested": ["billable days of each month", "group recurring-class flag",
+                          "from-month revenue of the remaining base"],
+        "rejected": [
+            {"cause": "VOLUME", "reason": "day-count effects apply to fee accrual, not "
+             "transaction counts; the group is recurring-class"},
+            {"cause": "FEE_RATE", "reason": "the rate itself is unchanged; only the accrual "
+             "window differs"},
+        ],
+    },
+    "VOLUME": {
+        "rule": "Transaction-based (non-recurring-class) groups: contribution = "
+                "(to_txn_count - from_txn_count) x from-month average transaction value, "
+                "computed after every earlier cause removed its rows.",
+        "inputs_tested": ["remaining transaction counts per month",
+                          "from-month average transaction value"],
+        "rejected": [
+            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "count changes from accounts "
+             "present in only one month were claimed at step 1"},
+            {"cause": "ONE_TIME", "reason": "one-time rows were removed at step 2, so a "
+             "non-repeating item is not read as a volume change"},
+        ],
+    },
+    "MARKET": {
+        "rule": "Placeholder (DUMMY): no index-return source exists, so the market effect is "
+                "held at $0 and stays visible rather than being silently absorbed elsewhere.",
+        "inputs_tested": ["none — no index-return data source available"],
+        "rejected": [],
+    },
+    "NET_FLOW": {
+        "rule": "Placeholder (DUMMY): the client flows feed is unavailable for this period, so "
+                "the net-flow effect is held at $0 and stays visible.",
+        "inputs_tested": ["none — flows feed unavailable"],
+        "rejected": [],
+    },
+    "MIX": {
+        "rule": "The remainder after every explicit cause claimed its portion: "
+                "change_amt - sum(attributed causes). This is what makes the drivers "
+                "reconcile to the total change by construction; economically it is shifts "
+                "between products at different rates.",
+        "inputs_tested": ["group change_amt", "sum of all earlier attributed causes"],
+        "rejected": [
+            {"cause": "ALL_EARLIER_STEPS", "reason": "every measurable cause claimed its "
+             "portion first; MIX is only what none of them explained"},
+        ],
+    },
+}
+
+
+def _why_for(driver: dict, from_month: str, to_month: str) -> dict:
+    """R4-1 — the why-this-cause panel content for one driver."""
+    entry = _CAUSE_WHY.get(driver["cause_id"]) or {
+        "rule": _CAUSE_FINDING.get(driver["cause_id"], driver["cause_id"]),
+        "inputs_tested": [], "rejected": [],
+    }
+    codes = ""
+    if driver["cause_id"] == "ELIGIBILITY":
+        involved = [c for c in (driver.get("inputs") or {}).get("reason_codes", []) if c]
+        if involved:
+            codes = f" — reason codes involved: {', '.join(involved)}"
+    rule = entry["rule"].format(from_m=from_month, to_m=to_month, codes=codes)
+    return {
+        "rule": rule,
+        "inputs_tested": list(entry["inputs_tested"]),
+        "rejected": [{"cause": r["cause"],
+                      "reason": r["reason"].format(from_m=from_month, to_m=to_month)}
+                     for r in entry["rejected"]],
+    }
+
+
+def _claims_by_cause(drivers: list[dict]) -> dict[str, float]:
+    """Total contribution per cause across all groups of the transition."""
+    totals: dict[str, float] = {}
+    for d in drivers:
+        totals[d["cause_id"]] = totals.get(d["cause_id"], 0.0) + float(d["contribution_amt"] or 0)
+    return {c: round(v, 2) for c, v in totals.items()}
+
+
+def _attribution_for(driver: dict, revenue_output: dict) -> dict:
+    """R4-2 — this driver's step in the attribution order and what earlier
+    steps had already claimed for the transition (all groups)."""
+    step = _CAUSE_STEP.get(driver["cause_id"], len(ATTRIBUTION_ORDER))
+    claims = _claims_by_cause(revenue_output.get("drivers", []))
+    earlier = [
+        {"cause": cause, "amount": claims[cause]}
+        for cause in _WATERFALL_CAUSE_ORDER
+        if cause in claims and _CAUSE_STEP[cause] < step
+    ]
+    return {
+        "step": step,
+        "total_steps": len(ATTRIBUTION_ORDER),
+        "order": list(ATTRIBUTION_ORDER),
+        "earlier_claims": earlier,
+    }
+
+
+def _waterfall_for(revenue_output: dict) -> dict:
+    """R4-3 — the transition's reconciliation as a waterfall: from_revenue plus
+    each cause's aggregated contribution equals to_revenue (MIX absorbs the
+    remainder by construction, so the sum is exact)."""
+    claims = _claims_by_cause(revenue_output.get("drivers", []))
+    return {
+        "from_revenue": round(float(revenue_output["from_revenue"]), 2),
+        "steps": [{"label": cause, "amount": claims[cause]}
+                  for cause in _WATERFALL_CAUSE_ORDER if cause in claims],
+        "to_revenue": round(float(revenue_output["to_revenue"]), 2),
+    }
+
+
+def _rev_nature_for(txns: list[dict]) -> dict:
+    """R4-4 — the actual (file_key, trade_description) values that classified
+    this driver's rows as ONE_TIME / RECURRING / ADJUSTMENT (cap 10 combos)."""
+    combos: dict[tuple[str, str, str], int] = {}
+    for t in txns:
+        fk = str(t.get("file_key") or "")
+        desc = str(t.get("trade_description") or "")
+        nature = str(t.get("rev_nature") or "") or derive_rev_nature(fk, desc)
+        key = (fk, desc, nature)
+        combos[key] = combos.get(key, 0) + 1
+    values = [{"file_key": fk, "trade_description": desc, "rev_nature": nature, "count": n}
+              for (fk, desc, nature), n in sorted(combos.items(), key=lambda kv: -kv[1])[:10]]
+    return {"rule": _REV_NATURE_RULE, "values": values}
+
+
+def _credited_breakdown(svc: V2RevenueService, advisor_id: str, group_id: str,
+                        from_month: str, to_month: str,
+                        txns_by_month: dict[str, list[dict]]) -> dict:
+    """R4-5 — the client's own credited definition, per month, for the driver's
+    group (all groups for __TOTAL__): total, less non-credited (with reason-code
+    detail), less late-excluded, = credited. Excluded rows are shown for
+    visibility but are outside every total."""
+    mpr_rows = svc.monthly_revenue(advisor_id, from_month, to_month)["monthly_revenue"]
+    reasons = elig.reason_map(svc.reason_codes()["reason_codes"])
+    months = []
+    for month_id in (from_month, to_month):
+        total = non_credited = excluded = late = 0.0
+        for r in mpr_rows:
+            if str(r.get("month_id")) != month_id:
+                continue
+            if group_id != TOTAL_GROUP and str(r.get("group_id")) != group_id:
+                continue
+            total += float(r.get("total_revenue") or 0)
+            non_credited += float(r.get("non_credited_amt") or 0)
+            excluded += float(r.get("excluded_amt") or 0)
+            late += float(r.get("late_excluded_amt") or 0)
+        detail: dict[str, dict] = {}
+        for t in txns_by_month.get(month_id, []):
+            if t.get("eligibility_bucket") != elig.NON_CREDITED:
+                continue
+            code = elig.normalize_reason(t.get("reason_cd"))
+            row = detail.setdefault(code, {
+                "reason_code": code,
+                "ui_mapping": str((reasons.get(code) or {}).get("ui_mapping") or ""),
+                "count": 0, "amount": 0.0,
+            })
+            row["count"] += 1
+            row["amount"] += float(t.get("credited_amt") or 0)
+        for row in detail.values():
+            row["amount"] = round(row["amount"], 2)
+        months.append({
+            "month_id": month_id,
+            "total_revenue": round(total, 2),
+            "non_credited": round(non_credited, 2),
+            "non_credited_detail": sorted(detail.values(), key=lambda r: r["reason_code"]),
+            "excluded": round(excluded, 2),
+            "late_excluded": round(late, 2),
+            # credited = total - non_credited - late_excluded (the client's definition;
+            # excluded rows are not revenue at all and sit outside total_revenue).
+            "credited": round(total - non_credited - late, 2),
+        })
+    return {"months": months}
 
 
 def _component_unit(key: str) -> str:
@@ -95,10 +412,14 @@ def build_evidence(revenue_output: dict, driver: dict, version_id: str) -> dict:
     if group_id == TOTAL_GROUP:
         from_txns = to_txns = []
         source_rows: list[dict] = []
+        # Breakdown detail (R4-5) for __TOTAL__ covers all groups.
+        bd_from = svc.transactions(advisor_id, from_month, "", 10000)["transactions"]
+        bd_to = svc.transactions(advisor_id, to_month, "", 10000)["transactions"]
     else:
         from_txns = svc.transactions(advisor_id, from_month, group_id, 10000)["transactions"]
         to_txns = svc.transactions(advisor_id, to_month, group_id, 10000)["transactions"]
         source_rows = (to_txns or from_txns)
+        bd_from, bd_to = from_txns, to_txns
     sample = [{
         "trade_ref": t.get("trade_ref_no"),
         "date": str(t.get("trade_dt"))[:10],
@@ -169,6 +490,18 @@ def build_evidence(revenue_output: dict, driver: dict, version_id: str) -> dict:
         "calc_json": json.dumps({
             "components": _calc_components(driver),
             "formula": inputs.get("formula", "sum of component changes"),
+            # R4-1 — why this cause, sourced from the attribution code.
+            "why": _why_for(driver, from_month, to_month),
+            # R4-2 — step n of 12 and what earlier steps already claimed.
+            "attribution": _attribution_for(driver, revenue_output),
+            # R4-3 — from_revenue + Σ cause steps = to_revenue, exactly.
+            "waterfall": _waterfall_for(revenue_output),
+            # R4-4 — the file_key/trade_description values behind rev_nature.
+            "rev_nature": _rev_nature_for(from_txns + to_txns),
+            # R4-5 — the client's own credited-revenue definition, per month.
+            "credited_breakdown": _credited_breakdown(
+                svc, advisor_id, group_id, from_month, to_month,
+                {from_month: bd_from, to_month: bd_to}),
         }, sort_keys=True),
         "source_records_json": json.dumps({
             "sample": sample,
