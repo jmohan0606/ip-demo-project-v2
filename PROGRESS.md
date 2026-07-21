@@ -51,10 +51,10 @@ Resume from: R1-1
 | P6-9 | 6 | Env health screen | DONE | 6a15498 | probes, tier detail, 3-way reconciliation |
 | P7-1 | 7 | End-to-end verification with sample data | DONE | e99499f | verify_end_to_end.py OVERALL PASS; headless UI verified, 0 console errors |
 | P7-2 | 7 | BUILD_REPORT.md complete | DONE | e99499f | BUILD_REPORT.md complete |
-| R1-1 | R1 | reason_code vertex + seed data | TODO | | |
-| R1-2 | R1 | txn_has_reason edge | TODO | | |
-| R1-3 | R1 | transaction vertex new attributes | TODO | | |
-| R1-4 | R1 | product vertex grid_type attribute | TODO | | |
+| R1-1 | R1 | reason_code vertex + seed data | IN_PROGRESS | | started 2026-07-21 |
+| R1-2 | R1 | txn_has_reason edge | IN_PROGRESS | | |
+| R1-3 | R1 | transaction vertex new attributes | IN_PROGRESS | | |
+| R1-4 | R1 | product vertex grid_type attribute | IN_PROGRESS | | |
 | R1-5 | R1 | extraction SQL: reason_cd/rm_sid/cs_sid/grid_type, remove WHERE filter | TODO | | |
 | R1-6 | R1 | credited-revenue definition (data-driven eligibility + 90-day rule) | TODO | | |
 | R1-7 | R1 | posting_month_id (ASSUMED) | TODO | | |

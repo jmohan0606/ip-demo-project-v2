@@ -1,4 +1,4 @@
-// iPerform V2 — vertex types (16)
+// iPerform V2 — vertex types (17)
 // Graph: iperform_v2_revenue · Prefix: phx_dm_v2_
 // Every vertex carries data_source STRING — REAL | DERIVED | ASSUMED | DUMMY.
 
@@ -56,11 +56,15 @@ CREATE VERTEX phx_dm_v2_product_group (
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 
 // Leaf: the (product_cd, sub_product_code) pair. REAL.
+// grid_type (FIX_SPEC R1-4): PRODUCT_TYPE | NON_CREDITED_REVENUE |
+// PAY_TYPE_SUMMARY — stored as data, NOT filtered at extraction. The revenue
+// computation filters on it via CREDITED_GRID_TYPES config.
 CREATE VERTEX phx_dm_v2_product (
     PRIMARY_ID product_id STRING,
     product_cd STRING,
     product_sub_cd STRING,
     product_name STRING,
+    grid_type STRING,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 
@@ -78,6 +82,23 @@ CREATE VERTEX phx_dm_v2_driver_cause (
     cause_name STRING,
     cause_description STRING,
     default_data_source STRING,
+    display_order INT,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// Reason-code reference (FIX_SPEC R1-1). Drives revenue eligibility DATA-SIDE:
+// the credited-revenue computation reads include_in_credited/eligibility from
+// these rows, never from hardcoded lists. Seeded from the client's Confluence
+// "Revenue Summary Data Mapping" doc. "__NONE__" = rows with no reason code.
+// eligibility: CREDITED | NON_CREDITED | EXCLUDED (EXCLUDED = not revenue at all).
+CREATE VERTEX phx_dm_v2_reason_code (
+    PRIMARY_ID reason_code STRING,
+    description STRING,
+    ui_mapping STRING,
+    owned_by STRING,
+    eligibility STRING,
+    include_in_credited BOOL,
+    incentive_eligible BOOL,
     display_order INT,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
@@ -107,10 +128,30 @@ CREATE VERTEX phx_dm_v2_revenue_transaction (
     file_key STRING,
     trade_description STRING,
     rev_nature STRING,
+    // FIX_SPEC R1-3: reason code + eligibility. revenue_eligibility and
+    // incentive_eligible are DERIVED from the reason_code vertex at build time;
+    // days_to_process = proc_dt - trade_dt in days (feeds the 90-day rule);
+    // posting_month_id = trade month for now (ASSUMED — no iComp feed to
+    // identify closed months, so no prior-period-adjustment logic yet).
+    reason_cd STRING,
+    rm_sid STRING,
+    cs_sid STRING,
+    revenue_eligibility STRING,
+    incentive_eligible BOOL,
+    days_to_process INT,
+    posting_month_id STRING,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 
 // Pre-aggregated pivot cells. DERIVED.
+// revenue = CREDITED revenue (the app's headline figure, FIX_SPEC R1-6/R1-9).
+// total_revenue / non_credited_amt / excluded_amt / late_excluded_amt are the
+// client's own breakdown, stored for the evidence modal (R4-5):
+//   total_revenue      Σ all rows whose reason code is not EXCLUDED
+//   non_credited_amt   Σ rows with NON_CREDITED reason codes (9E,9G,9C,9S,94)
+//   excluded_amt       Σ rows with EXCLUDED reason codes (not revenue at all)
+//   late_excluded_amt  Σ otherwise-credited rows with days_to_process > 90
+//   revenue = total_revenue - non_credited_amt - late_excluded_amt
 CREATE VERTEX phx_dm_v2_monthly_product_revenue (
     PRIMARY_ID mpr_id STRING,
     advisor_sid STRING,
@@ -124,6 +165,10 @@ CREATE VERTEX phx_dm_v2_monthly_product_revenue (
     avg_rate_bps DOUBLE,
     recurring_amt DOUBLE,
     one_time_amt DOUBLE,
+    total_revenue DOUBLE,
+    non_credited_amt DOUBLE,
+    excluded_amt DOUBLE,
+    late_excluded_amt DOUBLE,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 

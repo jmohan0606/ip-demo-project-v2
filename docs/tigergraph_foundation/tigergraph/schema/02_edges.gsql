@@ -1,4 +1,4 @@
-// iPerform V2 — edge types (25)
+// iPerform V2 — edge types (26)
 // All directed, all with REVERSE_EDGE.
 // NOTE: SCHEMA_SPEC.md's header says 23 edge types, but its edge tables (the
 // detailed authority) enumerate 25 — all 25 are created here.
@@ -13,6 +13,7 @@ CREATE DIRECTED EDGE phx_dm_v2_txn_for_advisor (FROM phx_dm_v2_revenue_transacti
 CREATE DIRECTED EDGE phx_dm_v2_txn_in_month (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_month) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_in_month"
 CREATE DIRECTED EDGE phx_dm_v2_txn_for_product (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_product) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_for_product"
 CREATE DIRECTED EDGE phx_dm_v2_txn_for_account (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_account) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_for_account"
+CREATE DIRECTED EDGE phx_dm_v2_txn_has_reason (FROM phx_dm_v2_revenue_transaction, TO phx_dm_v2_reason_code) WITH REVERSE_EDGE="reverse_phx_dm_v2_txn_has_reason"
 
 // ------------------------------------------------------- MONTHLY AGGREGATES
 CREATE DIRECTED EDGE phx_dm_v2_mpr_for_advisor (FROM phx_dm_v2_monthly_product_revenue, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_mpr_for_advisor"

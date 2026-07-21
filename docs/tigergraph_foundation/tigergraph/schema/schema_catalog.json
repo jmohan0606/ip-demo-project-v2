@@ -1,8 +1,8 @@
 {
   "graph": "iperform_v2_revenue",
   "prefix": "phx_dm_v2_",
-  "vertex_count": 16,
-  "edge_count": 25,
+  "vertex_count": 17,
+  "edge_count": 26,
   "vertices": {
     "phx_dm_v2_advisor": {
       "primary_id": {
@@ -85,6 +85,7 @@
         "product_cd": "STRING",
         "product_sub_cd": "STRING",
         "product_name": "STRING",
+        "grid_type": "STRING",
         "data_source": "STRING"
       }
     },
@@ -110,6 +111,23 @@
         "cause_name": "STRING",
         "cause_description": "STRING",
         "default_data_source": "STRING",
+        "display_order": "INT",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_reason_code": {
+      "primary_id": {
+        "name": "reason_code",
+        "type": "STRING"
+      },
+      "attributes": {
+        "reason_code": "STRING",
+        "description": "STRING",
+        "ui_mapping": "STRING",
+        "owned_by": "STRING",
+        "eligibility": "STRING",
+        "include_in_credited": "BOOL",
+        "incentive_eligible": "BOOL",
         "display_order": "INT",
         "data_source": "STRING"
       }
@@ -141,6 +159,13 @@
         "file_key": "STRING",
         "trade_description": "STRING",
         "rev_nature": "STRING",
+        "reason_cd": "STRING",
+        "rm_sid": "STRING",
+        "cs_sid": "STRING",
+        "revenue_eligibility": "STRING",
+        "incentive_eligible": "BOOL",
+        "days_to_process": "INT",
+        "posting_month_id": "STRING",
         "data_source": "STRING"
       }
     },
@@ -162,6 +187,10 @@
         "avg_rate_bps": "DOUBLE",
         "recurring_amt": "DOUBLE",
         "one_time_amt": "DOUBLE",
+        "total_revenue": "DOUBLE",
+        "non_credited_amt": "DOUBLE",
+        "excluded_amt": "DOUBLE",
+        "late_excluded_amt": "DOUBLE",
         "data_source": "STRING"
       }
     },
@@ -283,152 +312,132 @@
     "phx_dm_v2_product_in_group": {
       "from": "phx_dm_v2_product",
       "to": "phx_dm_v2_product_group",
-      "reverse_edge": "reverse_phx_dm_v2_product_in_group",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_product_in_group"
     },
     "phx_dm_v2_group_in_line": {
       "from": "phx_dm_v2_product_group",
       "to": "phx_dm_v2_product_line",
-      "reverse_edge": "reverse_phx_dm_v2_group_in_line",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_group_in_line"
     },
     "phx_dm_v2_line_in_class": {
       "from": "phx_dm_v2_product_line",
       "to": "phx_dm_v2_revenue_class",
-      "reverse_edge": "reverse_phx_dm_v2_line_in_class",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_line_in_class"
     },
     "phx_dm_v2_txn_for_advisor": {
       "from": "phx_dm_v2_revenue_transaction",
       "to": "phx_dm_v2_advisor",
-      "reverse_edge": "reverse_phx_dm_v2_txn_for_advisor",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_advisor"
     },
     "phx_dm_v2_txn_in_month": {
       "from": "phx_dm_v2_revenue_transaction",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_txn_in_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_txn_in_month"
     },
     "phx_dm_v2_txn_for_product": {
       "from": "phx_dm_v2_revenue_transaction",
       "to": "phx_dm_v2_product",
-      "reverse_edge": "reverse_phx_dm_v2_txn_for_product",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_product"
     },
     "phx_dm_v2_txn_for_account": {
       "from": "phx_dm_v2_revenue_transaction",
       "to": "phx_dm_v2_account",
-      "reverse_edge": "reverse_phx_dm_v2_txn_for_account",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_txn_for_account"
+    },
+    "phx_dm_v2_txn_has_reason": {
+      "from": "phx_dm_v2_revenue_transaction",
+      "to": "phx_dm_v2_reason_code",
+      "reverse_edge": "reverse_phx_dm_v2_txn_has_reason"
     },
     "phx_dm_v2_mpr_for_advisor": {
       "from": "phx_dm_v2_monthly_product_revenue",
       "to": "phx_dm_v2_advisor",
-      "reverse_edge": "reverse_phx_dm_v2_mpr_for_advisor",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_mpr_for_advisor"
     },
     "phx_dm_v2_mpr_in_month": {
       "from": "phx_dm_v2_monthly_product_revenue",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_mpr_in_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_mpr_in_month"
     },
     "phx_dm_v2_mpr_for_group": {
       "from": "phx_dm_v2_monthly_product_revenue",
       "to": "phx_dm_v2_product_group",
-      "reverse_edge": "reverse_phx_dm_v2_mpr_for_group",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_mpr_for_group"
     },
     "phx_dm_v2_balance_for_account": {
       "from": "phx_dm_v2_account_month_balance",
       "to": "phx_dm_v2_account",
-      "reverse_edge": "reverse_phx_dm_v2_balance_for_account",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_balance_for_account"
     },
     "phx_dm_v2_balance_in_month": {
       "from": "phx_dm_v2_account_month_balance",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_balance_in_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_balance_in_month"
     },
     "phx_dm_v2_change_for_advisor": {
       "from": "phx_dm_v2_revenue_change",
       "to": "phx_dm_v2_advisor",
-      "reverse_edge": "reverse_phx_dm_v2_change_for_advisor",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_change_for_advisor"
     },
     "phx_dm_v2_change_for_group": {
       "from": "phx_dm_v2_revenue_change",
       "to": "phx_dm_v2_product_group",
-      "reverse_edge": "reverse_phx_dm_v2_change_for_group",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_change_for_group"
     },
     "phx_dm_v2_change_from_month": {
       "from": "phx_dm_v2_revenue_change",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_change_from_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_change_from_month"
     },
     "phx_dm_v2_change_to_month": {
       "from": "phx_dm_v2_revenue_change",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_change_to_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_change_to_month"
     },
     "phx_dm_v2_driver_of_change": {
       "from": "phx_dm_v2_revenue_driver",
       "to": "phx_dm_v2_revenue_change",
-      "reverse_edge": "reverse_phx_dm_v2_driver_of_change",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_driver_of_change"
     },
     "phx_dm_v2_driver_has_cause": {
       "from": "phx_dm_v2_revenue_driver",
       "to": "phx_dm_v2_driver_cause",
-      "reverse_edge": "reverse_phx_dm_v2_driver_has_cause",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_driver_has_cause"
     },
     "phx_dm_v2_driver_for_group": {
       "from": "phx_dm_v2_revenue_driver",
       "to": "phx_dm_v2_product_group",
-      "reverse_edge": "reverse_phx_dm_v2_driver_for_group",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_driver_for_group"
     },
     "phx_dm_v2_commentary_for_advisor": {
       "from": "phx_dm_v2_commentary",
       "to": "phx_dm_v2_advisor",
-      "reverse_edge": "reverse_phx_dm_v2_commentary_for_advisor",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_commentary_for_advisor"
     },
     "phx_dm_v2_commentary_from_month": {
       "from": "phx_dm_v2_commentary",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_commentary_from_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_commentary_from_month"
     },
     "phx_dm_v2_commentary_to_month": {
       "from": "phx_dm_v2_commentary",
       "to": "phx_dm_v2_month",
-      "reverse_edge": "reverse_phx_dm_v2_commentary_to_month",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_commentary_to_month"
     },
     "phx_dm_v2_commentary_in_version": {
       "from": "phx_dm_v2_commentary",
       "to": "phx_dm_v2_commentary_version",
-      "reverse_edge": "reverse_phx_dm_v2_commentary_in_version",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_commentary_in_version"
     },
     "phx_dm_v2_commentary_cites_driver": {
       "from": "phx_dm_v2_commentary",
       "to": "phx_dm_v2_revenue_driver",
-      "reverse_edge": "reverse_phx_dm_v2_commentary_cites_driver",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_commentary_cites_driver"
     },
     "phx_dm_v2_evidence_for_driver": {
       "from": "phx_dm_v2_evidence",
       "to": "phx_dm_v2_revenue_driver",
-      "reverse_edge": "reverse_phx_dm_v2_evidence_for_driver",
-      "attributes": {}
+      "reverse_edge": "reverse_phx_dm_v2_evidence_for_driver"
     }
   }
 }
