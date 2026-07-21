@@ -1,0 +1,23 @@
+/*
+ * GQ-017 — get_commentary_evaluations
+ * Purpose: LLM-as-judge evaluations for a commentary version (FIX_SPEC R5).
+ *          Advisory only — surfaced in the evidence modal ("Independent
+ *          review") and as a card badge when the verdict is not PASS.
+ *          version_id = "" means all versions.
+ * Outputs: evaluations vertex set.
+ * Created: V2 round 2 2026-07-21. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_commentary_evaluations(STRING version_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_evals = {phx_dm_v2_commentary_evaluation.*};
+    evaluations = SELECT ev
+        FROM all_evals:ev
+        WHERE version_id == "" OR ev.version_id == version_id
+        ORDER BY ev.evaluation_id ASC;
+
+    PRINT evaluations;
+}
+
+INSTALL QUERY get_commentary_evaluations

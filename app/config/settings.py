@@ -97,6 +97,10 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-haiku-4-5-20251001", alias="ANTHROPIC_MODEL")
+    # LLM-as-judge (FIX_SPEC R5): runs on a DIFFERENT model than the writer,
+    # advisory only — deterministic guardrails remain the blocking gate.
+    judge_model: str = Field(default="claude-sonnet-5", alias="JUDGE_MODEL")
+    judge_enabled: bool = Field(default=True, alias="JUDGE_ENABLED")
 
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],

@@ -18,3 +18,4 @@ USE GRAPH iperform_v2_revenue
 @GQ-014_get_ingestion_counts.gsql
 @GQ-015_get_advisor_month_summary.gsql
 @GQ-016_get_reason_codes.gsql
+@GQ-017_get_commentary_evaluations.gsql

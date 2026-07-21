@@ -17,6 +17,7 @@ from app.graph.queries.common import (
     ACCOUNT_MONTH_BALANCE,
     ADVISOR,
     COMMENTARY,
+    COMMENTARY_EVALUATION,
     COMMENTARY_VERSION,
     DRIVER_CAUSE,
     EVIDENCE,
@@ -207,6 +208,18 @@ def get_commentary(store: FoundationGraphStore, params: dict) -> list[dict]:
     )
     rows.sort(key=lambda r: str(_attr(r, "to_month_id")))
     return [{"commentaries": rows}, {"resolved_version": target_version}]
+
+
+@mock_query("get_commentary_evaluations")
+def get_commentary_evaluations(store: FoundationGraphStore, params: dict) -> list[dict]:
+    version_id = str(params.get("version_id") or "")
+    rows = vrows(
+        store,
+        COMMENTARY_EVALUATION,
+        lambda a: version_id == "" or str(a.get("version_id")) == version_id,
+    )
+    rows.sort(key=lambda r: str(_attr(r, "evaluation_id") or r["v_id"]))
+    return [{"evaluations": rows}]
 
 
 @mock_query("get_commentary_versions")

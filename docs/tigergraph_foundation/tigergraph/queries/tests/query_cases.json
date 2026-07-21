@@ -49,5 +49,8 @@
   "get_advisor_month_summary": {
     "advisor_id": "SMPL001"
   },
-  "get_reason_codes": {}
+  "get_reason_codes": {},
+  "get_commentary_evaluations": {
+    "version_id": ""
+  }
 }

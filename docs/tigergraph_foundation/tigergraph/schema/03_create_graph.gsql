@@ -19,6 +19,7 @@ CREATE GRAPH iperform_v2_revenue (
     phx_dm_v2_revenue_driver,
     phx_dm_v2_commentary_version,
     phx_dm_v2_commentary,
+    phx_dm_v2_commentary_evaluation,
     phx_dm_v2_evidence,
     phx_dm_v2_product_in_group,
     phx_dm_v2_group_in_line,
@@ -45,5 +46,6 @@ CREATE GRAPH iperform_v2_revenue (
     phx_dm_v2_commentary_to_month,
     phx_dm_v2_commentary_in_version,
     phx_dm_v2_commentary_cites_driver,
-    phx_dm_v2_evidence_for_driver
+    phx_dm_v2_evidence_for_driver,
+    phx_dm_v2_evaluation_of_commentary
 )

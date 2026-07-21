@@ -347,6 +347,25 @@
         "V2RevenueService.transactions credited classification"
       ],
       "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-017",
+      "name": "get_commentary_evaluations",
+      "file": "GQ-017_get_commentary_evaluations.gsql",
+      "parameters": [
+        {
+          "name": "version_id",
+          "type": "STRING",
+          "required": true
+        }
+      ],
+      "purpose": "LLM-as-judge evaluations per commentary version (R5); advisory only, never blocking.",
+      "outputs": "evaluations: vset rows",
+      "consumers": [
+        "GET /api/v2/insights/evaluations",
+        "evidence modal Independent review line"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
     }
   ]
 }

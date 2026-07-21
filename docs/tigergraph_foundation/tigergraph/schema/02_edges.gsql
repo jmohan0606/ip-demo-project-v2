@@ -1,4 +1,4 @@
-// iPerform V2 — edge types (26)
+// iPerform V2 — edge types (27)
 // All directed, all with REVERSE_EDGE.
 // NOTE: SCHEMA_SPEC.md's header says 23 edge types, but its edge tables (the
 // detailed authority) enumerate 25 — all 25 are created here.
@@ -40,3 +40,4 @@ CREATE DIRECTED EDGE phx_dm_v2_commentary_to_month (FROM phx_dm_v2_commentary, T
 CREATE DIRECTED EDGE phx_dm_v2_commentary_in_version (FROM phx_dm_v2_commentary, TO phx_dm_v2_commentary_version) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_in_version"
 CREATE DIRECTED EDGE phx_dm_v2_commentary_cites_driver (FROM phx_dm_v2_commentary, TO phx_dm_v2_revenue_driver) WITH REVERSE_EDGE="reverse_phx_dm_v2_commentary_cites_driver"
 CREATE DIRECTED EDGE phx_dm_v2_evidence_for_driver (FROM phx_dm_v2_evidence, TO phx_dm_v2_revenue_driver) WITH REVERSE_EDGE="reverse_phx_dm_v2_evidence_for_driver"
+CREATE DIRECTED EDGE phx_dm_v2_evaluation_of_commentary (FROM phx_dm_v2_commentary_evaluation, TO phx_dm_v2_commentary) WITH REVERSE_EDGE="reverse_phx_dm_v2_evaluation_of_commentary"

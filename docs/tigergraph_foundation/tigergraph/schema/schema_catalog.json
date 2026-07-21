@@ -1,8 +1,8 @@
 {
   "graph": "iperform_v2_revenue",
   "prefix": "phx_dm_v2_",
-  "vertex_count": 17,
-  "edge_count": 26,
+  "vertex_count": 18,
+  "edge_count": 27,
   "vertices": {
     "phx_dm_v2_advisor": {
       "primary_id": {
@@ -285,6 +285,26 @@
         "data_source": "STRING"
       }
     },
+    "phx_dm_v2_commentary_evaluation": {
+      "primary_id": {
+        "name": "evaluation_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "evaluation_id": "STRING",
+        "commentary_id": "STRING",
+        "version_id": "STRING",
+        "judge_model": "STRING",
+        "faithfulness_score": "DOUBLE",
+        "hallucination_flag": "BOOL",
+        "completeness_score": "DOUBLE",
+        "clarity_score": "DOUBLE",
+        "verdict": "STRING",
+        "reasoning": "STRING",
+        "evaluated_at": "DATETIME",
+        "data_source": "STRING"
+      }
+    },
     "phx_dm_v2_evidence": {
       "primary_id": {
         "name": "evidence_id",
@@ -438,6 +458,11 @@
       "from": "phx_dm_v2_evidence",
       "to": "phx_dm_v2_revenue_driver",
       "reverse_edge": "reverse_phx_dm_v2_evidence_for_driver"
+    },
+    "phx_dm_v2_evaluation_of_commentary": {
+      "from": "phx_dm_v2_commentary_evaluation",
+      "to": "phx_dm_v2_commentary",
+      "reverse_edge": "reverse_phx_dm_v2_evaluation_of_commentary"
     }
   }
 }

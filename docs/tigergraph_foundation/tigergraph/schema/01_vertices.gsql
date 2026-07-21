@@ -1,4 +1,4 @@
-// iPerform V2 — vertex types (17)
+// iPerform V2 — vertex types (18)
 // Graph: iperform_v2_revenue · Prefix: phx_dm_v2_
 // Every vertex carries data_source STRING — REAL | DERIVED | ASSUMED | DUMMY.
 
@@ -242,6 +242,25 @@ CREATE VERTEX phx_dm_v2_commentary (
     bullets_json STRING,
     status STRING,
     blocked_reason STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// LLM-as-judge review of one commentary (FIX_SPEC R5). ADVISORY ONLY — the
+// deterministic guardrails remain the blocking gate; the judge flags
+// REVIEW/FAIL for human attention and never publishes or suppresses. Runs on a
+// DIFFERENT model than the writer. DERIVED.
+CREATE VERTEX phx_dm_v2_commentary_evaluation (
+    PRIMARY_ID evaluation_id STRING,
+    commentary_id STRING,
+    version_id STRING,
+    judge_model STRING,
+    faithfulness_score DOUBLE,
+    hallucination_flag BOOL,
+    completeness_score DOUBLE,
+    clarity_score DOUBLE,
+    verdict STRING,
+    reasoning STRING,
+    evaluated_at DATETIME,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 

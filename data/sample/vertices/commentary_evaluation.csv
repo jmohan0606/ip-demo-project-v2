@@ -1,0 +1,1 @@
+evaluation_id,commentary_id,version_id,judge_model,faithfulness_score,hallucination_flag,completeness_score,clarity_score,verdict,reasoning,evaluated_at,data_source

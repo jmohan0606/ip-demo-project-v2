@@ -426,6 +426,10 @@ def main() -> int:
     counts["commentary.csv"] = preserve_or_create(v / "commentary.csv",
         ["commentary_id", "version_id", "advisor_sid", "from_month_id", "to_month_id", "headline",
          "narrative_text", "bullets_json", "status", "blocked_reason", "data_source"])
+    counts["commentary_evaluation.csv"] = preserve_or_create(v / "commentary_evaluation.csv",
+        ["evaluation_id", "commentary_id", "version_id", "judge_model", "faithfulness_score",
+         "hallucination_flag", "completeness_score", "clarity_score", "verdict", "reasoning",
+         "evaluated_at", "data_source"])
     counts["evidence.csv"] = preserve_or_create(v / "evidence.csv",
         ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
          "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
@@ -467,20 +471,24 @@ def main() -> int:
         [(d["driver_id"], d["group_id"]) for d in drivers if d["group_id"] != TOTAL_GROUP])
     # Workflow-generated edges — preserved if present.
     for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
-                 "commentary_in_version", "commentary_cites_driver", "evidence_for_driver"):
+                 "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
+                 "evaluation_of_commentary"):
         counts[f"{name}.csv"] = preserve_or_create(e / f"{name}.csv", ["from_id", "to_id"])
 
     # ------------------------------------------------ manifest
     WORKFLOW_FILES = {"commentary_version.csv", "commentary.csv", "evidence.csv",
+                      "commentary_evaluation.csv",
                       "commentary_for_advisor.csv", "commentary_from_month.csv",
                       "commentary_to_month.csv", "commentary_in_version.csv",
-                      "commentary_cites_driver.csv", "evidence_for_driver.csv"}
+                      "commentary_cites_driver.csv", "evidence_for_driver.csv",
+                      "evaluation_of_commentary.csv"}
     schema = json.load(open("docs/tigergraph_foundation/tigergraph/schema/schema_catalog.json"))
     files = []
     vertex_order = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
                     "account", "driver_cause", "reason_code", "revenue_transaction",
                     "monthly_product_revenue", "account_month_balance", "revenue_change",
-                    "revenue_driver", "commentary_version", "commentary", "evidence"]
+                    "revenue_driver", "commentary_version", "commentary",
+                    "commentary_evaluation", "evidence"]
     order = 0
     for name in vertex_order:
         target = f"phx_dm_v2_{name}"
@@ -504,7 +512,8 @@ def main() -> int:
                   "change_for_advisor", "change_for_group", "change_from_month", "change_to_month",
                   "driver_of_change", "driver_has_cause", "driver_for_group",
                   "commentary_for_advisor", "commentary_from_month", "commentary_to_month",
-                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver"]
+                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
+                  "evaluation_of_commentary"]
     for name in edge_order:
         target = f"phx_dm_v2_{name}"
         spec = schema["edges"][target]
