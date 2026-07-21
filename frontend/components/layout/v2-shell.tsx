@@ -122,13 +122,21 @@ function TopNav({ pathname }: { pathname: string }) {
   return (
     <div className="flex h-12 items-center bg-v2-navy px-6 text-white">
       <Link href="/trends" className="mr-8 text-[17px] font-bold tracking-tight">iPerform</Link>
-      <div className={`flex h-12 items-center px-5 text-[13px] ${opsActive ? "" : "bg-v2-navy-dark font-semibold"}`}>
+      <div
+        className={`flex h-12 items-center border-b-2 px-6 text-[13px] font-medium tracking-[0.2px] ${
+          opsActive ? "border-transparent" : "border-white bg-v2-navy-dark font-semibold"
+        }`}
+      >
         Results
       </div>
-      <div className="ml-auto flex items-center gap-4">
+      <div className="ml-auto flex items-center">
         <Link
           href="/data-ingestion"
-          className={`flex items-center gap-1.5 text-[12px] ${opsActive ? "font-semibold text-white" : "text-white/75 hover:text-white"}`}
+          className={`flex h-12 items-center gap-1.5 border-b-2 px-6 text-[13px] font-medium tracking-[0.2px] ${
+            opsActive
+              ? "border-white bg-v2-navy-dark font-semibold text-white"
+              : "border-transparent text-white/75 hover:text-white"
+          }`}
         >
           <Settings className="h-3.5 w-3.5" /> Operations
         </Link>
@@ -148,10 +156,10 @@ function SubNav({ pathname }: { pathname: string }) {
           <Link
             key={t.href}
             href={t.href}
-            className={`border-b-2 py-3 text-[13px] ${
+            className={`border-b-2 py-3 text-[12.5px] tracking-[0.2px] ${
               active
                 ? "border-v2-navy font-semibold text-v2-navy"
-                : "border-transparent text-v2-muted hover:text-v2-text"
+                : "border-transparent font-medium text-v2-muted hover:border-v2-border-strong hover:text-v2-text"
             }`}
           >
             {t.label}

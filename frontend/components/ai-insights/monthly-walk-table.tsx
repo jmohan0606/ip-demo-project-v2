@@ -8,6 +8,7 @@
 import type { EvidenceRequest } from "@/components/ai-insights/types";
 import { downloadCsv } from "@/components/ai-insights/export-csv";
 import { latestPublished } from "@/components/ai-insights/commentary-cards";
+import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
 import type { CommentaryBullet, CommentaryRow, CommentaryVersion, MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
 import { fmtMoney, fmtPct, monthFull, monthShort } from "@/lib/v2/format";
 
@@ -61,6 +62,8 @@ export function MonthlyWalkTable({
           i === 0 ? "Baseline month — no prior period in the current data set." : commentary?.narrative_text ?? "",
         ];
       }),
+      // R7-2 — mark model-authored columns in the export too.
+      ["# AI-generated columns: commentary. All other columns are computed from graph data."],
     ]);
 
   return (
@@ -102,7 +105,14 @@ export function MonthlyWalkTable({
                 <span className="block border-b border-white/40 pb-1">Change</span>
               </th>
               <th rowSpan={2} className="px-3 py-2 text-left align-bottom text-[10px] font-semibold uppercase tracking-[0.5px]">
-                Commentary (Revenue Drivers)
+                <span className="flex items-center gap-2">
+                  Commentary (Revenue Drivers)
+                  <AiGeneratedChip
+                    model={selectedMeta?.model}
+                    promptVersion={selectedMeta?.prompt_version}
+                    versionId={resolvedVersion || selectedMeta?.version_id}
+                  />
+                </span>
               </th>
               <th rowSpan={2} className="px-3 py-2 text-right align-bottom text-[10px] font-semibold uppercase tracking-[0.5px]">
                 Evidence
@@ -124,13 +134,13 @@ export function MonthlyWalkTable({
               return (
                 <tr key={m} className={`border-b border-v2-border-subtle align-top ${i % 2 === 1 ? "bg-v2-sub-bg" : ""}`}>
                   <td className="px-3 py-3 text-[12px] font-bold text-v2-text">{monthShort(m)}</td>
-                  <td className="px-3 py-3 text-right text-[11.5px] text-v2-text">
+                  <td className="num px-3 py-3 text-[11.5px] text-v2-text">
                     {fmtMoney(totals.revenue_by_month[m] ?? 0)}
                   </td>
-                  <td className={`px-3 py-3 text-right text-[12.5px] font-semibold ${baseline || !change ? "text-v2-faint" : changeCls}`}>
+                  <td className={`num px-3 py-3 text-[12.5px] font-semibold ${baseline || !change ? "text-v2-faint" : changeCls}`}>
                     {baseline || !change ? "—" : fmtMoney(change.change_amt)}
                   </td>
-                  <td className={`px-3 py-3 text-right text-[12.5px] font-semibold ${baseline || !change ? "text-v2-faint" : changeCls}`}>
+                  <td className={`num px-3 py-3 text-[12.5px] font-semibold ${baseline || !change ? "text-v2-faint" : changeCls}`}>
                     {baseline || !change ? "—" : fmtPct(change.change_pct)}
                   </td>
                   <td className="max-w-[640px] px-3 py-3 text-[11.5px] text-v2-text">

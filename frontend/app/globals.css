@@ -79,6 +79,9 @@
 .bg-bad-soft { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.25); }
 .bg-ai-soft { background: rgba(79,70,229,.08); border-color: rgba(79,70,229,.25); }
 
+/* R7-1 — financial numerals: tabular figures, right-aligned. Apply to every numeric table cell. */
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+
 /* Section 13B.2 — Guided Story Mode highlight ring */
 @keyframes story-pulse {
   0%, 100% { box-shadow: 0 0 0 3px rgba(37,99,235,0.55), 0 0 0 8px rgba(37,99,235,0.12); }

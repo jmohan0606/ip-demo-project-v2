@@ -124,13 +124,13 @@ export function PivotCard({
         <table className="w-full border-collapse text-[11.5px]">
           <thead>
             <tr className="bg-v2-header-bg">
-              <th className="px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-v2-navy">
+              <th className="px-3 py-[7px] text-left text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-navy">
                 Product
               </th>
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide text-v2-navy ${col.headerClassName ?? ""}`}
+                  className={`num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-navy ${col.headerClassName ?? ""}`}
                 >
                   {col.header}
                 </th>
@@ -140,7 +140,7 @@ export function PivotCard({
           <tbody>
             {visibleRows.map((row) => (
               <tr key={row.id} className={`border-b border-v2-border-subtle ${ROW_BG[row.kind]}`}>
-                <td className="py-1 pr-3" style={{ paddingLeft: 12 + row.indent }}>
+                <td className="py-[5px] pr-3" style={{ paddingLeft: 12 + row.indent }}>
                   {row.children.length > 0 ? (
                     <button
                       type="button"
@@ -157,7 +157,7 @@ export function PivotCard({
                   {row.label}
                 </td>
                 {columns.map((col) => (
-                  <td key={col.key} className="whitespace-nowrap px-3 py-1 text-right">
+                  <td key={col.key} className="num whitespace-nowrap px-3 py-[5px]">
                     {renderCell(row, col)}
                   </td>
                 ))}

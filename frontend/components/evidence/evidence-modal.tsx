@@ -6,14 +6,20 @@
  * Every figure shown is retrieved from the stored evidence record (GQ-012
  * consumer); nothing is computed or generated here.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  type CommentaryEvaluation,
   type CommentaryVersion,
   type EvidenceRecord,
   v2Api,
 } from "@/lib/api/v2";
 import { fmtDate, fmtMoney, monthShort } from "@/lib/v2/format";
+import {
+  AI_BOUNDARY_TEXT,
+  AiGeneratedChip,
+  JudgeVerdictPill,
+} from "@/components/patterns/ai-generated-chip";
 import { AsyncBoundary } from "@/components/patterns/async-state";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
 
@@ -25,9 +31,45 @@ interface CalcComponent {
   change: number;
   share_of_mom: number;
 }
+// R4 — deepened evidence blocks. All optional: evidence stored before round 2
+// lacks them, and each panel renders only when present.
+interface WhyJson {
+  rule: string;
+  inputs_tested: string[];
+  rejected: { cause: string; reason: string }[];
+}
+interface AttributionJson {
+  step: number;
+  total_steps: number;
+  order: string[];
+  earlier_claims: { cause: string; amount: number }[];
+}
+interface WaterfallJson {
+  from_revenue: number;
+  steps: { label: string; amount: number }[];
+  to_revenue: number;
+}
+interface RevNatureJson {
+  rule: string;
+  values: { file_key: string; trade_description: string; rev_nature: string; count: number }[];
+}
+interface CreditedMonthRow {
+  month_id: string;
+  total_revenue: number;
+  non_credited: number;
+  non_credited_detail: { reason_code: string; ui_mapping: string; count: number; amount: number }[];
+  excluded: number;
+  late_excluded: number;
+  credited: number;
+}
 interface CalcJson {
   components: CalcComponent[];
   formula: string;
+  why?: WhyJson;
+  attribution?: AttributionJson;
+  waterfall?: WaterfallJson;
+  rev_nature?: RevNatureJson;
+  credited_breakdown?: { months: CreditedMonthRow[] };
 }
 interface SourceRecordRow {
   trade_ref: string;
@@ -74,15 +116,100 @@ function humanizeGroup(segment: string): string {
     .join(" ");
 }
 
-function SectionHeader({ n, title }: { n: number; title: string }) {
+function SectionHeader({ n, title, extra }: { n: number; title: string; extra?: ReactNode }) {
   return (
     <div className="mb-2 flex items-center gap-2.5">
       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-v2-navy text-[11.5px] font-semibold text-white">
         {n}
       </span>
       <h3 className="text-[14px] font-semibold text-v2-text">{title}</h3>
+      {extra}
     </div>
   );
+}
+
+/** Sub-panel shell used by the R4 evidence-deepening blocks in section 2. */
+function SubPanel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mt-3 rounded-[3px] border border-v2-border px-4 py-3">
+      <h4 className="mb-2 text-[12px] font-semibold text-v2-text">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
+/** R4-3 — compact reconciliation waterfall: from-revenue → each driver step →
+ * to-revenue, summing exactly. Pure divs, existing tokens only. */
+function ReconciliationWaterfall({ data }: { data: WaterfallJson }) {
+  let running = data.from_revenue;
+  const cols: { label: string; lo: number; hi: number; kind: "anchor" | "up" | "down"; amount: number }[] = [
+    { label: "From", lo: 0, hi: data.from_revenue, kind: "anchor", amount: data.from_revenue },
+  ];
+  for (const s of data.steps) {
+    const next = running + s.amount;
+    cols.push({
+      label: s.label,
+      lo: Math.min(running, next),
+      hi: Math.max(running, next),
+      kind: s.amount >= 0 ? "up" : "down",
+      amount: s.amount,
+    });
+    running = next;
+  }
+  cols.push({ label: "To", lo: 0, hi: data.to_revenue, kind: "anchor", amount: data.to_revenue });
+
+  const min = Math.min(0, ...cols.map((c) => c.lo));
+  const max = Math.max(0, ...cols.map((c) => c.hi));
+  const range = max - min || 1;
+  const CHART_H = 110; // px — the whole visual stays well under 200px tall
+  const y = (v: number) => ((max - v) / range) * CHART_H;
+
+  const stepSum = data.steps.reduce((s, x) => s + x.amount, 0);
+  const reconciles = Math.abs(data.from_revenue + stepSum - data.to_revenue) < 0.01;
+
+  const barCls = (kind: "anchor" | "up" | "down") =>
+    kind === "anchor" ? "bg-v2-navy" : kind === "up" ? "bg-v2-positive" : "bg-v2-negative";
+  const amtCls = (kind: "anchor" | "up" | "down") =>
+    kind === "anchor" ? "text-v2-text" : kind === "up" ? "text-v2-positive" : "text-v2-negative";
+
+  return (
+    <div>
+      <div className="overflow-x-auto">
+        <div className="flex items-stretch gap-2" style={{ minWidth: cols.length * 96 }}>
+          {cols.map((c, i) => (
+            <div key={`${c.label}-${i}`} className="flex w-24 shrink-0 flex-col">
+              <span className={`num mb-0.5 text-[10px] font-semibold ${amtCls(c.kind)}`}>
+                {fmtMoney(c.amount)}
+              </span>
+              <div className="relative rounded-[2px] bg-v2-sub-bg" style={{ height: CHART_H }}>
+                <div
+                  className={`absolute left-1 right-1 rounded-[2px] ${barCls(c.kind)}`}
+                  style={{ top: y(c.hi), height: Math.max(2, y(c.lo) - y(c.hi)) }}
+                />
+              </div>
+              <span className="mt-1 truncate text-[9.5px] uppercase tracking-[0.3px] text-v2-muted" title={c.label}>
+                {c.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-[11px] text-v2-muted">
+        {fmtMoney(data.from_revenue)} + {fmtMoney(stepSum)} = {fmtMoney(data.to_revenue)}{" "}
+        {reconciles ? (
+          <span className="font-semibold text-v2-positive">✓ sums exactly — nothing missing, nothing double-counted</span>
+        ) : (
+          <span className="font-semibold text-v2-negative">✗ does not reconcile</span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/** R4-5 ledger amount: two decimals, zero shown as $0.00, negatives in parentheses. */
+function ledgerAmt(value: number): string {
+  if (value === 0) return "$0.00";
+  return fmtMoney(value, 2);
 }
 
 function CopyButton({ text, className = "" }: { text: string; className?: string }) {
@@ -138,6 +265,10 @@ export function EvidenceModal({
   const router = useRouter();
   const [evidence, setEvidence] = useState<EvidenceRecord | null>(null);
   const [version, setVersion] = useState<CommentaryVersion | null>(null);
+  // R5-4 — independent LLM-judge review. null until loaded; "missing" is a
+  // valid, explicitly-rendered state.
+  const [evaluation, setEvaluation] = useState<CommentaryEvaluation | null>(null);
+  const [evaluationLoaded, setEvaluationLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -170,26 +301,44 @@ export function EvidenceModal({
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.allSettled([v2Api.evidence(driverId, versionId), v2Api.versions()]).then(
-      ([ev, vs]) => {
-        if (!active) return;
-        if (ev.status === "fulfilled") {
-          const record = ev.value.evidence[0] ?? null;
-          if (record) setEvidence(record);
-          else setError("No evidence record exists for this driver in this version.");
-        } else {
-          setError(ev.reason instanceof Error ? ev.reason.message : "Failed to load evidence.");
-        }
-        if (vs.status === "fulfilled") {
-          setVersion(vs.value.versions.find((v) => v.version_id === versionId) ?? null);
-        }
-        setLoading(false);
-      },
-    );
+    setEvaluationLoaded(false);
+    Promise.allSettled([
+      v2Api.evidence(driverId, versionId),
+      v2Api.versions(),
+      v2Api.evaluations(versionId),
+    ]).then(([ev, vs, evals]) => {
+      if (!active) return;
+      if (ev.status === "fulfilled") {
+        const record = ev.value.evidence[0] ?? null;
+        if (record) setEvidence(record);
+        else setError("No evidence record exists for this driver in this version.");
+      } else {
+        setError(ev.reason instanceof Error ? ev.reason.message : "Failed to load evidence.");
+      }
+      if (vs.status === "fulfilled") {
+        setVersion(vs.value.versions.find((v) => v.version_id === versionId) ?? null);
+      }
+      if (evals.status === "fulfilled") {
+        // The judge evaluates the transition's commentary, whose id is
+        // "<version>|<advisor>|<from>|<to>" — match on that prefix.
+        const commentaryId = `${versionId}|${advisorId}|${parts[1] ?? ""}|${parts[2] ?? ""}`;
+        setEvaluation(
+          evals.value.evaluations.find(
+            (e) => e.commentary_id === commentaryId || e.commentary_id.startsWith(`${commentaryId}|`),
+          ) ?? null,
+        );
+      } else {
+        setEvaluation(null);
+      }
+      setEvaluationLoaded(true);
+      setLoading(false);
+    });
     return () => {
       active = false;
     };
-  }, [driverId, versionId, retryKey]);
+    // parts derives from driverId, which is a dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverId, versionId, advisorId, retryKey]);
 
   const calc = useMemo(
     () => parseJson<CalcJson>(evidence?.calc_json, { components: [], formula: "" }),
@@ -309,10 +458,56 @@ export function EvidenceModal({
               <div className="space-y-7">
                 {/* 1 — Finding */}
                 <section>
-                  <SectionHeader n={1} title="Finding" />
+                  <SectionHeader
+                    n={1}
+                    title="Finding"
+                    extra={
+                      <AiGeneratedChip
+                        model={version?.model}
+                        promptVersion={version?.prompt_version}
+                        versionId={versionId}
+                      />
+                    }
+                  />
                   <div className="rounded-[3px] border border-v2-border bg-v2-sub-bg px-4 py-3 text-[12px] leading-relaxed">
                     {evidence.finding_text}
                   </div>
+                  <p className="mt-1.5 text-[10.5px] text-v2-faint">{AI_BOUNDARY_TEXT}</p>
+
+                  {/* R5-4 — Independent review (LLM-as-judge, advisory) */}
+                  {evaluationLoaded && (
+                    <div className="mt-3 rounded-[3px] border border-v2-border px-4 py-3">
+                      {evaluation ? (
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
+                              Independent review
+                            </span>
+                            <JudgeVerdictPill verdict={evaluation.verdict} />
+                            <span className="text-[11px] text-v2-muted">
+                              Faithfulness {evaluation.faithfulness_score.toFixed(2)} · Judge{" "}
+                              {evaluation.judge_model}
+                            </span>
+                            <AiGeneratedChip
+                              model={evaluation.judge_model}
+                              promptVersion={version?.prompt_version}
+                              versionId={versionId}
+                            />
+                          </div>
+                          <p className="mt-1.5 text-[11.5px] leading-relaxed text-v2-text">
+                            {evaluation.reasoning}
+                          </p>
+                          <p className="mt-1 text-[10.5px] text-v2-faint">
+                            Advisory only — deterministic guardrails remain the blocking gate for publication.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-[11.5px] text-v2-muted">
+                          No independent review recorded for this version.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </section>
 
                 {/* 2 — Calculation */}
@@ -325,47 +520,47 @@ export function EvidenceModal({
                     <table className="w-full border-collapse text-[11.5px]">
                       <thead>
                         <tr className="bg-v2-header-bg text-left">
-                          <th className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.5px]">Component</th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-[0.5px]">{fromLabel}</th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-[0.5px]">{toLabel}</th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-[0.5px]">Change</th>
-                          <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-[0.5px]">Share of MoM</th>
+                          <th className="px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Component</th>
+                          <th className="num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">{fromLabel}</th>
+                          <th className="num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">{toLabel}</th>
+                          <th className="num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Change</th>
+                          <th className="num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Share of MoM</th>
                         </tr>
                       </thead>
                       <tbody>
                         {calc.components.map((c) => (
                           <tr key={c.label} className="border-b border-v2-border-subtle">
-                            <td className="px-3 py-1.5">{c.label}</td>
-                            <td className="px-3 py-1.5 text-right">{fmtUnit(c.from, unitOf(c))}</td>
-                            <td className="px-3 py-1.5 text-right">{fmtUnit(c.to, unitOf(c))}</td>
+                            <td className="px-3 py-[7px]">{c.label}</td>
+                            <td className="num px-3 py-[7px]">{fmtUnit(c.from, unitOf(c))}</td>
+                            <td className="num px-3 py-[7px]">{fmtUnit(c.to, unitOf(c))}</td>
                             <td
-                              className={`px-3 py-1.5 text-right ${
+                              className={`num px-3 py-[7px] ${
                                 c.change < 0 ? "text-v2-negative" : c.change > 0 ? "text-v2-positive" : "text-v2-faint"
                               }`}
                             >
                               {fmtUnit(c.change, unitOf(c))}
                             </td>
-                            <td className="px-3 py-1.5 text-right">
+                            <td className="num px-3 py-[7px]">
                               {unitOf(c) === "currency" ? `${c.share_of_mom}%` : "—"}
                             </td>
                           </tr>
                         ))}
                         <tr className="bg-v2-total-bg font-semibold">
-                          <td className="px-3 py-1.5">{groupLabel} — net change</td>
-                          <td className="px-3 py-1.5 text-right">
+                          <td className="px-3 py-[7px]">{groupLabel} — net change</td>
+                          <td className="num px-3 py-[7px]">
                             {fmtMoney(dollarComponents.reduce((s, c) => s + (c.from ?? 0), 0))}
                           </td>
-                          <td className="px-3 py-1.5 text-right">
+                          <td className="num px-3 py-[7px]">
                             {fmtMoney(dollarComponents.reduce((s, c) => s + (c.to ?? 0), 0))}
                           </td>
                           <td
-                            className={`px-3 py-1.5 text-right ${
+                            className={`num px-3 py-[7px] ${
                               netChange < 0 ? "text-v2-negative" : netChange > 0 ? "text-v2-positive" : "text-v2-faint"
                             }`}
                           >
                             {fmtMoney(netChange)}
                           </td>
-                          <td className="px-3 py-1.5 text-right">
+                          <td className="num px-3 py-[7px]">
                             {dollarComponents.reduce((s, c) => s + (c.share_of_mom ?? 0), 0).toFixed(1)}%
                           </td>
                         </tr>
@@ -376,6 +571,162 @@ export function EvidenceModal({
                     <div className="mt-3 rounded-[3px] border border-v2-border border-l-2 border-l-v2-warn bg-v2-warn-bg px-4 py-2.5 text-[11.5px] text-v2-text">
                       {calc.formula}
                     </div>
+                  )}
+
+                  {/* R4-1 — Why this cause */}
+                  {calc.why && (
+                    <SubPanel title="Why this cause">
+                      <p className="text-[11.5px] leading-relaxed text-v2-text">{calc.why.rule}</p>
+                      {calc.why.inputs_tested.length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
+                            Inputs tested
+                          </span>
+                          {calc.why.inputs_tested.map((input) => (
+                            <span
+                              key={input}
+                              className="rounded-full bg-v2-sub-bg px-2 py-0.5 text-[10px] text-v2-text"
+                            >
+                              {input}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {calc.why.rejected.length > 0 && (
+                        <div className="mt-2.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
+                            Competing causes rejected
+                          </span>
+                          <ul className="mt-1 space-y-1">
+                            {calc.why.rejected.map((r) => (
+                              <li key={r.cause} className="flex items-start gap-2 text-[11.5px]">
+                                <CauseTag causeId={r.cause} className="mt-px shrink-0" />
+                                <span className="text-v2-muted">{r.reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </SubPanel>
+                  )}
+
+                  {/* R4-2 — Attribution order (no double-counting) */}
+                  {calc.attribution && (
+                    <SubPanel
+                      title={`Attribution order — step ${calc.attribution.step} of ${calc.attribution.total_steps}`}
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {calc.attribution.order.map((cause, i) => (
+                          <span key={cause} className="flex items-center gap-1.5">
+                            {i > 0 && <span className="text-[10px] text-v2-faint">›</span>}
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                                i + 1 === calc.attribution?.step
+                                  ? "bg-v2-navy text-white"
+                                  : i + 1 < (calc.attribution?.step ?? 0)
+                                    ? "bg-v2-header-bg text-v2-navy"
+                                    : "bg-v2-sub-bg text-v2-faint"
+                              }`}
+                            >
+                              {cause.replace(/_/g, "-")}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                      {calc.attribution.earlier_claims.length > 0 && (
+                        <p className="mt-2 text-[11px] text-v2-muted">
+                          Already claimed by earlier steps:{" "}
+                          {calc.attribution.earlier_claims
+                            .map((c) => `${c.cause.replace(/_/g, "-")} ${fmtMoney(c.amount)}`)
+                            .join(", ")}
+                          . Each transaction is attributed once, in this fixed order — later steps
+                          cannot re-claim it.
+                        </p>
+                      )}
+                    </SubPanel>
+                  )}
+
+                  {/* R4-3 — Reconciliation waterfall */}
+                  {calc.waterfall && (
+                    <SubPanel title="Reconciliation waterfall">
+                      <ReconciliationWaterfall data={calc.waterfall} />
+                    </SubPanel>
+                  )}
+
+                  {/* R4-4 — rev_nature derivation */}
+                  {calc.rev_nature && (
+                    <SubPanel title="Revenue-nature derivation">
+                      <p className="mb-2 text-[11.5px] leading-relaxed text-v2-text">
+                        {calc.rev_nature.rule}
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse text-[11px]">
+                          <thead>
+                            <tr className="bg-v2-header-bg text-left">
+                              <th className="px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">File key</th>
+                              <th className="px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Trade description</th>
+                              <th className="px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Rev nature</th>
+                              <th className="num px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px]">Rows</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {calc.rev_nature.values.map((v, i) => (
+                              <tr key={`${v.file_key}-${v.trade_description}-${i}`} className="border-b border-v2-border-subtle">
+                                <td className="px-3 py-[7px] font-mono text-[10.5px]">{v.file_key}</td>
+                                <td className="px-3 py-[7px]">{v.trade_description}</td>
+                                <td className="px-3 py-[7px] font-semibold">{v.rev_nature}</td>
+                                <td className="num px-3 py-[7px]">{v.count.toLocaleString("en-US")}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </SubPanel>
+                  )}
+
+                  {/* R4-5 — Credited-revenue breakdown (the client's own definition) */}
+                  {calc.credited_breakdown && calc.credited_breakdown.months.length > 0 && (
+                    <SubPanel title="Credited revenue breakdown">
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        {calc.credited_breakdown.months.map((m) => {
+                          const annotation = m.non_credited_detail
+                            .map((d) => `${d.reason_code} ${d.ui_mapping} ×${d.count}`)
+                            .join(", ");
+                          const lines: { label: string; amount: string; note?: string; total?: boolean }[] = [
+                            { label: "Total revenue", amount: ledgerAmt(m.total_revenue) },
+                            { label: "less non-credited", amount: ledgerAmt(-m.non_credited), note: annotation || undefined },
+                            { label: "less excluded", amount: ledgerAmt(-m.excluded) },
+                            { label: "less >90-day processing", amount: ledgerAmt(-m.late_excluded) },
+                            { label: "= Credited revenue", amount: ledgerAmt(m.credited), total: true },
+                          ];
+                          return (
+                            <div key={m.month_id} className="rounded-[3px] border border-v2-border-subtle px-3 py-2.5">
+                              <div className="mb-1.5 text-[11px] font-semibold text-v2-text">
+                                {monthShort(m.month_id)}
+                              </div>
+                              <table className="w-full border-collapse text-[11.5px]">
+                                <tbody>
+                                  {lines.map((line) => (
+                                    <tr
+                                      key={line.label}
+                                      className={line.total ? "border-t border-v2-border font-semibold" : ""}
+                                    >
+                                      <td className="py-[3px] pr-3">{line.label}</td>
+                                      <td className={`num w-28 py-[3px] ${line.amount.startsWith("(") ? "text-v2-negative" : ""}`}>
+                                        {line.amount}
+                                      </td>
+                                      <td className="py-[3px] pl-3 text-[10.5px] text-v2-muted">
+                                        {line.note ?? ""}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </SubPanel>
                   )}
                 </section>
 
@@ -392,7 +743,7 @@ export function EvidenceModal({
                           {["Trade ref", "Date", "Product", "Account", "Type", "Credited", "Split"].map((h, i) => (
                             <th
                               key={h}
-                              className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.5px] ${i >= 5 ? "text-right" : ""}`}
+                              className={`px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px] ${i >= 5 ? "text-right" : ""}`}
                             >
                               {h}
                             </th>
@@ -402,15 +753,15 @@ export function EvidenceModal({
                       <tbody>
                         {sourceRecords.sample.map((r) => (
                           <tr key={r.trade_ref} className="border-b border-v2-border-subtle">
-                            <td className="px-3 py-1.5 font-mono text-[11px] text-v2-link">{r.trade_ref}</td>
-                            <td className="px-3 py-1.5">{fmtDate(r.date)}</td>
-                            <td className="px-3 py-1.5">{r.product}</td>
-                            <td className="px-3 py-1.5 font-mono text-[11px]">{r.account}</td>
-                            <td className="px-3 py-1.5">{r.type}</td>
-                            <td className={`px-3 py-1.5 text-right ${r.credited < 0 ? "text-v2-negative" : ""}`}>
+                            <td className="px-3 py-[7px] font-mono text-[11px] text-v2-link">{r.trade_ref}</td>
+                            <td className="px-3 py-[7px]">{fmtDate(r.date)}</td>
+                            <td className="px-3 py-[7px]">{r.product}</td>
+                            <td className="px-3 py-[7px] font-mono text-[11px]">{r.account}</td>
+                            <td className="px-3 py-[7px]">{r.type}</td>
+                            <td className={`num px-3 py-[7px] ${r.credited < 0 ? "text-v2-negative" : ""}`}>
                               {fmtMoney(r.credited)}
                             </td>
-                            <td className="px-3 py-1.5 text-right">{Math.round((r.split_pct ?? 0) * 100)}%</td>
+                            <td className="num px-3 py-[7px]">{Math.round((r.split_pct ?? 0) * 100)}%</td>
                           </tr>
                         ))}
                       </tbody>
@@ -483,12 +834,12 @@ export function EvidenceModal({
                     <span className="pt-1.5 text-[10.5px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
                       Returned
                     </span>
-                    <pre className="flex-1 overflow-x-auto rounded-[3px] bg-v2-positive-bg px-3 py-1.5 font-mono text-[11.5px] text-v2-text">
+                    <pre className="flex-1 overflow-x-auto rounded-[3px] bg-v2-positive-bg px-3 py-[7px] font-mono text-[11.5px] text-v2-text">
                       {resultText}
                     </pre>
                   </div>
                   <p className="mb-2 mt-4 text-[11.5px] text-v2-muted">
-                    Source extraction (PostgreSQL) — shown for lineage; not executed by this application.
+                    Source extraction (PostgreSQL) — lineage only; this SQL was <span className="font-semibold">not executed by this application</span>. The GSQL above <span className="font-semibold">was</span> run.
                   </p>
                   <div className="relative rounded-[3px] bg-v2-navy-ink px-4 py-3">
                     <CopyButton text={evidence.source_sql} className="absolute right-3 top-3" />

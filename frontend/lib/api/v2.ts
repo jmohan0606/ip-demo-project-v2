@@ -142,6 +142,23 @@ export interface CommentaryVersion {
   notes: string;
 }
 
+/** Independent LLM-judge review of one commentary (FIX_SPEC R5). Advisory —
+ * deterministic guardrails remain the blocking gate. */
+export interface CommentaryEvaluation {
+  evaluation_id: string;
+  commentary_id: string;
+  version_id: string;
+  judge_model: string;
+  faithfulness_score: number; // 0-1
+  hallucination_flag: boolean;
+  completeness_score: number;
+  clarity_score: number;
+  verdict: "PASS" | "REVIEW" | "FAIL";
+  reasoning: string;
+  evaluated_at: string;
+  data_source: Provenance;
+}
+
 export interface EvidenceRecord {
   evidence_id: string;
   driver_id: string;
@@ -172,6 +189,10 @@ export interface TransactionRow {
   file_key: string;
   rev_nature: string;
   month_id: string;
+  /** R1/R3 — credited-eligibility classification of the row. */
+  eligibility_bucket: "CREDITED" | "NON_CREDITED" | "EXCLUDED" | "LATE" | "OUT_OF_GRID";
+  reason_cd: string; // "__NONE__" when the row carries no reason code
+  grid_type: string;
   data_source: Provenance;
 }
 
@@ -207,6 +228,9 @@ export const v2Api = {
       `/api/v2/insights/commentary?advisor_id=${advisorId}&version_id=${versionId}`),
   versions: () =>
     apiClient.get<{ versions: CommentaryVersion[]; served_by_tier: number }>("/api/v2/insights/versions"),
+  evaluations: (versionId: string) =>
+    apiClient.get<{ evaluations: CommentaryEvaluation[]; served_by_tier: number }>(
+      `/api/v2/insights/evaluations?version_id=${encodeURIComponent(versionId)}`),
   generate: (notes = "") => apiClient.post<Record<string, unknown>>(`/api/v2/insights/generate?notes=${encodeURIComponent(notes)}`),
 
   evidence: (driverId: string, versionId = "") =>

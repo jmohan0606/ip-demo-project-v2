@@ -8,8 +8,19 @@
 import { RefreshCw } from "lucide-react";
 import type { EvidenceRequest } from "@/components/ai-insights/types";
 import { downloadCsv } from "@/components/ai-insights/export-csv";
+import {
+  AI_BOUNDARY_TEXT,
+  AiGeneratedChip,
+  JudgeBadge,
+} from "@/components/patterns/ai-generated-chip";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
-import type { CommentaryBullet, CommentaryRow, CommentaryVersion, MonthlyTotals } from "@/lib/api/v2";
+import type {
+  CommentaryBullet,
+  CommentaryEvaluation,
+  CommentaryRow,
+  CommentaryVersion,
+  MonthlyTotals,
+} from "@/lib/api/v2";
 import { monthFull } from "@/lib/v2/format";
 
 const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -48,6 +59,8 @@ export function exportCommentaryCsv(rows: CommentaryRow[]): void {
       r.commentary_id, r.version_id, r.advisor_sid, r.from_month_id, r.to_month_id,
       r.headline, r.narrative_text, r.status, r.blocked_reason, r.data_source,
     ]),
+    // R7-2 — mark model-authored columns in the export too.
+    ["# AI-generated columns: narrative_text. All other columns are computed from graph data."],
   ]);
 }
 
@@ -57,6 +70,7 @@ export function CommentaryCards({
   versions,
   selectedVersion,
   resolvedVersion,
+  evaluations = [],
   onSelectVersion,
   onRegenerate,
   busy,
@@ -67,6 +81,8 @@ export function CommentaryCards({
   versions: CommentaryVersion[];
   selectedVersion: string;
   resolvedVersion: string;
+  /** R5-4 — judge evaluations for the resolved version (advisory badges). */
+  evaluations?: CommentaryEvaluation[];
   onSelectVersion: (versionId: string) => void;
   onRegenerate: () => void;
   busy: boolean;
@@ -75,6 +91,14 @@ export function CommentaryCards({
   const latest = latestPublished(versions);
   const sorted = [...rows].sort((a, b) => a.from_month_id.localeCompare(b.from_month_id));
   const selectValue = selectedVersion || latest?.version_id || "";
+  const versionMeta =
+    versions.find((v) => v.version_id === (resolvedVersion || selectValue)) ?? latest;
+  const evaluationFor = (row: CommentaryRow): CommentaryEvaluation | null =>
+    evaluations.find(
+      (e) =>
+        e.commentary_id === row.commentary_id ||
+        e.commentary_id.startsWith(`${row.commentary_id}|`),
+    ) ?? null;
 
   return (
     <div className="rounded-[3px] border border-v2-border bg-v2-card p-5">
@@ -86,6 +110,7 @@ export function CommentaryCards({
           <p className="mt-0.5 text-[11.5px] text-v2-muted">
             One card per month-over-month move · five drivers ranked by impact · every figure computed from graph data
           </p>
+          <p className="mt-1 text-[10.5px] text-v2-faint">{AI_BOUNDARY_TEXT}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="text-[11px] text-v2-muted">Commentary version</span>
@@ -146,6 +171,8 @@ export function CommentaryCards({
               row={row}
               totals={totals}
               versionId={resolvedVersion || row.version_id}
+              versionMeta={versionMeta ?? null}
+              evaluation={evaluationFor(row)}
               onOpenEvidence={onOpenEvidence}
             />
           ))}
@@ -159,11 +186,15 @@ function TransitionCard({
   row,
   totals,
   versionId,
+  versionMeta,
+  evaluation,
   onOpenEvidence,
 }: {
   row: CommentaryRow;
   totals: MonthlyTotals | null;
   versionId: string;
+  versionMeta: CommentaryVersion | null;
+  evaluation: CommentaryEvaluation | null;
   onOpenEvidence: (req: EvidenceRequest) => void;
 }) {
   const up = row.headline.trim().startsWith("▲");
@@ -177,7 +208,17 @@ function TransitionCard({
   return (
     <div className="flex flex-col overflow-hidden rounded-[3px] border border-v2-border">
       <div className={`px-4 py-3 ${up ? "bg-v2-positive-bg" : "bg-v2-negative-bg"}`}>
-        <div className="text-[11.5px] text-v2-text">{transitionLabel}</div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11.5px] text-v2-text">{transitionLabel}</span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <AiGeneratedChip
+              model={versionMeta?.model}
+              promptVersion={versionMeta?.prompt_version}
+              versionId={versionId}
+            />
+            {evaluation && <JudgeBadge verdict={evaluation.verdict} />}
+          </span>
+        </div>
         <div className="mt-0.5 flex items-baseline justify-between">
           <span className={`text-[19px] font-semibold ${up ? "text-v2-positive" : "text-v2-negative"}`}>
             {row.headline}

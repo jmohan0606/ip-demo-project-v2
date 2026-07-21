@@ -26,6 +26,7 @@ type SortKey =
   | "group_id"
   | "account_no"
   | "rev_nature"
+  | "eligibility_bucket"
   | "credited_amt"
   | "split_pct"
   | "file_key";
@@ -37,10 +38,41 @@ const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "group_id", label: "Group" },
   { key: "account_no", label: "Account" },
   { key: "rev_nature", label: "Type" },
+  { key: "eligibility_bucket", label: "Eligibility" },
   { key: "credited_amt", label: "Credited", align: "right" },
   { key: "split_pct", label: "Split %", align: "right" },
   { key: "file_key", label: "Source feed" },
 ];
+
+/** R1/R3 — credited-eligibility badge. CREDITED stays quiet; the ineligible
+ * buckets are distinct but reuse existing tokens only. */
+const ELIGIBILITY_STYLE: Record<string, string> = {
+  CREDITED: "bg-v2-sub-bg text-v2-muted",
+  NON_CREDITED: "bg-v2-warn-bg text-v2-warn",
+  EXCLUDED: "bg-v2-negative-bg text-v2-negative",
+  LATE: "bg-v2-header-bg text-v2-navy",
+  OUT_OF_GRID: "bg-v2-group-bg text-v2-purple",
+};
+
+function EligibilityBadge({ bucket, reasonCd }: { bucket: string; reasonCd: string }) {
+  if (!bucket) return <span className="text-v2-faint">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[9.5px] font-semibold uppercase ${
+          ELIGIBILITY_STYLE[bucket] ?? "bg-v2-sub-bg text-v2-muted"
+        }`}
+      >
+        {bucket.replace(/_/g, " ")}
+      </span>
+      {reasonCd && reasonCd !== "__NONE__" && (
+        <span className="font-mono text-[10.5px] text-v2-muted" title={`Reason code ${reasonCd}`}>
+          {reasonCd}
+        </span>
+      )}
+    </span>
+  );
+}
 
 function Chip({ label, onRemove }: { label: string; onRemove?: () => void }) {
   return (
@@ -245,8 +277,8 @@ function TransactionsView() {
                     {COLUMNS.map((col) => (
                       <th
                         key={col.key}
-                        className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.5px] ${
-                          col.align === "right" ? "text-right" : "text-left"
+                        className={`px-3 py-[7px] text-[10px] font-semibold uppercase tracking-[0.5px] ${
+                          col.align === "right" ? "num" : "text-left"
                         }`}
                       >
                         <button
@@ -264,17 +296,20 @@ function TransactionsView() {
                 <tbody>
                   {pageRows.map((t) => (
                     <tr key={t.txn_id} className="border-b border-v2-border-subtle hover:bg-v2-sub-bg">
-                      <td className="px-3 py-1.5 font-mono text-[11px] text-v2-link">{t.trade_ref_no}</td>
-                      <td className="px-3 py-1.5">{fmtDate(t.trade_dt)}</td>
-                      <td className="px-3 py-1.5">{t.product_name}</td>
-                      <td className="px-3 py-1.5">{groupName(t.group_id)}</td>
-                      <td className="px-3 py-1.5 font-mono text-[11px]">{t.account_no}</td>
-                      <td className="px-3 py-1.5">{t.rev_nature}</td>
-                      <td className={`px-3 py-1.5 text-right ${t.credited_amt < 0 ? "text-v2-negative" : ""}`}>
+                      <td className="px-3 py-[7px] font-mono text-[11px] text-v2-link">{t.trade_ref_no}</td>
+                      <td className="px-3 py-[7px]">{fmtDate(t.trade_dt)}</td>
+                      <td className="px-3 py-[7px]">{t.product_name}</td>
+                      <td className="px-3 py-[7px]">{groupName(t.group_id)}</td>
+                      <td className="px-3 py-[7px] font-mono text-[11px]">{t.account_no}</td>
+                      <td className="px-3 py-[7px]">{t.rev_nature}</td>
+                      <td className="px-3 py-[7px]">
+                        <EligibilityBadge bucket={t.eligibility_bucket} reasonCd={t.reason_cd} />
+                      </td>
+                      <td className={`num px-3 py-[7px] ${t.credited_amt < 0 ? "text-v2-negative" : ""}`}>
                         {fmtMoney(t.credited_amt)}
                       </td>
-                      <td className="px-3 py-1.5 text-right">{Math.round((t.split_pct ?? 0) * 100)}%</td>
-                      <td className="px-3 py-1.5 font-mono text-[11px] text-v2-muted">{t.file_key}</td>
+                      <td className="num px-3 py-[7px]">{Math.round((t.split_pct ?? 0) * 100)}%</td>
+                      <td className="px-3 py-[7px] font-mono text-[11px] text-v2-muted">{t.file_key}</td>
                     </tr>
                   ))}
                 </tbody>

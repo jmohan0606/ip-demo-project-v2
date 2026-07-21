@@ -16,6 +16,7 @@ import { EvidenceModal } from "@/components/evidence/evidence-modal";
 import { useV2Context } from "@/components/layout/v2-shell";
 import { AsyncBoundary, CardSkeleton } from "@/components/patterns/async-state";
 import {
+  type CommentaryEvaluation,
   type CommentaryRow,
   type CommentaryVersion,
   type MonthlyTotals,
@@ -38,6 +39,9 @@ export default function AiInsightsPage() {
   const [commentaryError, setCommentaryError] = useState<string | null>(null);
   const [commentaryKey, setCommentaryKey] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  // R5-4 — judge evaluations for the resolved version (advisory badges).
+  const [evaluations, setEvaluations] = useState<CommentaryEvaluation[]>([]);
 
   const [modal, setModal] = useState<EvidenceRequest | null>(null);
 
@@ -93,6 +97,20 @@ export default function AiInsightsPage() {
     return () => { active = false; };
   }, [ready, advisorId, selectedVersion, commentaryKey, reportTier]);
 
+  // Judge evaluations for whichever version the commentary resolved to.
+  // Advisory only — a fetch failure simply hides the badges.
+  useEffect(() => {
+    if (!resolvedVersion) {
+      setEvaluations([]);
+      return;
+    }
+    let active = true;
+    v2Api.evaluations(resolvedVersion)
+      .then((e) => { if (active) setEvaluations(e.evaluations); })
+      .catch(() => { if (active) setEvaluations([]); });
+    return () => { active = false; };
+  }, [resolvedVersion, commentaryKey]);
+
   const regenerate = useCallback(async () => {
     if (busy) return;
     setBusy(true);
@@ -132,6 +150,7 @@ export default function AiInsightsPage() {
             versions={versions}
             selectedVersion={selectedVersion}
             resolvedVersion={resolvedVersion}
+            evaluations={evaluations}
             onSelectVersion={setSelectedVersion}
             onRegenerate={() => void regenerate()}
             busy={busy}
