@@ -1,12 +1,13 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-20T00:00:00Z
-Current phase: DONE
-Resume from: — (build complete)
+Last updated: 2026-07-21T00:00:00Z
+Current phase: ROUND 2 (FIX_SPEC.md)
+Resume from: R1-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
 |---|---------|-------|--------------|-------|
 | 1 | 2026-07-20 | 2026-07-20 | fresh start | Phases 0-7 complete in one session; DoD met |
+| 2 | 2026-07-21 | | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -50,6 +51,35 @@ Resume from: — (build complete)
 | P6-9 | 6 | Env health screen | DONE | 6a15498 | probes, tier detail, 3-way reconciliation |
 | P7-1 | 7 | End-to-end verification with sample data | DONE | e99499f | verify_end_to_end.py OVERALL PASS; headless UI verified, 0 console errors |
 | P7-2 | 7 | BUILD_REPORT.md complete | DONE | e99499f | BUILD_REPORT.md complete |
+| R1-1 | R1 | reason_code vertex + seed data | TODO | | |
+| R1-2 | R1 | txn_has_reason edge | TODO | | |
+| R1-3 | R1 | transaction vertex new attributes | TODO | | |
+| R1-4 | R1 | product vertex grid_type attribute | TODO | | |
+| R1-5 | R1 | extraction SQL: reason_cd/rm_sid/cs_sid/grid_type, remove WHERE filter | TODO | | |
+| R1-6 | R1 | credited-revenue definition (data-driven eligibility + 90-day rule) | TODO | | |
+| R1-7 | R1 | posting_month_id (ASSUMED) | TODO | | |
+| R1-8 | R1 | ELIGIBILITY driver cause | TODO | | |
+| R1-9 | R1 | queries + services updated for credited-only | TODO | | |
+| R1-10 | R1 | regenerate commentary; reconciliation re-verified | TODO | | |
+| R1-11 | R1 | sample data regenerated with reason codes | TODO | | |
+| R2-1 | R2 | component units — counts/percent/bps no longer rendered as currency | TODO | | |
+| R2-2 | R2 | table names corrected via source catalog | TODO | | |
+| R3-1 | R3 | source_catalog.json + both consumers read from it | TODO | | |
+| R4-1 | R4 | evidence: why-this-cause panel | TODO | | |
+| R4-2 | R4 | evidence: attribution order | TODO | | |
+| R4-3 | R4 | evidence: reconciliation waterfall | TODO | | |
+| R4-4 | R4 | evidence: rev_nature derivation | TODO | | |
+| R4-5 | R4 | evidence: credited-revenue breakdown | TODO | | |
+| R4-6 | R4 | evidence: source SQL rendered from catalog | TODO | | |
+| R5-1 | R5 | commentary_evaluation vertex + edge | TODO | | |
+| R5-2 | R5 | judge runs after generation on different model | TODO | | |
+| R5-3 | R5 | judge advisory-only | TODO | | |
+| R5-4 | R5 | judge surfaced in evidence modal + card badge | TODO | | |
+| R6-1 | R6 | Playwright evidence capture + gitignore + index | TODO | | |
+| R7-1 | R7 | UI typography/density polish | TODO | | |
+| R7-2 | R7 | "AI Generated" chips + boundary helper text | TODO | | |
+| R8-1 | R8 | V1 dead-reference cleanup | TODO | | |
+| R9-1 | R9 | SOLUTION_GUIDE.md | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
