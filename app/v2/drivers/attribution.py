@@ -26,8 +26,8 @@ DUMMY_CAUSES = ("MARKET", "NET_FLOW")
 RECONCILE_TOLERANCE = 1.0  # dollars
 
 CAUSE_DATA_SOURCE = {
-    "VOLUME": "REAL", "ONE_TIME": "REAL", "TIMING": "REAL", "FEE_RATE": "REAL",
-    "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
+    "VOLUME": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL", "TIMING": "REAL",
+    "FEE_RATE": "REAL", "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
     "NEW_ACCOUNT": "REAL", "LOST_ACCOUNT": "REAL", "CLAWBACK": "REAL",
     "MARKET": "DUMMY", "NET_FLOW": "DUMMY",
 }
@@ -56,9 +56,18 @@ def attribute_group(
     to_billable_days: int,
     advisor_new_accounts: set[str] | None = None,
     advisor_lost_accounts: set[str] | None = None,
+    from_nc_txns: list[dict] | None = None,
+    to_nc_txns: list[dict] | None = None,
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
-    change. Steps per EXTRACTION_SPEC §7; MIX absorbs the remainder."""
+    change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8)
+    immediately after ONE_TIME; MIX absorbs the remainder.
+
+    from_txns/to_txns are the group's CREDITED transactions (the ones inside
+    the revenue figure). from_nc_txns/to_nc_txns are its NON_CREDITED
+    transactions — revenue that exists but is outside credited (9E small
+    households, 9G transferred accounts, ...); their month-over-month movement
+    is the ELIGIBILITY effect on credited revenue."""
     drivers: list[dict] = []
     change_amt = _num(change["change_amt"])
     claimed = 0.0
@@ -120,7 +129,26 @@ def attribute_group(
     rem_from = [t for t in rem_from if t.get("rev_nature") != ONE_TIME]
     rem_to = [t for t in rem_to if t.get("rev_nature") != ONE_TIME]
 
-    # 3. CLAWBACK — change in negative-amount rows among the remainder.
+    # 3. ELIGIBILITY (FIX_SPEC R1-8) — revenue that moved between credited and
+    # non-credited (e.g. a household crossing the minimum-household threshold).
+    # Non-credited revenue rising means credited revenue fell by that amount,
+    # so the contribution to the CREDITED change is -(Δ non-credited). Accounts
+    # already claimed by NEW/LOST_ACCOUNT are excluded to prevent double-count.
+    nc_from = [t for t in (from_nc_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    nc_to = [t for t in (to_nc_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    if nc_from or nc_to:
+        nc_delta = _sum(nc_to) - _sum(nc_from)
+        reason_mix = sorted({str(t.get("reason_cd") or "") for t in nc_from + nc_to})
+        emit("ELIGIBILITY", -nc_delta, {
+            "from_non_credited": round(_sum(nc_from), 2),
+            "to_non_credited": round(_sum(nc_to), 2),
+            "from_txn_count": len(nc_from), "to_txn_count": len(nc_to),
+            "reason_codes": reason_mix,
+            "formula": "-(to_non_credited - from_non_credited) — revenue moving to a "
+                       "non-credited reason code leaves credited revenue, and vice versa",
+        })
+
+    # 4. CLAWBACK — change in negative-amount rows among the remainder.
     from_neg = [t for t in rem_from if _num(t.get("credited_amt")) < 0]
     to_neg = [t for t in rem_to if _num(t.get("credited_amt")) < 0]
     if from_neg or to_neg:
@@ -132,7 +160,7 @@ def attribute_group(
     rem_from = [t for t in rem_from if _num(t.get("credited_amt")) >= 0]
     rem_to = [t for t in rem_to if _num(t.get("credited_amt")) >= 0]
 
-    # 4. TIMING — quarterly-billed group present in exactly one month.
+    # 5. TIMING — quarterly-billed group present in exactly one month.
     if change["group_id"] in QUARTERLY_BILLED_GROUPS and bool(rem_from) != bool(rem_to):
         emit("TIMING", _sum(rem_to) - _sum(rem_from), {
             "from_revenue": round(_sum(rem_from), 2), "to_revenue": round(_sum(rem_to), 2),
@@ -141,7 +169,7 @@ def attribute_group(
         })
         rem_from, rem_to = [], []
 
-    # 5. FEE_RATE — effective rate movement on the remaining recurring base.
+    # 6. FEE_RATE — effective rate movement on the remaining recurring base.
     from_rate = _weighted_rate(rem_from)
     to_rate = _weighted_rate(rem_to)
     if from_rate > 0 and to_rate > 0 and abs(to_rate - from_rate) > 1e-6:
@@ -154,7 +182,7 @@ def attribute_group(
                        "assets_proxy = from_revenue / (from_avg_rate_bps/10000)",
         })
 
-    # 6. DISCOUNT — change in discounting (more discount -> negative contribution).
+    # 7. DISCOUNT — change in discounting (more discount -> negative contribution).
     from_disc = sum(_num(t.get("discount_amt")) for t in rem_from)
     to_disc = sum(_num(t.get("discount_amt")) for t in rem_to)
     from_disc_rows = sum(1 for t in rem_from if str(t.get("concession_type")) == "Discount")
@@ -166,7 +194,7 @@ def attribute_group(
             "formula": "from_discount_total - to_discount_total (growth in discounting reduces revenue)",
         })
 
-    # 7. BILLABLE_DAYS — recurring/fee-based groups only. DERIVED.
+    # 8. BILLABLE_DAYS — recurring/fee-based groups only. DERIVED.
     if is_recurring_class and from_billable_days and to_billable_days != from_billable_days:
         from_rev = _sum(rem_from)
         emit("BILLABLE_DAYS", from_rev * (to_billable_days - from_billable_days) / from_billable_days, {
@@ -175,7 +203,7 @@ def attribute_group(
             "formula": "from_revenue * (to_billable_days - from_billable_days) / from_billable_days",
         })
 
-    # 8. VOLUME — transaction-based (non-recurring-class) groups.
+    # 9. VOLUME — transaction-based (non-recurring-class) groups.
     if not is_recurring_class and rem_from:
         from_count, to_count = len(rem_from), len(rem_to)
         if from_count and to_count != from_count:
@@ -186,7 +214,9 @@ def attribute_group(
                 "formula": "(to_txn_count - from_txn_count) * from_avg_txn_value",
             })
 
-    # 11. MIX — the remainder, so contributions always reconcile.
+    # 12. MIX — the remainder, so contributions always reconcile.
+    # (MARKET and NET_FLOW — steps 10 and 11 — are emitted per transition in
+    # attribute_transition as zero-contribution DUMMY drivers.)
     remainder = round(change_amt - claimed, 2)
     if abs(remainder) >= 0.005:
         emit("MIX", remainder, {
@@ -203,28 +233,36 @@ def attribute_transition(
     recurring_class_groups: set[str],
     from_billable_days: int,
     to_billable_days: int,
+    nc_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
     `changes` are that transition's revenue_change rows (groups + __TOTAL__).
+    `txns_by_group_month` holds the CREDITED transactions;
+    `nc_txns_by_group_month` the NON_CREDITED ones (ELIGIBILITY step, R1-8).
     Group-level drivers attach to their group's change row; MARKET and NET_FLOW
     are emitted once per transition on the __TOTAL__ row (contribution 0, DUMMY)
     so the missing data sources stay visible. rank is global per transition by
     |contribution| descending; contribution_pct is the share of the transition's
     total change."""
+    nc_txns_by_group_month = nc_txns_by_group_month or {}
     total_row = next(c for c in changes if c["group_id"] == TOTAL_GROUP)
     total_change = _num(total_row["change_amt"])
     from_month, to_month = total_row["from_month_id"], total_row["to_month_id"]
     raw: list[tuple[dict, dict]] = []  # (change_row, driver)
 
-    # Advisor-level account presence for the NEW/LOST_ACCOUNT test.
+    # Advisor-level account presence for the NEW/LOST_ACCOUNT test. Presence
+    # counts credited AND non-credited activity: an account whose rows merely
+    # became non-credited (e.g. 9E) is still trading — that is an ELIGIBILITY
+    # move, not a lost account.
     from_all: set[str] = set()
     to_all: set[str] = set()
-    for (_g, month), txns in txns_by_group_month.items():
-        if month == from_month:
-            from_all.update(str(t.get("account_no")) for t in txns)
-        elif month == to_month:
-            to_all.update(str(t.get("account_no")) for t in txns)
+    for source in (txns_by_group_month, nc_txns_by_group_month):
+        for (_g, month), txns in source.items():
+            if month == from_month:
+                from_all.update(str(t.get("account_no")) for t in txns)
+            elif month == to_month:
+                to_all.update(str(t.get("account_no")) for t in txns)
     advisor_new = to_all - from_all
     advisor_lost = from_all - to_all
 
@@ -241,6 +279,8 @@ def attribute_transition(
             to_billable_days=to_billable_days,
             advisor_new_accounts=advisor_new,
             advisor_lost_accounts=advisor_lost,
+            from_nc_txns=nc_txns_by_group_month.get((group_id, change["from_month_id"]), []),
+            to_nc_txns=nc_txns_by_group_month.get((group_id, change["to_month_id"]), []),
         ):
             raw.append((change, d))
 

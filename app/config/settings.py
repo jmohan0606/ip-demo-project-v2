@@ -40,6 +40,18 @@ class Settings(BaseSettings):
     data_set: str = Field(default="sample", alias="DATA_SET")  # sample | real
     # Commentary is generated in batch and stored — never on read (CLAUDE.md §7)
     commentary_mode: str = Field(default="stored", alias="COMMENTARY_MODE")
+    # Credited-revenue definition (FIX_SPEC R1-6). BOTH are config, not code:
+    # which product grid types count toward credited revenue (comma-separated;
+    # relaxing to "PRODUCT_TYPE,PAY_TYPE_SUMMARY" changes behaviour with no code
+    # change), and the client's 90-day rule ("transactions older than 90 days
+    # ... will not be sent to iComp"). The eligible REASON set is read from the
+    # phx_dm_v2_reason_code vertex, never from code.
+    credited_grid_types: str = Field(default="PRODUCT_TYPE", alias="CREDITED_GRID_TYPES")
+    max_processing_days: int = Field(default=90, alias="MAX_PROCESSING_DAYS")
+
+    @property
+    def credited_grid_type_set(self) -> set[str]:
+        return {g.strip() for g in self.credited_grid_types.split(",") if g.strip()}
     embedding_client_mode: str = Field(default="local", alias="EMBEDDING_CLIENT_MODE")  # local | cdao_openai | azure | azure_openai
     # Input/output AI guardrails (Security & Governance poster). local = regex/heuristic (default);
     # smartsdk = JPMC SmartSDK EvaluationService (toxicity/qa_correctness/hallucination) in client env.
