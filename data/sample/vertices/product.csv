@@ -1,10 +1,11 @@
-product_id,product_cd,product_sub_cd,product_name,data_source
-UMA|FEE,UMA,FEE,UMA Advisory Fee,REAL
-JPMCAP|FEE,JPMCAP,FEE,JPMCAP Program Fee,REAL
-ADV|FEE,ADV,FEE,Advisory Fee,REAL
-MFT|12B1,MFT,12B1,Mutual Fund 12b-1 Trail,REAL
-STRP|SYND,STRP,SYND,Structured Product Syndicate,REAL
-ALTS|QFEE,ALTS,QFEE,Alternatives Quarterly Fee,REAL
-EQ|COMM,EQ,COMM,Equity Commission,REAL
-CASH|SWP,CASH,SWP,Cash Sweep Revenue,REAL
-ANNU|COMM,ANNU,COMM,Annuity Commission,REAL
+product_id,product_cd,product_sub_cd,product_name,grid_type,data_source
+UMA|FEE,UMA,FEE,UMA Advisory Fee,PRODUCT_TYPE,REAL
+JPMCAP|FEE,JPMCAP,FEE,JPMCAP Program Fee,PRODUCT_TYPE,REAL
+ADV|FEE,ADV,FEE,Advisory Fee,PRODUCT_TYPE,REAL
+MFT|12B1,MFT,12B1,Mutual Fund 12b-1 Trail,PRODUCT_TYPE,REAL
+STRP|SYND,STRP,SYND,Structured Product Syndicate,PRODUCT_TYPE,REAL
+ALTS|QFEE,ALTS,QFEE,Alternatives Quarterly Fee,PRODUCT_TYPE,REAL
+EQ|COMM,EQ,COMM,Equity Commission,PRODUCT_TYPE,REAL
+CASH|SWP,CASH,SWP,Cash Sweep Revenue,PRODUCT_TYPE,REAL
+ANNU|COMM,ANNU,COMM,Annuity Commission,PRODUCT_TYPE,REAL
+UMA|PAYS,UMA,PAYS,UMA Pay-Type Summary,PAY_TYPE_SUMMARY,REAL

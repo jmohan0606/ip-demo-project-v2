@@ -1,13 +1,14 @@
 cause_id,cause_name,cause_description,default_data_source,display_order,data_source
 VOLUME,Transaction volume,More or fewer transactions at similar rates,REAL,1,REAL
 ONE_TIME,One-time items,"Syndicate allocations, new issues, referrals that don't repeat",REAL,2,REAL
-TIMING,Billing timing,Quarterly billing cycle falls in one month not the other,REAL,3,REAL
-FEE_RATE,Effective fee rate,Change in client_rate_bps / std_tier_rate,REAL,4,REAL
-DISCOUNT,Discounting,Change in concession_type / discount_amt / eff_disc_pct,REAL,5,REAL
-BILLABLE_DAYS,Billable days,Different number of billing days between months,DERIVED,6,REAL
-MIX,Product mix,Shift between products at different rates,DERIVED,7,REAL
-NEW_ACCOUNT,Accounts opened,Accounts contributing this month but not last,REAL,8,REAL
-LOST_ACCOUNT,Accounts closed,Accounts contributing last month but not this,REAL,9,REAL
-CLAWBACK,Reversals,Negative credited amounts (chargebacks),REAL,10,REAL
-MARKET,Market performance,Asset value movement,DUMMY,11,REAL
-NET_FLOW,Net client flows,Inflows less outflows,DUMMY,12,REAL
+ELIGIBILITY,Credited eligibility,Revenue moved between credited and non-credited reason codes month over month,REAL,3,REAL
+TIMING,Billing timing,Quarterly billing cycle falls in one month not the other,REAL,4,REAL
+FEE_RATE,Effective fee rate,Change in client_rate_bps / std_tier_rate,REAL,5,REAL
+DISCOUNT,Discounting,Change in concession_type / discount_amt / eff_disc_pct,REAL,6,REAL
+BILLABLE_DAYS,Billable days,Different number of billing days between months,DERIVED,7,REAL
+MIX,Product mix,Shift between products at different rates,DERIVED,8,REAL
+NEW_ACCOUNT,Accounts opened,Accounts contributing this month but not last,REAL,9,REAL
+LOST_ACCOUNT,Accounts closed,Accounts contributing last month but not this,REAL,10,REAL
+CLAWBACK,Reversals,Negative credited amounts (chargebacks),REAL,11,REAL
+MARKET,Market performance,Asset value movement,DUMMY,12,REAL
+NET_FLOW,Net client flows,Inflows less outflows,DUMMY,13,REAL

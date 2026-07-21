@@ -1,0 +1,16 @@
+reason_code,description,ui_mapping,owned_by,eligibility,include_in_credited,incentive_eligible,display_order,data_source
+__NONE__,No reason code — Grid transaction,Grid,PCE,CREDITED,True,True,1,REAL
+91,Less than Minimum – Equity,Incentive non-eligible > Equity – below minimum,PCE,CREDITED,True,False,2,REAL
+92,Less than Minimum – Mutual Fund,Incentive non-eligible > Mutual funds – below minimum,PCE,CREDITED,True,False,3,REAL
+9L,Full Month LOA,Incentive non-eligible > LOA,iComp,CREDITED,True,False,4,REAL
+9E,Minimum Household Policy,Small households,PCE,NON_CREDITED,False,False,5,REAL
+9G,Inherited Account,Transferred accounts,PCE,NON_CREDITED,False,False,6,REAL
+9C,Personal Transactions,Personal accounts,PCE,NON_CREDITED,False,False,7,REAL
+9S,Account Block – Supervision,Other,PCE,NON_CREDITED,False,False,8,REAL
+94,Account Block – Other,Other,PCE,NON_CREDITED,False,False,9,REAL
+9R,Rep Code Not Found,,PCE,EXCLUDED,False,False,10,REAL
+98,Sales After Termination,,iComp,EXCLUDED,False,False,11,REAL
+99,Sales During Inactive Period,,iComp,EXCLUDED,False,False,12,REAL
+9H,Sales Before Rep Code Assignment,,iComp,EXCLUDED,False,False,13,REAL
+9X,A delete of the transaction,,PCE,EXCLUDED,False,False,14,REAL
+XX,Transaction removed by the SOR for Annuities,,PCE,EXCLUDED,False,False,15,REAL

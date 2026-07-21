@@ -1,4 +1,4 @@
-"""Generate the synthetic sample data set (EXTRACTION_SPEC §8).
+"""Generate the synthetic sample data set (EXTRACTION_SPEC §8, FIX_SPEC R1-11).
 
 Writes data/sample/{vertices,edges}/*.csv and the ingestion manifest
 (docs/tigergraph_foundation/data/manifest.json). Deterministic (seeded), and
@@ -9,6 +9,8 @@ The transaction set is engineered so every driver cause is exercised:
   NEW_ACCOUNT   SMPL001 account SMPLACCT-1109 first contributes in Jun
   LOST_ACCOUNT  SMPL001 account SMPLACCT-1104 stops after Apr
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
+  ELIGIBILITY   SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
+                household) in Jun — revenue moves credited -> non-credited
   TIMING        alternatives bill quarterly: Apr and Jun rows, none in May
   FEE_RATE      SMPL002 managed UMA rate steps 82 -> 88 bps in Jun
   DISCOUNT      SMPL003 managed rows gain concession_type=Discount in Jun
@@ -18,9 +20,20 @@ The transaction set is engineered so every driver cause is exercised:
   MIX           the remainder of every decomposition
   MARKET / NET_FLOW emitted as DUMMY zero-contribution drivers (no source data)
 
+Reason-code coverage (R1-11) — every eligibility path is visible in the UI:
+  __NONE__  the bulk of rows (Grid transactions, credited)
+  91        equity-below-minimum rows (credited, incentive-INeligible)
+  9E        the ELIGIBILITY story above (non-credited)
+  9G        SMPL002 inherited account, steady non-credited trail all 3 months
+  9X        one deleted SMPL003 equity row (EXCLUDED — in no total at all)
+  + one SMPL003 UMA row with days_to_process > 90 (the 90-day rule)
+  + UMA|PAYS pay-type-summary rows (grid_type filter, OUT_OF_GRID by config)
+
 Derived CSVs (monthly_product_revenue, revenue_change, revenue_driver) are
 computed by the SAME Phase-4 code the app uses (app/v2/revenue, app/v2/drivers)
-— nothing is hand-typed twice.
+— nothing is hand-typed twice. Workflow CSVs (commentary/evidence) are
+PRESERVED if they exist: regeneration of the data set must not delete
+commentary history (versions are additive).
 """
 from __future__ import annotations
 
@@ -30,17 +43,20 @@ import os
 import random
 import sys
 from collections import defaultdict
+from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.v2.calendar import month_rows
 from app.v2.drivers.attribution import attribute_transition, reconcile
+from app.v2.revenue import eligibility as elig
 from app.v2.revenue.aggregation import (
     TOTAL_GROUP,
+    EligibilityContext,
     aggregate_monthly,
-    compute_changes,
     derive_rev_nature,
+    split_by_eligibility,
 )
 
 OUT = Path("data/sample")
@@ -86,52 +102,71 @@ GROUPS = [
     ("annuities", "Annuities", "annuities", 9),
 ]
 
-# product_id -> (product_cd, product_sub_cd, product_name, group_id)
+# product_id -> (product_cd, product_sub_cd, product_name, group_id, grid_type)
+# UMA|PAYS is a PAY_TYPE_SUMMARY row: extracted (grid no longer filtered at
+# extraction, R1-4/R1-5) but OUT_OF_GRID under the default CREDITED_GRID_TYPES
+# config — relaxing the config makes it count, with no code change.
 PRODUCTS = [
-    ("UMA|FEE", "UMA", "FEE", "UMA Advisory Fee", "unified_managed_account"),
-    ("JPMCAP|FEE", "JPMCAP", "FEE", "JPMCAP Program Fee", "jpmcap"),
-    ("ADV|FEE", "ADV", "FEE", "Advisory Fee", "advisory"),
-    ("MFT|12B1", "MFT", "12B1", "Mutual Fund 12b-1 Trail", "mutual_fund_trails"),
-    ("STRP|SYND", "STRP", "SYND", "Structured Product Syndicate", "structured_products"),
-    ("ALTS|QFEE", "ALTS", "QFEE", "Alternatives Quarterly Fee", "alternative_investments"),
-    ("EQ|COMM", "EQ", "COMM", "Equity Commission", "equities"),
-    ("CASH|SWP", "CASH", "SWP", "Cash Sweep Revenue", "cash_management"),
-    ("ANNU|COMM", "ANNU", "COMM", "Annuity Commission", "annuities"),
+    ("UMA|FEE", "UMA", "FEE", "UMA Advisory Fee", "unified_managed_account", "PRODUCT_TYPE"),
+    ("JPMCAP|FEE", "JPMCAP", "FEE", "JPMCAP Program Fee", "jpmcap", "PRODUCT_TYPE"),
+    ("ADV|FEE", "ADV", "FEE", "Advisory Fee", "advisory", "PRODUCT_TYPE"),
+    ("MFT|12B1", "MFT", "12B1", "Mutual Fund 12b-1 Trail", "mutual_fund_trails", "PRODUCT_TYPE"),
+    ("STRP|SYND", "STRP", "SYND", "Structured Product Syndicate", "structured_products", "PRODUCT_TYPE"),
+    ("ALTS|QFEE", "ALTS", "QFEE", "Alternatives Quarterly Fee", "alternative_investments", "PRODUCT_TYPE"),
+    ("EQ|COMM", "EQ", "COMM", "Equity Commission", "equities", "PRODUCT_TYPE"),
+    ("CASH|SWP", "CASH", "SWP", "Cash Sweep Revenue", "cash_management", "PRODUCT_TYPE"),
+    ("ANNU|COMM", "ANNU", "COMM", "Annuity Commission", "annuities", "PRODUCT_TYPE"),
+    ("UMA|PAYS", "UMA", "PAYS", "UMA Pay-Type Summary", "unified_managed_account", "PAY_TYPE_SUMMARY"),
 ]
 
+# ELIGIBILITY (R1-8) sits immediately after ONE_TIME in the attribution order.
 CAUSES = [
     ("VOLUME", "Transaction volume", "More or fewer transactions at similar rates", "REAL", 1),
     ("ONE_TIME", "One-time items", "Syndicate allocations, new issues, referrals that don't repeat", "REAL", 2),
-    ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 3),
-    ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 4),
-    ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 5),
-    ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 6),
-    ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 7),
-    ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 8),
-    ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 9),
-    ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 10),
-    ("MARKET", "Market performance", "Asset value movement", "DUMMY", 11),
-    ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 12),
+    ("ELIGIBILITY", "Credited eligibility", "Revenue moved between credited and non-credited reason codes month over month", "REAL", 3),
+    ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 4),
+    ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 5),
+    ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 6),
+    ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 7),
+    ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 8),
+    ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 9),
+    ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 10),
+    ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 11),
+    ("MARKET", "Market performance", "Asset value movement", "DUMMY", 12),
+    ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 13),
 ]
 
-PRODUCT_GROUP = {p[0]: p[4] for p in [(pid, cd, sub, name, grp) for pid, cd, sub, name, grp in PRODUCTS]}
+PRODUCT_GROUP = {p[0]: p[4] for p in PRODUCTS}
+PRODUCT_GRID = {p[0]: p[5] for p in PRODUCTS}
 GROUP_LINE = {g[0]: g[2] for g in GROUPS}
 LINE_CLASS = {l[0]: l[2] for l in LINES}
 RECURRING_CLASS_GROUPS = {g for g, line in GROUP_LINE.items() if LINE_CLASS[line] == "RECURRING"}
 BILLABLE_DAYS = {"202604": 22, "202605": 21, "202606": 22}
 
+REASONS = elig.reason_map()  # the seed — same rows written to reason_code.csv
+
+# The generator uses the app's default eligibility config (settings defaults):
+CTX = EligibilityContext(
+    reasons=REASONS,
+    product_grid_type=PRODUCT_GRID,
+    credited_grid_types=frozenset({"PRODUCT_TYPE"}),
+    max_processing_days=90,
+)
+
 
 def _mk_txn(advisor: str, month: str, product_id: str, account: str, day: int,
             amount: float, rate_bps: float = 0.0, file_key: str = "ace",
             description: str = "", concession: str = "None", discount: float = 0.0,
-            split_pct: float = 1.0, balance: float = 0.0) -> dict:
+            split_pct: float = 1.0, balance: float = 0.0,
+            reason: str = "", proc_days: int = 1) -> dict:
     _mk_txn.counter += 1
     n = _mk_txn.counter
-    trade_dt = f"{month[:4]}-{month[4:6]}-{day:02d} 00:00:00"
-    proc = f"{month[:4]}-{month[4:6]}-{min(day + 1, 28):02d} 00:00:00"
+    ai = int(advisor[-1])
+    trade = date(int(month[:4]), int(month[4:6]), day)
+    proc = trade + timedelta(days=proc_days)
     pre_split = round(amount / split_pct, 2) if split_pct else amount
-    cd, sub = product_id.split("|")
     desc = description or f"MONTH M{int(month[4:6]):02d}-{month[:4]}"
+    reason_cd = elig.normalize_reason(reason)
     return {
         "txn_id": f"SMPLTRD{n:05d}|1",
         "trade_ref_no": f"SMPLTRD{n:05d}",
@@ -140,8 +175,8 @@ def _mk_txn(advisor: str, month: str, product_id: str, account: str, day: int,
         "month_id": month,
         "product_id": product_id,
         "account_no": account,
-        "trade_dt": trade_dt,
-        "proc_dt": proc,
+        "trade_dt": f"{trade} 00:00:00",
+        "proc_dt": f"{proc} 00:00:00",
         "credited_amt": round(amount, 2),
         "pre_split_amt": pre_split,
         "split_pct": split_pct,
@@ -154,6 +189,16 @@ def _mk_txn(advisor: str, month: str, product_id: str, account: str, day: int,
         "file_key": file_key,
         "trade_description": desc,
         "rev_nature": derive_rev_nature(file_key, desc),
+        # R1-3 eligibility attributes — DERIVED from the reason-code seed data.
+        "reason_cd": reason_cd,
+        "rm_sid": f"SMPLRM{ai}",
+        "cs_sid": f"SMPLCS{ai}",
+        "revenue_eligibility": elig.reason_eligibility(reason_cd, REASONS),
+        "incentive_eligible": elig.incentive_eligible(reason_cd, REASONS),
+        "days_to_process": elig.days_to_process(trade, proc),
+        # R1-7: posting month = trade month (ASSUMED — no iComp feed to identify
+        # closed months, so no prior-period-adjustment logic in this round).
+        "posting_month_id": month,
         "data_source": "REAL",
     }
 
@@ -168,6 +213,7 @@ def build_transactions() -> list[dict]:
         accounts = [f"SMPLACCT-{base + i}" for i in range(101, 109)]
         lost = f"SMPLACCT-{base + 104}"       # contributes Apr only
         new = f"SMPLACCT-{base + 109}"        # first contributes Jun
+        small_household = f"SMPLACCT-{base + 103}"  # SMPL001: goes 9E in Jun
         for m in MONTHS:
             days = BILLABLE_DAYS[m]
             # Managed UMA — recurring fee per account, revenue scales with billable days.
@@ -183,12 +229,31 @@ def build_transactions() -> list[dict]:
                     disc = round(fee * 0.12, 2)   # DISCOUNT appears in Jun
                     fee = round(fee - disc, 2)
                     concession = "Discount"
+                # ELIGIBILITY story: SMPL001's account crosses below the
+                # minimum-household threshold in Jun -> its fee goes 9E
+                # (non-credited); the account keeps trading, so it is an
+                # eligibility move, not a lost account.
+                reason = "9E" if (adv == "SMPL001" and m == "202606"
+                                  and acct == small_household) else ""
                 txns.append(_mk_txn(adv, m, "UMA|FEE", acct, 28, fee, rate_bps=rate,
                                     file_key="ace", concession=concession, discount=disc,
-                                    split_pct=0.8 if ai == 2 else 1.0))
+                                    split_pct=0.8 if ai == 2 else 1.0, reason=reason))
             if new and m == "202606":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", new, 28,
                                     round(4100 + ai * 350, 2), rate_bps=rate, file_key="ace"))
+            # 90-day rule: one SMPL003 April UMA row processed 100 days late —
+            # in Total revenue, excluded from Credited (LATE).
+            if adv == "SMPL003" and m == "202604":
+                txns.append(_mk_txn(adv, m, "UMA|FEE", accounts[2], 2, 900.0,
+                                    rate_bps=82.0, file_key="ace",
+                                    description="MONTH M04-2026 LATE PROCESS",
+                                    proc_days=100))
+            # Pay-type-summary rows (grid_type demo): extracted but OUT_OF_GRID
+            # under the default CREDITED_GRID_TYPES config.
+            if adv == "SMPL001":
+                txns.append(_mk_txn(adv, m, "UMA|PAYS", accounts[0], 28,
+                                    round(20000 * days / 22, 2), rate_bps=0.0,
+                                    file_key="ace", description="PAY TYPE SUMMARY"))
             # JPMCAP + Advisory — steady recurring base.
             txns.append(_mk_txn(adv, m, "JPMCAP|FEE", accounts[4], 27,
                                 round((3600 + ai * 400) * days / 22, 2), rate_bps=65.0, file_key="ace"))
@@ -202,6 +267,12 @@ def build_transactions() -> list[dict]:
                 txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 26,
                                     -round(120 + 35 * k + ai * 10, 2), rate_bps=25.0,
                                     file_key="mf_12b1", description=f"MONTH M{int(m[4:6]):02d}-2026 REVERSAL"))
+            # 9G inherited account: SMPL002 carries a steady NON_CREDITED trail
+            # all three months (visible in the breakdown; no MoM driver).
+            if adv == "SMPL002":
+                txns.append(_mk_txn(adv, m, "MFT|12B1", f"SMPLACCT-{base + 110}", 25,
+                                    800.0, rate_bps=25.0, file_key="mf_12b1",
+                                    reason="9G"))
             # Structured products — ONE_TIME syndicate in May only.
             if m == "202605":
                 for k in range(3):
@@ -214,11 +285,21 @@ def build_transactions() -> list[dict]:
                                     round(6200 + ai * 800, 2), rate_bps=120.0, file_key="ace",
                                     description=f"QUARTERLY BILLING M{int(m[4:6]):02d}-2026"))
             # Equities — VOLUME swings: 8 -> 5 -> 11 trades (+ advisor offset).
+            # The first trade each month is 91 (equity below minimum): still
+            # credited, but incentive-INeligible — the badge is visible with no
+            # revenue effect.
             n_trades = {"202604": 8, "202605": 5, "202606": 11}[m] + (ai - 1) * 2
             for k in range(n_trades):
                 txns.append(_mk_txn(adv, m, "EQ|COMM", accounts[5 + (k % 3)], 3 + (k * 2) % 24,
                                     round(140 + RNG.uniform(-25, 25), 2), file_key="ace",
-                                    description="EQUITY TRADE COMMISSION"))
+                                    description="EQUITY TRADE COMMISSION",
+                                    reason="91" if k == 0 else ""))
+            # 9X deleted transaction: EXCLUDED — appears in NO revenue figure.
+            if adv == "SMPL003" and m == "202605":
+                txns.append(_mk_txn(adv, m, "EQ|COMM", accounts[5], 14, 500.0,
+                                    file_key="ace",
+                                    description="EQUITY TRADE COMMISSION (DELETED)",
+                                    reason="9X"))
             # Cash management — steady.
             txns.append(_mk_txn(adv, m, "CASH|SWP", accounts[7], 24,
                                 round(1450 + ai * 150, 2), rate_bps=18.0,
@@ -241,17 +322,31 @@ def write_csv(path: Path, rows: list[dict], columns: list[str]) -> int:
     return len(rows)
 
 
+def preserve_or_create(path: Path, columns: list[str]) -> int | None:
+    """Workflow-generated CSVs (commentary/evidence): keep existing content —
+    versions are additive and regeneration must not delete history. Returns the
+    existing row count, or 0 after creating a header-only file."""
+    if path.exists():
+        with path.open(encoding="utf-8") as f:
+            return max(0, sum(1 for _ in f) - 1)
+    return write_csv(path, [], columns)
+
+
 def main() -> int:
     txns = build_transactions()
     months = month_rows(MONTHS)
-    mpr = aggregate_monthly(txns, PRODUCT_GROUP, GROUP_LINE, LINE_CLASS)
-    changes = compute_changes(mpr, MONTHS)
+    mpr = aggregate_monthly(txns, PRODUCT_GROUP, GROUP_LINE, LINE_CLASS, CTX)
+    changes = compute_changes_from(mpr)
 
-    # Drivers per (advisor, transition), using the transaction detail.
-    txn_by_advisor_group_month: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for t in txns:
-        g = PRODUCT_GROUP[t["product_id"]]
-        txn_by_advisor_group_month[t["advisor_sid"]][(g, t["month_id"])].append(t)
+    # Attribution runs on CREDITED transactions; the ELIGIBILITY step reads the
+    # NON_CREDITED ones (FIX_SPEC R1-8).
+    split = split_by_eligibility(txns, CTX)
+    cred_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    for t in split[elig.CREDITED]:
+        cred_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
+    nc_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    for t in split[elig.NON_CREDITED]:
+        nc_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
 
     drivers: list[dict] = []
     by_transition: dict[tuple, list[dict]] = defaultdict(list)
@@ -259,8 +354,9 @@ def main() -> int:
         by_transition[(c["advisor_sid"], c["from_month_id"], c["to_month_id"])].append(c)
     for (advisor, from_m, to_m), rows in sorted(by_transition.items()):
         drivers.extend(attribute_transition(
-            rows, txn_by_advisor_group_month[advisor], RECURRING_CLASS_GROUPS,
+            rows, cred_by_advisor[advisor], RECURRING_CLASS_GROUPS,
             BILLABLE_DAYS[from_m], BILLABLE_DAYS[to_m],
+            nc_txns_by_group_month=nc_by_advisor[advisor],
         ))
 
     report = reconcile(changes, drivers)
@@ -284,8 +380,8 @@ def main() -> int:
         ["group_id", "group_name", "display_order", "data_source"])
     counts["product.csv"] = write_csv(v / "product.csv",
         [{"product_id": pid, "product_cd": cd, "product_sub_cd": sub, "product_name": name,
-          "data_source": "REAL"} for pid, cd, sub, name, _g in PRODUCTS],
-        ["product_id", "product_cd", "product_sub_cd", "product_name", "data_source"])
+          "grid_type": grid, "data_source": "REAL"} for pid, cd, sub, name, _g, grid in PRODUCTS],
+        ["product_id", "product_cd", "product_sub_cd", "product_name", "grid_type", "data_source"])
     account_ids = sorted({t["account_no"] for t in txns})
     counts["account.csv"] = write_csv(v / "account.csv",
         [{"account_no": a, "account_typ": "BROKERAGE" if int(a[-1]) % 2 else "ADVISORY",
@@ -295,14 +391,20 @@ def main() -> int:
         [{"cause_id": c, "cause_name": n, "cause_description": d, "default_data_source": s,
           "display_order": o, "data_source": "REAL"} for c, n, d, s, o in CAUSES],
         ["cause_id", "cause_name", "cause_description", "default_data_source", "display_order", "data_source"])
+    counts["reason_code.csv"] = write_csv(v / "reason_code.csv", elig.seed_rows(),
+        ["reason_code", "description", "ui_mapping", "owned_by", "eligibility",
+         "include_in_credited", "incentive_eligible", "display_order", "data_source"])
     txn_cols = ["txn_id", "trade_ref_no", "split_seq_no", "advisor_sid", "month_id", "product_id",
                 "account_no", "trade_dt", "proc_dt", "credited_amt", "pre_split_amt", "split_pct",
                 "client_rate_bps", "std_tier_rate", "concession_type", "discount_amt", "eff_disc_pct",
-                "avg_balance_amt", "file_key", "trade_description", "rev_nature", "data_source"]
+                "avg_balance_amt", "file_key", "trade_description", "rev_nature",
+                "reason_cd", "rm_sid", "cs_sid", "revenue_eligibility", "incentive_eligible",
+                "days_to_process", "posting_month_id", "data_source"]
     counts["revenue_transaction.csv"] = write_csv(v / "revenue_transaction.csv", txns, txn_cols)
     counts["monthly_product_revenue.csv"] = write_csv(v / "monthly_product_revenue.csv", mpr,
         ["mpr_id", "advisor_sid", "month_id", "group_id", "line_id", "class_id", "revenue",
-         "txn_count", "account_count", "avg_rate_bps", "recurring_amt", "one_time_amt", "data_source"])
+         "txn_count", "account_count", "avg_rate_bps", "recurring_amt", "one_time_amt",
+         "total_revenue", "non_credited_amt", "excluded_amt", "late_excluded_amt", "data_source"])
     balances = [{"balance_id": f"{a}|{m}", "account_no": a, "month_id": m,
                  "avg_billable_assets": 0.0, "effective_fee_bps": 0.0,
                  "billable_days": BILLABLE_DAYS[m], "data_source": "DUMMY"}
@@ -316,15 +418,15 @@ def main() -> int:
     counts["revenue_driver.csv"] = write_csv(v / "revenue_driver.csv", drivers,
         ["driver_id", "change_id", "cause_id", "group_id", "contribution_amt", "contribution_pct",
          "direction", "rank", "inputs_json", "data_source"])
-    # Workflow-generated vertices: empty header-only CSVs; the batch commentary
-    # workflow appends so stored commentary survives a restart in local mode.
-    counts["commentary_version.csv"] = write_csv(v / "commentary_version.csv", [],
+    # Workflow-generated vertices: PRESERVED if present (versions are additive);
+    # created header-only on a fresh data set.
+    counts["commentary_version.csv"] = preserve_or_create(v / "commentary_version.csv",
         ["version_id", "version_no", "generated_at", "model", "prompt_version", "data_snapshot_dt",
          "status", "advisor_count", "transition_count", "blocked_count", "notes", "data_source"])
-    counts["commentary.csv"] = write_csv(v / "commentary.csv", [],
+    counts["commentary.csv"] = preserve_or_create(v / "commentary.csv",
         ["commentary_id", "version_id", "advisor_sid", "from_month_id", "to_month_id", "headline",
          "narrative_text", "bullets_json", "status", "blocked_reason", "data_source"])
-    counts["evidence.csv"] = write_csv(v / "evidence.csv", [],
+    counts["evidence.csv"] = preserve_or_create(v / "evidence.csv",
         ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
          "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
          "source_sql", "source_table", "source_row_count", "data_source"])
@@ -340,14 +442,15 @@ def main() -> int:
                 rows.append({"from_id": f_, "to_id": t_})
         return write_csv(e / f"{name}.csv", rows, ["from_id", "to_id"])
 
-    counts["product_in_group.csv"] = edge_rows("product_in_group", [(pid, g) for pid, *_r, g in
-        [(pid, cd, sub, name, g) for pid, cd, sub, name, g in PRODUCTS]])
+    counts["product_in_group.csv"] = edge_rows("product_in_group",
+        [(pid, g) for pid, _cd, _sub, _name, g, _grid in PRODUCTS])
     counts["group_in_line.csv"] = edge_rows("group_in_line", [(g, l) for g, _n, l, _o in GROUPS])
     counts["line_in_class.csv"] = edge_rows("line_in_class", [(l, c) for l, _n, c, _o in LINES])
     counts["txn_for_advisor.csv"] = edge_rows("txn_for_advisor", [(t["txn_id"], t["advisor_sid"]) for t in txns])
     counts["txn_in_month.csv"] = edge_rows("txn_in_month", [(t["txn_id"], t["month_id"]) for t in txns])
     counts["txn_for_product.csv"] = edge_rows("txn_for_product", [(t["txn_id"], t["product_id"]) for t in txns])
     counts["txn_for_account.csv"] = edge_rows("txn_for_account", [(t["txn_id"], t["account_no"]) for t in txns])
+    counts["txn_has_reason.csv"] = edge_rows("txn_has_reason", [(t["txn_id"], t["reason_cd"]) for t in txns])
     counts["mpr_for_advisor.csv"] = edge_rows("mpr_for_advisor", [(r["mpr_id"], r["advisor_sid"]) for r in mpr])
     counts["mpr_in_month.csv"] = edge_rows("mpr_in_month", [(r["mpr_id"], r["month_id"]) for r in mpr])
     counts["mpr_for_group.csv"] = edge_rows("mpr_for_group", [(r["mpr_id"], r["group_id"]) for r in mpr])
@@ -362,10 +465,10 @@ def main() -> int:
     counts["driver_has_cause.csv"] = edge_rows("driver_has_cause", [(d["driver_id"], d["cause_id"]) for d in drivers])
     counts["driver_for_group.csv"] = edge_rows("driver_for_group",
         [(d["driver_id"], d["group_id"]) for d in drivers if d["group_id"] != TOTAL_GROUP])
-    # Workflow-generated edges — header-only, appended by the batch workflow.
+    # Workflow-generated edges — preserved if present.
     for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver"):
-        counts[f"{name}.csv"] = edge_rows(name, [])
+        counts[f"{name}.csv"] = preserve_or_create(e / f"{name}.csv", ["from_id", "to_id"])
 
     # ------------------------------------------------ manifest
     WORKFLOW_FILES = {"commentary_version.csv", "commentary.csv", "evidence.csv",
@@ -375,9 +478,9 @@ def main() -> int:
     schema = json.load(open("docs/tigergraph_foundation/tigergraph/schema/schema_catalog.json"))
     files = []
     vertex_order = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
-                    "account", "driver_cause", "revenue_transaction", "monthly_product_revenue",
-                    "account_month_balance", "revenue_change", "revenue_driver",
-                    "commentary_version", "commentary", "evidence"]
+                    "account", "driver_cause", "reason_code", "revenue_transaction",
+                    "monthly_product_revenue", "account_month_balance", "revenue_change",
+                    "revenue_driver", "commentary_version", "commentary", "evidence"]
     order = 0
     for name in vertex_order:
         target = f"phx_dm_v2_{name}"
@@ -395,6 +498,7 @@ def main() -> int:
         })
     edge_order = ["product_in_group", "group_in_line", "line_in_class",
                   "txn_for_advisor", "txn_in_month", "txn_for_product", "txn_for_account",
+                  "txn_has_reason",
                   "mpr_for_advisor", "mpr_in_month", "mpr_for_group",
                   "balance_for_account", "balance_in_month",
                   "change_for_advisor", "change_for_group", "change_from_month", "change_to_month",
@@ -427,9 +531,15 @@ def main() -> int:
     json.dump(manifest, open(MANIFEST, "w"), indent=2)
 
     print(f"transactions: {len(txns)}  mpr: {len(mpr)}  changes: {len(changes)}  drivers: {len(drivers)}")
+    print("eligibility mix:", {k: len(rows) for k, rows in split.items()})
     print("reconciliation:", json.dumps(report["transitions"], indent=2)[:400], "…")
     print("causes exercised:", sorted({d['cause_id'] for d in drivers}))
     return 0
+
+
+def compute_changes_from(mpr: list[dict]) -> list[dict]:
+    from app.v2.revenue.aggregation import compute_changes
+    return compute_changes(mpr, MONTHS)
 
 
 if __name__ == "__main__":
