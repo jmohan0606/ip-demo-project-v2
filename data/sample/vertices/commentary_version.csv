@@ -4,4 +4,5 @@ v2,2,2026-07-20 12:12:31,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:12:31,SUPE
 v3,3,2026-07-20 12:13:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:13:44,SUPERSEDED,3,6,2,v3 — tightened prompt + guardrail regex fix,DERIVED
 v4,4,2026-07-20 12:14:29,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:14:29,SUPERSEDED,3,6,2,v4 — rounding tolerance covers truncation,DERIVED
 v5,5,2026-07-20 12:15:14,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:15:14,SUPERSEDED,3,6,0,v5 — identifier digits excluded from figure extraction,DERIVED
-v6,6,2026-07-21 16:24:06,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:24:06,PUBLISHED,3,6,0,"Round 2 R1: credited-revenue definition corrected (reason-code eligibility, 90-day rule, grid-type config); full regeneration",DERIVED
+v6,6,2026-07-21 16:24:06,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:24:06,SUPERSEDED,3,6,0,"Round 2 R1: credited-revenue definition corrected (reason-code eligibility, 90-day rule, grid-type config); full regeneration",DERIVED
+v7,7,2026-07-21 16:40:04,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:40:04,PUBLISHED,3,6,0,"Round 2: deepened evidence (why/attribution/waterfall/rev_nature/credited breakdown), component units, LLM-as-judge first run",DERIVED

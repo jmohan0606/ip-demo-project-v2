@@ -65,21 +65,21 @@ Resume from: R1-1
 | R2-1 | R2 | component units — counts/percent/bps no longer rendered as currency | DONE | f92f783 | unit field + UI formatter switch; currency-only totals |
 | R2-2 | R2 | table names corrected via source catalog | DONE | d60a7c1 | via R3, no literal edit |
 | R3-1 | R3 | source_catalog.json + both consumers read from it | DONE | d60a7c1 | SQL generated; evidence builder reads table_name() |
-| R4-1 | R4 | evidence: why-this-cause panel | IN_PROGRESS | | subagent A (backend) + B (frontend) |
-| R4-2 | R4 | evidence: attribution order | IN_PROGRESS | | |
-| R4-3 | R4 | evidence: reconciliation waterfall | IN_PROGRESS | | |
-| R4-4 | R4 | evidence: rev_nature derivation | IN_PROGRESS | | |
-| R4-5 | R4 | evidence: credited-revenue breakdown | IN_PROGRESS | | |
-| R4-6 | R4 | evidence: source SQL rendered from catalog | IN_PROGRESS | | source_sql already reads generated SQL; panel labeling with B |
+| R4-1 | R4 | evidence: why-this-cause panel | DONE | e8d403e/a40815f | rule + inputs + rejected causes, sourced from attribution code |
+| R4-2 | R4 | evidence: attribution order | DONE | e8d403e/a40815f | step n of 12 + earlier claims |
+| R4-3 | R4 | evidence: reconciliation waterfall | DONE | e8d403e/a40815f | from + Σ = to verified exactly on all 86 v7 records |
+| R4-4 | R4 | evidence: rev_nature derivation | DONE | e8d403e/a40815f | actual file_key/description values |
+| R4-5 | R4 | evidence: credited-revenue breakdown | DONE | e8d403e/a40815f | client-vocabulary ledger w/ reason-code detail |
+| R4-6 | R4 | evidence: source SQL rendered from catalog | DONE | d60a7c1/a40815f | generated SQL + 'not executed' labeling |
 | R5-1 | R5 | commentary_evaluation vertex + edge | DONE | cefca07 | + GQ-017 both tiers, manifest files |
-| R5-2 | R5 | judge runs after generation on different model | IN_PROGRESS | | subagent A; JUDGE_MODEL setting |
-| R5-3 | R5 | judge advisory-only | IN_PROGRESS | | |
-| R5-4 | R5 | judge surfaced in evidence modal + card badge | IN_PROGRESS | | subagent B |
+| R5-2 | R5 | judge runs after generation on different model | DONE | e8d403e | claude-sonnet-5 vs haiku writer; ran in v7: 6× PASS |
+| R5-3 | R5 | judge advisory-only | DONE | e8d403e | degrades to REVIEW, never raises/blocks/publishes |
+| R5-4 | R5 | judge surfaced in evidence modal + card badge | DONE | a40815f | Independent review line + JUDGE badges |
 | R6-1 | R6 | Playwright evidence capture + gitignore + index | IN_PROGRESS | | subagent C |
-| R7-1 | R7 | UI typography/density polish | IN_PROGRESS | | subagent B |
-| R7-2 | R7 | "AI Generated" chips + boundary helper text | IN_PROGRESS | | subagent B |
-| R8-1 | R8 | V1 dead-reference cleanup | IN_PROGRESS | | read-only analysis by subagent D; main thread applies |
-| R9-1 | R9 | SOLUTION_GUIDE.md | TODO | | |
+| R7-1 | R7 | UI typography/density polish | DONE | a40815f | tabular-nums, nav/ subnav, row height, tracking |
+| R7-2 | R7 | "AI Generated" chips + boundary helper text | DONE | a40815f | 4 marked regions, no computed figure marked; CSV footers |
+| R8-1 | R8 | V1 dead-reference cleanup | DONE | 076df02 | 22 dead files removed; app/models gitignore bug fixed |
+| R9-1 | R9 | SOLUTION_GUIDE.md | DONE | (this) | 10 chapters, worked examples from sample data |
 
 ## Decisions
 | When | Decision | Why |
