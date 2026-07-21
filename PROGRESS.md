@@ -62,23 +62,23 @@ Resume from: R1-1
 | R1-9 | R1 | queries + services updated for credited-only | DONE | b7abbc7 | GQ-016; drill-down classification; pivot equality verified |
 | R1-10 | R1 | regenerate commentary; reconciliation re-verified | DONE | (this) | v6 published 6/6, 86 evidence records; verify suite ALL PASS |
 | R1-11 | R1 | sample data regenerated with reason codes | DONE | 2b353fc | all buckets + >90d + pay-type rows; v1-v5 history preserved |
-| R2-1 | R2 | component units — counts/percent/bps no longer rendered as currency | TODO | | |
+| R2-1 | R2 | component units — counts/percent/bps no longer rendered as currency | DONE | f92f783 | unit field + UI formatter switch; currency-only totals |
 | R2-2 | R2 | table names corrected via source catalog | DONE | d60a7c1 | via R3, no literal edit |
 | R3-1 | R3 | source_catalog.json + both consumers read from it | DONE | d60a7c1 | SQL generated; evidence builder reads table_name() |
-| R4-1 | R4 | evidence: why-this-cause panel | TODO | | |
-| R4-2 | R4 | evidence: attribution order | TODO | | |
-| R4-3 | R4 | evidence: reconciliation waterfall | TODO | | |
-| R4-4 | R4 | evidence: rev_nature derivation | TODO | | |
-| R4-5 | R4 | evidence: credited-revenue breakdown | TODO | | |
-| R4-6 | R4 | evidence: source SQL rendered from catalog | TODO | | |
-| R5-1 | R5 | commentary_evaluation vertex + edge | TODO | | |
-| R5-2 | R5 | judge runs after generation on different model | TODO | | |
-| R5-3 | R5 | judge advisory-only | TODO | | |
-| R5-4 | R5 | judge surfaced in evidence modal + card badge | TODO | | |
-| R6-1 | R6 | Playwright evidence capture + gitignore + index | TODO | | |
-| R7-1 | R7 | UI typography/density polish | TODO | | |
-| R7-2 | R7 | "AI Generated" chips + boundary helper text | TODO | | |
-| R8-1 | R8 | V1 dead-reference cleanup | TODO | | |
+| R4-1 | R4 | evidence: why-this-cause panel | IN_PROGRESS | | subagent A (backend) + B (frontend) |
+| R4-2 | R4 | evidence: attribution order | IN_PROGRESS | | |
+| R4-3 | R4 | evidence: reconciliation waterfall | IN_PROGRESS | | |
+| R4-4 | R4 | evidence: rev_nature derivation | IN_PROGRESS | | |
+| R4-5 | R4 | evidence: credited-revenue breakdown | IN_PROGRESS | | |
+| R4-6 | R4 | evidence: source SQL rendered from catalog | IN_PROGRESS | | source_sql already reads generated SQL; panel labeling with B |
+| R5-1 | R5 | commentary_evaluation vertex + edge | DONE | cefca07 | + GQ-017 both tiers, manifest files |
+| R5-2 | R5 | judge runs after generation on different model | IN_PROGRESS | | subagent A; JUDGE_MODEL setting |
+| R5-3 | R5 | judge advisory-only | IN_PROGRESS | | |
+| R5-4 | R5 | judge surfaced in evidence modal + card badge | IN_PROGRESS | | subagent B |
+| R6-1 | R6 | Playwright evidence capture + gitignore + index | IN_PROGRESS | | subagent C |
+| R7-1 | R7 | UI typography/density polish | IN_PROGRESS | | subagent B |
+| R7-2 | R7 | "AI Generated" chips + boundary helper text | IN_PROGRESS | | subagent B |
+| R8-1 | R8 | V1 dead-reference cleanup | IN_PROGRESS | | read-only analysis by subagent D; main thread applies |
 | R9-1 | R9 | SOLUTION_GUIDE.md | TODO | | |
 
 ## Decisions
