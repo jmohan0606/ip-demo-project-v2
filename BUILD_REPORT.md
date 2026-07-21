@@ -347,6 +347,83 @@ edge; GQ-017 `get_commentary_evaluations` on both tiers; `JUDGE_MODEL`
 — the deterministic guardrail gate (which caught real LLM arithmetic in v2–v4)
 remains the blocking control.
 
-### 8.4 Round 2 continued
-(sections for R4/R5 wiring, R6 harness, R7 polish/AI-marking, R8 cleanup and R9
-guide are appended below as those work-streams land.)
+### 8.4 R4 — Evidence made convincing
+Every evidence record (86 in v7) now carries, inside `calc_json`: **why this
+cause** (rule in plain words, inputs tested, competing causes rejected —
+sourced from the attribution code so it cannot drift), **attribution order**
+(step *n* of 12 with what earlier steps already claimed — the answer to
+"how do you know you're not double-counting"), a **reconciliation waterfall**
+(from-revenue → each cause → to-revenue, verified to sum exactly on all 86
+records), the **rev_nature derivation** (actual file_key/trade_description
+values), and the **credited-revenue breakdown** in the client's own vocabulary
+(Total, less non-credited itemised by reason code, less excluded, less >90-day,
+= Credited). The lineage SQL renders from the source catalog and stays labelled
+"not executed by this application", in contrast to the GSQL that was run.
+
+### 8.5 R5 — Judge wiring and first run
+Judge runs after the guardrail gate per transition on `claude-sonnet-5` (writer:
+`claude-haiku-4-5`), scores faithfulness/hallucination/completeness/clarity,
+returns PASS/REVIEW/FAIL + reasoning. Strictly advisory: any failure degrades
+to REVIEW "judge unavailable", never blocks or publishes. First run shipped
+with v7: 6 evaluations, all PASS. Surfaced as the evidence modal's
+"Independent review" line and card badges when not PASS;
+`GET /api/v2/insights/evaluations`.
+
+### 8.6 R6 — Screenshot evidence harness
+`scripts/capture_evidence.mjs` (Playwright, 1440px, role/text selectors): 8
+screens — trends, ai-insights, evidence modal open, filtered transactions,
+ingestion, env-health, an empty state, and an HONEST blocked state (v3's real
+guardrail-blocked transition selected via the UI version picker). Collects
+console errors per page and fails the run on any; the final run captured 8/8
+with zero console errors. `docs/qa_screenshots/` is gitignored (harness
+committed, artefacts never); the harness writes `index.md` describing what each
+shot proves.
+
+### 8.7 R7 — Polish and AI marking
+Typography/density only (no palette/layout change): 13px/500 top nav with 2px
+active underline, 12.5px sub-nav, `tabular-nums` right-aligned numerics on
+every numeric cell, +2px row height, 0.5px header tracking. **AI marking
+(R7-2)**: the ✦ AI GENERATED chip (tooltip: model · prompt · commentary
+version) appears on exactly four language regions — commentary card headers,
+the walk table's commentary column header, evidence §1 Finding, and the judge's
+reasoning — and on no computed figure anywhere. Boundary helper text on both
+screens: *"Wording is AI-generated. All figures are computed from graph data
+and validated before publication — the model never produces or alters a
+number."* CSV exports carry an AI-column footer.
+
+### 8.8 R8 — V1 cleanup
+22 dead files removed after a read-only consumer-chain analysis (V1 query
+contracts incl. `get_advisor_360` et al., V1 MockGraphStore, four unused MCP
+adapter/contract modules, schema_inventory, 13 dead V1 model modules, 2 dead
+frontend files). Keep-list verified by live consumer chains (graph-access
+stack, tiered MCP/REST clients, llm_runtime). Bonus find: `.gitignore`'s
+`models/` pattern had been ignoring the whole `app/models` package — live
+modules were never in git and a fresh clone would not have booted; pattern
+rooted and files committed. App boots and all screens render post-cleanup.
+
+### 8.9 R9 — docs/SOLUTION_GUIDE.md
+Ten chapters: overview, business definitions (full reason-code table, client
+vocabulary, Confluence-cited), lineage from the source catalog, all 18
+vertices/27 edges, GQ-001..017, the calculation reference with a worked
+example per cause from the real sample data (running example: SMPL001 May→Jun
+($29,745.28) walked driver-by-driver to $0.00), agent architecture (gate first,
+judge second), evidence model, operations runbook (Regenerate is the only
+commentary trigger), and every gap/assumption from FIX_SPEC R9.10 — including
+the honest flag that no ready-made script derives CSVs for `data/real/`.
+
+### 8.10 Round 2 Definition of Done — verified
+All R11 boxes checked: eligibility fully data-driven (config flip changes
+behaviour with no code change — demonstrated), commentary regenerated (v7,
+reconciliation $0.00 everywhere), units fixed, no table-name literals,
+evidence shows why/order/waterfall/breakdown, judge advisory + visible, AI
+marking with the computed/generated boundary intact, screenshots captured
+with zero console errors, app boots clean, SOLUTION_GUIDE complete,
+PROGRESS.md all R-tasks DONE.
+
+### Round 2 parallelisation actually used
+R1–R3 + all schema/query/catalog/mock authoring ran serially on the main
+thread per the working agreement. Then five parallel subagents: R4+R5 backend ·
+R4/R5/R7 frontend · R6 Playwright harness · R8 read-only dead-code analysis
+(applied by the main thread) · R9 guide draft. Subagents did not commit; the
+main thread reviewed, verified, committed, regenerated v7 and re-verified
+end-to-end (ALL PASS).

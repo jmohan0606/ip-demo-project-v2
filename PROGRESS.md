@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-21T00:00:00Z
-Current phase: ROUND 2 (FIX_SPEC.md)
-Resume from: R1-1
+Last updated: 2026-07-21T17:00:00Z
+Current phase: ROUND 2 (FIX_SPEC.md) — COMPLETE
+Resume from: — (all R-tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -75,7 +75,7 @@ Resume from: R1-1
 | R5-2 | R5 | judge runs after generation on different model | DONE | e8d403e | claude-sonnet-5 vs haiku writer; ran in v7: 6× PASS |
 | R5-3 | R5 | judge advisory-only | DONE | e8d403e | degrades to REVIEW, never raises/blocks/publishes |
 | R5-4 | R5 | judge surfaced in evidence modal + card badge | DONE | a40815f | Independent review line + JUDGE badges |
-| R6-1 | R6 | Playwright evidence capture + gitignore + index | IN_PROGRESS | | subagent C |
+| R6-1 | R6 | Playwright evidence capture + gitignore + index | DONE | (this) | 8/8 screens, zero console errors on rerun; artefacts gitignored |
 | R7-1 | R7 | UI typography/density polish | DONE | a40815f | tabular-nums, nav/ subnav, row height, tracking |
 | R7-2 | R7 | "AI Generated" chips + boundary helper text | DONE | a40815f | 4 marked regions, no computed figure marked; CSV footers |
 | R8-1 | R8 | V1 dead-reference cleanup | DONE | 076df02 | 22 dead files removed; app/models gitignore bug fixed |
