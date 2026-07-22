@@ -276,3 +276,20 @@ def _run(notes: str = "") -> dict:
     }
     _log.info("commentary generation complete: %s", summary)
     return summary
+
+
+if __name__ == "__main__":  # pragma: no cover
+    # FIX_SPEC_R4 B5.7 — headless CLI equivalent of the Regenerate button for
+    # client environments without a browser:
+    #     python -m app.v2.commentary.generation_workflow [--notes "..."]
+    # Identical pipeline and gates; creates a new version, never deletes prior.
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(
+        description="Batch commentary generation (same as the UI Regenerate button)")
+    parser.add_argument("--notes", default="", help="free-text note stored on the version")
+    args = parser.parse_args()
+    result = run_generation(args.notes)
+    print(json.dumps(result, indent=2))
+    sys.exit(1 if result.get("error") else 0)

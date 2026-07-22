@@ -768,104 +768,176 @@ reproduction; the other is a map back to the system of record.
 
 ---
 
-## Chapter 9 — Operations runbook
+## Chapter 9 — Operations runbook (client machine, do-this-exactly)
 
-### 9.1 Environment & modes (`.env`)
+Numbered end-to-end sequence for standing the app up on the client machine with real
+data. Each step gives the exact command, the expected output, and the failure symptom
+with the first thing to check. Written for someone who has never seen the project.
+(Codespace/offline demo instead? `GRAPH_CLIENT_MODE=local DATA_SET=sample` and skip
+steps 2–5.)
 
+### Step 1 — Prerequisites
+
+1. **Python 3.11+** (`python --version`) and **Node 20+** (`node --version`).
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   cd frontend && npm install && cd ..
+   ```
+3. **TigerGraph 4.2.x reachable** from this machine (`curl -k https://<host>:14240/api/ping`).
+4. Create the env file: `cp .env.example .env`, then fill in the top blocks —
+   `GRAPH_CLIENT_MODE=real`, `DATA_SET=real`, `LLM_CLIENT_MODE=claude`,
+   `ANTHROPIC_API_KEY`, and the `TG_*` connection values. Every key the backend reads
+   is in the template with its default.
+5. `python scripts/runtime_preflight.py` — sanity-checks the runtime.
+
+**Failure symptom:** backend later boots but env-health shows tier 2 RED in real mode
+→ first check the `TG_*` values and step 1.3's ping.
+
+### Step 2 — Install the schema (once per graph)
+
+Run against TigerGraph, in this order (gadmin console, GraphStudio's GSQL editor, or
+`gsql` CLI):
+
+```bash
+gsql docs/tigergraph_foundation/tigergraph/schema/01_vertices.gsql
+gsql docs/tigergraph_foundation/tigergraph/schema/02_edges.gsql
+gsql docs/tigergraph_foundation/tigergraph/schema/03_create_graph.gsql
 ```
-GRAPH_CLIENT_MODE = real | local     # real = TigerGraph (tier 1); local = SQLite/in-memory (tier 2)
-LLM_CLIENT_MODE   = claude | mock    # (client env also supports cdao_openai / azure)
-DATA_SET          = sample | real    # which CSV set the ingestion screen loads
-COMMENTARY_MODE   = stored           # never generate on read
-CREDITED_GRID_TYPES = PRODUCT_TYPE   # comma-separated; relaxing it needs no code change
-MAX_PROCESSING_DAYS = 90
-JUDGE_MODEL       = claude-sonnet-5  # must differ from the writer model
+
+**Expect:** 18 vertex types + 27 edge types created; graph `iperform_v2_revenue`.
+**Failure:** "used by another graph" → the types already exist; drop the old graph or
+skip to step 3. Any parse error → confirm TigerGraph version is 4.2.x.
+
+### Step 3 — Install the queries (the step that proves them)
+
+```bash
+gsql -g iperform_v2_revenue docs/tigergraph_foundation/tigergraph/queries/install_all_queries.gsql
 ```
 
-Backend: `./scripts/run_api.sh` (uvicorn, port **8001**). Frontend: `npm run dev` in
-`frontend/` (port **3001**, `NEXT_PUBLIC_API_BASE_URL=http://localhost:8001`).
+**Expect:** all queries (GQ-001..GQ-017) install successfully.
+**Note:** every query file is flagged `created-v2-NEEDS-LIVE-INSTALL` — parse-verified
+in the build environment, never yet installed on a live TigerGraph. **This is the step
+that proves them**; report any installer error verbatim.
+**Failure:** a single query fails to install → run `python scripts/validate_v2_queries.py`
+locally to confirm catalog/file consistency, then inspect that GQ file.
 
-Fallback is logged, never silent: in real mode, a query TigerGraph does not serve
-falls back to the local store with a WARNING, and the env-health screen / tier pill go
-**RED** whenever the local tier serves while `GRAPH_CLIENT_MODE=real`.
+### Step 4 — Extract the data (human-run SQL → raw CSVs)
 
-### 9.2 Install schema + queries on live TigerGraph
+1. Run the three SQLs in `docs/data/extraction/` against PostgreSQL `pcr` (fpicdb) in
+   your SQL client, and save each result as CSV **with a header row** to exactly:
+   ```
+   data/real/_raw/raw_revenue_transaction.csv   ← extract_revenue_transaction.sql
+   data/real/_raw/raw_product_hierarchy.csv     ← extract_product_hierarchy.sql
+   data/real/_raw/raw_advisor.csv               ← extract_advisor.sql
+   ```
+   The expected columns are the SELECT lists of those SQLs (also codified in
+   `scripts/build_real_data.py` → `RAW_CONTRACT`).
+2. Scope changes (months, advisor list): edit `docs/data/source_catalog.json` and
+   regenerate the SQL with `python scripts/generate_extraction_sql.py` — never
+   hand-edit the SQL files.
+3. Verify `advisor_sid` on the trade table equals `standard_id` in `fpic_prm_rr_tb`;
+   fall back to (`prm_ofc_no`, `prm_rr_no`) if not. Blank advisor names are fine —
+   the app displays the id, it never invents a name.
 
-1. Run, in order, against TigerGraph 4.2.x:
-   `docs/tigergraph_foundation/tigergraph/schema/01_vertices.gsql`,
-   `02_edges.gsql`, `03_create_graph.gsql` (graph `iperform_v2_revenue`).
-2. Install all queries:
-   `docs/tigergraph_foundation/tigergraph/queries/install_all_queries.gsql`.
-   Every GQ file is flagged `created-v2-NEEDS-LIVE-INSTALL` — parse-verified here,
-   **never yet installed on a live TigerGraph**.
-3. Set `GRAPH_CLIENT_MODE=real` + the `TG_*` connection env vars.
+**Failure:** step 5 names the missing file/column — re-export with headers, comma
+separators, UTF-8.
 
-### 9.3 Extract real data
+### Step 5 — Build `data/real/` from the raw extracts
 
-1. Run the three generated extraction SQL files in `docs/data/extraction/`
-   (`extract_advisor.sql`, `extract_product_hierarchy.sql`,
-   `extract_revenue_transaction.sql`) against PostgreSQL `pcr`. If the scope (months,
-   advisor list) changes, edit `docs/data/source_catalog.json` and regenerate with
-   `scripts/generate_extraction_sql.py` — do not hand-edit the SQL.
-2. Verify `advisor_sid` on the trade table equals `standard_id` in `fpic_prm_rr_tb`;
-   fall back to (`prm_ofc_no`, `prm_rr_no`) if not.
-3. Drop the output CSVs into `data/real/` matching the manifest column headers
-   (`docs/tigergraph_foundation/data/manifest.json`, 45 files, dependency-ordered).
-4. Set `DATA_SET=real`.
+```bash
+python -m scripts.build_real_data          # defaults: --raw data/real/_raw --out data/real
+```
 
-> **Flag — derived CSVs for the real set.** The manifest also loads the DERIVED
-> entities (`monthly_product_revenue`, `revenue_change`, `revenue_driver`, months,
-> reason codes, edges). For the sample set these are produced by
-> `scripts/generate_sample_data.py`, which runs the same `app/v2` aggregation and
-> attribution code the app uses — but that script is **sample-only** (it also invents
-> the synthetic transactions). **There is currently no ready-made script that takes
-> real extracted transaction CSVs and produces the derived CSVs for `data/real/`.**
-> One must be written (a thin wrapper over `aggregate_monthly` / `compute_changes` /
-> `attribute_transition` + the edge writers) before a real-data load; the maths must
-> be the same app code, never a re-implementation.
+**Expect:** a per-file row-count table, the eligibility split, OUT_OF_GRID and
+>90-day counts, `Reconciliation: $0.00 on every transition ✓`, and a MIX% line per
+transition (MIX should be small — a large MIX means a named driver is missing).
+The script reuses the app's own aggregation/attribution code and stamps
+`data_source` on every row; it regenerates the ingestion manifest scoped to this set.
+**Failure — the build STOPS, by design:**
+- *missing raw extract / missing column* → step 4's save didn't match the contract.
+- *months not consecutive* → extract the missing month or narrow the date range.
+- *transactions reference products/advisors missing from the other extracts* →
+  re-run the hierarchy/advisor SQL; they must cover the trade extract.
+- *RECONCILIATION FAILED* → **stop; do not load.** This means the driver maths did
+  not account for every dollar on real data. Capture the printed discrepancy JSON
+  and investigate (`app/v2/drivers/attribution.py`) before proceeding.
 
-### 9.4 Load via the ingestion screen
+### Step 6 — Load the graph
 
-Data Ingestion screen (or `POST /api/v2-foundation/ingestion/run-all`): loads every
-manifest entity **in dependency order**, with polling status, per-entity provenance
-badges and a three-way count reconciliation (manifest vs store vs API). Checkpoints
-are cleared on delete so a stale checkpoint can never suppress a re-load.
+With the backend running (step 8 starts it; you can start it now):
+Data Ingestion screen → **Run all**, or headless:
 
-### 9.5 Generate commentary — the Regenerate button is the only trigger
+```bash
+curl -X POST http://localhost:8001/api/v2-foundation/ingestion/run-all
+curl http://localhost:8001/api/v2-foundation/ingestion/run-all/status   # poll
+```
 
-**A fresh environment has no commentary until generation is run.** Page loads
-retrieve stored commentary only; the AI Insights screen shows an explicit empty state
-("No commentary generated for this advisor yet. Run generation to create a version.")
-until then. The **only** trigger is the Regenerate button on AI Insights
-(`POST /api/v2/insights/generate`; poll `/api/v2/insights/generate/status`). Each run
-creates a new version; prior versions are never deleted. For real narrative text set
-`LLM_CLIENT_MODE=claude` + key; `mock` produces deterministic sentences through the
-identical pipeline and gate.
+**Expect:** every manifest entity loads in dependency order; loaded counts equal the
+manifest's `expected_rows` (three-way reconciliation shown on the screen).
+Commentary/evidence files load 0 rows on a fresh set — that is correct; they are
+created by step 7.
+**Failure:** a count mismatch names the entity — check that step 5 completed after
+the last extract change (stale `data/real/` vs manifest).
 
-### 9.6 Verify
+### Step 7 — Generate commentary (the ONLY trigger)
 
-- **Env-health screen** — true serving tier per subsystem; must show
-  TigerGraph · tier 1 green in real mode. RED means the local store is serving in
-  real mode — investigate before trusting anything else.
-- **`GET /api/v2/ops/reconciliation`** — recomputes Σ driver contributions vs the
-  stored `__TOTAL__` change for every transition; expect discrepancy $0.00
-  (tolerance $1.00) on all.
-- **`python scripts/verify_end_to_end.py`** (fresh process): reconciliation per
-  transition, evidence completeness for every driver, cited-driver resolution,
-  exactly one PUBLISHED version, stored GSQL results byte-identical to live re-runs,
-  `data_source` set on every vertex, all causes exercised. Expect `OVERALL: PASS`.
-- `python scripts/validate_v2_queries.py` — catalog ↔ file ↔ installer ↔ impl ↔ case
-  consistency.
+**A fresh environment has no commentary until this runs.** Page loads only retrieve.
+Either: AI-Insights screen → **Regenerate** button, or headless (client environments
+without a browser):
 
-### 9.7 Ordered delete / reload
+```bash
+python -m app.v2.commentary.generation_workflow --notes "initial real-data run"
+```
 
-`GET /api/v2-foundation/ingestion/delete-plan` shows the real dependency-ordered
-plan (reverse of load order; the confirm dialog displays it), then
-`POST .../delete-all` executes it; individual entities via `POST /delete/{entity}`.
-Reload with run-all. Caveat on live TigerGraph: RESTPP/pyTigerGraph cannot bulk-delete
-edges — edges disappear when their endpoint vertices are deleted; the delete report
-says so rather than pretending. The pyTigerGraph delete paths have been exercised only
-against the local tier (client-machine follow-up).
+**Expect:** a JSON summary — `published` = advisors × transitions, `blocked: 0`,
+one evidence record per driver, judge tallies (advisory only). Each run creates a NEW
+version; prior versions are never deleted.
+**Failure:** `blocked > 0` → that transition's guardrail reason is stored and shown
+plainly in the UI; the other transitions still publish. LLM errors → check
+`ANTHROPIC_API_KEY`, or set `LLM_CLIENT_MODE=mock` to prove the pipeline first
+(deterministic sentences, identical gates).
+
+### Step 8 — Run and verify
+
+```bash
+./scripts/run_api.sh                        # backend, port 8001
+cd frontend && npm run dev                  # frontend, port 3001
+```
+
+Then verify, in order:
+1. **Env-health screen** (`/env-health`): `active_tier=1`, `served_by_tier=1`, green.
+   **RED means the local store is serving in real mode — investigate before trusting
+   anything else** (fallback is logged, never silent).
+2. **Spot-check a pivot total** (`/trends`): pick one advisor × month and tie it to
+   your source query: `SELECT SUM(post_split_credited_amt) FROM
+   pcr.fpic_daily_trade_details_tb_prod WHERE advisor_sid='...' AND
+   to_char(trade_dt,'YYYYMM')='...'` (remember: the pivot shows CREDITED revenue —
+   eligible reason codes, credited grid types, ≤90-day processing).
+3. **Open an evidence modal** (AI-Insights → any "View evidence ›"): header change,
+   group-scoped waterfall FROM→TO and credited breakdown must all equal the same
+   group-level figure.
+4. `curl "http://localhost:8001/api/v2/ops/reconciliation?advisor_id=<sid>&from_month=<YYYYMM>&to_month=<YYYYMM>"`
+   → `all_reconcile: true`, discrepancy `0.0` per transition.
+5. `python scripts/verify_end_to_end.py` → `OVERALL: PASS`.
+
+### Step 9 — Reload / reset (ordered delete)
+
+To reload after a new extract:
+
+```bash
+curl http://localhost:8001/api/v2-foundation/ingestion/delete-plan       # review the plan
+curl -X POST http://localhost:8001/api/v2-foundation/ingestion/delete-all
+```
+
+Delete runs in REVERSE dependency order (analytics → facts → dimensions); the confirm
+dialog on the ingestion screen shows the same plan. Then repeat steps 4–7.
+**Caveat on live TigerGraph:** RESTPP/pyTigerGraph cannot bulk-delete edges — edges
+disappear when their endpoint vertices are deleted; the delete report states this.
+The delete path has been exercised only against the local tier (client-machine
+follow-up). Checkpoints are cleared on delete so a stale checkpoint can never
+suppress a re-load. Remember commentary versions are additive: a data reload keeps
+prior versions queryable, and old versions honestly label superseded driver sets.
 
 ---
 

@@ -117,9 +117,9 @@ Resume from: S-A1
 | S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | DONE | (next) | RAW_CONTRACT in build_real_data.py: 3 files, exact SELECT-list columns; loud validation on missing file/column |
 | S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | DONE | (next) | calls shared app/v2/dataset/builder (same month_rows/split/aggregate/attribute/reconcile); reconciliation $0.00 asserted as stop condition; summary prints MIX%/OUT_OF_GRID/>90d |
 | S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | DONE | c23dbe5 | provenance.py ARTIFACT_SOURCE + require_stamped (never blank); sample regeneration byte-identical |
-| S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | TODO | | |
-| S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | TODO | | |
-| S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | TODO | | |
+| S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | DONE | (prev) | V2 template; 128/128 settings keys present (programmatic cross-check) |
+| S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | DONE | (next) | 9 numbered steps w/ commands, expected output, failure+first-check; headless CLI added to generation_workflow (__main__) and proven |
+| S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | IN_PROGRESS | | fixtures→build→tier-2 load→recon $0.00→headless commentary v1 all proven; BUILD_REPORT section pending |
 
 ## Decisions
 | When | Decision | Why |
