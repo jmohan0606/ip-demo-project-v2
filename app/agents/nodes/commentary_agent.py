@@ -37,6 +37,8 @@ _CAUSE_FALLBACK = {
     "VOLUME": "Transaction volume changed at broadly similar rates.",
     "ONE_TIME": "One-time items in one month did not repeat in the other.",
     "ELIGIBILITY": "Revenue moved between credited and non-credited reason codes month over month.",
+    "LATE_PROCESSING": "Revenue excluded by the 90-day processing rule changed between the months.",
+    "EXCLUDED_CHANGE": "Revenue moved between credited and excluded reason codes (e.g. a deleted booking).",
     "TIMING": "Quarterly billing fell in one month of the pair, not the other.",
     "FEE_RATE": "The effective fee rate on the recurring base moved between the months.",
     "DISCOUNT": "Discounting changed between the months.",

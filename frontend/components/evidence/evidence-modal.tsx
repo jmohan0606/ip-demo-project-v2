@@ -693,7 +693,7 @@ export function EvidenceModal({
                             .map((d) => `${d.reason_code} ${d.ui_mapping} ×${d.count}`)
                             .join(", ");
                           const lines: { label: string; amount: string; note?: string; total?: boolean }[] = [
-                            { label: "Total revenue", amount: ledgerAmt(m.total_revenue) },
+                            { label: "In-scope revenue", amount: ledgerAmt(m.total_revenue), note: "total within credited product grid types" },
                             { label: "less non-credited", amount: ledgerAmt(-m.non_credited), note: annotation || undefined },
                             { label: "less excluded", amount: ledgerAmt(-m.excluded) },
                             { label: "less >90-day processing", amount: ledgerAmt(-m.late_excluded) },

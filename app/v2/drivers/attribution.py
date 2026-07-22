@@ -12,10 +12,13 @@ inputs_json — that is what the evidence modal's calculation table renders.
 from __future__ import annotations
 
 import json
+import logging
 from collections import defaultdict
 from typing import Iterable
 
 from app.v2.revenue.aggregation import ONE_TIME, RECURRING, TOTAL_GROUP, _num
+
+logger = logging.getLogger(__name__)
 
 # Groups billed quarterly (TIMING candidates). Sample + known client hierarchy.
 QUARTERLY_BILLED_GROUPS = {"alternative_investments", "alternatives"}
@@ -25,8 +28,14 @@ DUMMY_CAUSES = ("MARKET", "NET_FLOW")
 
 RECONCILE_TOLERANCE = 1.0  # dollars
 
+# T1-3: |MIX| above this fraction of a transition's absolute total change logs
+# a WARNING — MIX is a residual of last resort, and a large one means a named
+# driver is missing or mis-specified. Self-check only; never blocks.
+MIX_WARNING_FRACTION = 0.15
+
 CAUSE_DATA_SOURCE = {
-    "VOLUME": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL", "TIMING": "REAL",
+    "VOLUME": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL",
+    "LATE_PROCESSING": "REAL", "EXCLUDED_CHANGE": "REAL", "TIMING": "REAL",
     "FEE_RATE": "REAL", "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
     "NEW_ACCOUNT": "REAL", "LOST_ACCOUNT": "REAL", "CLAWBACK": "REAL",
     "MARKET": "DUMMY", "NET_FLOW": "DUMMY",
@@ -58,16 +67,28 @@ def attribute_group(
     advisor_lost_accounts: set[str] | None = None,
     from_nc_txns: list[dict] | None = None,
     to_nc_txns: list[dict] | None = None,
+    from_late_txns: list[dict] | None = None,
+    to_late_txns: list[dict] | None = None,
+    from_excl_txns: list[dict] | None = None,
+    to_excl_txns: list[dict] | None = None,
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
-    change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8)
-    immediately after ONE_TIME; MIX absorbs the remainder.
+    change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8),
+    LATE_PROCESSING and EXCLUDED_CHANGE (FIX_SPEC_R3 T1) immediately after it;
+    MIX absorbs the remainder.
 
     from_txns/to_txns are the group's CREDITED transactions (the ones inside
     the revenue figure). from_nc_txns/to_nc_txns are its NON_CREDITED
     transactions — revenue that exists but is outside credited (9E small
     households, 9G transferred accounts, ...); their month-over-month movement
-    is the ELIGIBILITY effect on credited revenue."""
+    is the ELIGIBILITY effect on credited revenue. from/to_late_txns are the
+    LATE bucket (90-day rule) and from/to_excl_txns the EXCLUDED bucket (e.g.
+    9X deleted rows) — each subtrahend of the credited
+    identity gets its own named driver so its movement never falls to MIX.
+    OUT_OF_GRID needs no driver by construction: grid_type is a static product
+    attribute and CREDITED_GRID_TYPES is fixed config, so out-of-grid revenue
+    cannot move into or out of credited month over month (verified by the
+    OUT_OF_GRID composition check in scripts/verify_end_to_end.py)."""
     drivers: list[dict] = []
     change_amt = _num(change["change_amt"])
     claimed = 0.0
@@ -146,6 +167,41 @@ def attribute_group(
             "reason_codes": reason_mix,
             "formula": "-(to_non_credited - from_non_credited) — revenue moving to a "
                        "non-credited reason code leaves credited revenue, and vice versa",
+        })
+
+    # 3b. LATE_PROCESSING (FIX_SPEC_R3 T1-1) — symmetric with ELIGIBILITY:
+    # revenue failing the 90-day rule (proc_dt - trade_dt > MAX_PROCESSING_DAYS)
+    # is in Total but outside Credited. More revenue going late this month means
+    # credited fell by that amount: contribution = -(Δ late_excluded).
+    late_from = [t for t in (from_late_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    late_to = [t for t in (to_late_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    if late_from or late_to:
+        late_delta = _sum(late_to) - _sum(late_from)
+        emit("LATE_PROCESSING", -late_delta, {
+            "from_late_excluded": round(_sum(late_from), 2),
+            "to_late_excluded": round(_sum(late_to), 2),
+            "from_txn_count": len(late_from), "to_txn_count": len(late_to),
+            "max_days_to_process": sorted({int(_num(t.get("days_to_process"))) for t in late_from + late_to}),
+            "formula": "-(to_late_excluded - from_late_excluded) — revenue processed more than "
+                       "90 days after the trade leaves credited revenue, and vice versa",
+        })
+
+    # 3c. EXCLUDED_CHANGE (FIX_SPEC_R3 T1-2) — EXCLUDED rows (deleted bookings,
+    # e.g. reason 9X) are outside every figure; a booking moving between
+    # credited and excluded month over month still moves credited revenue:
+    # contribution = -(Δ excluded).
+    excl_from = [t for t in (from_excl_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    excl_to = [t for t in (to_excl_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+    if excl_from or excl_to:
+        excl_delta = _sum(excl_to) - _sum(excl_from)
+        excl_reasons = sorted({str(t.get("reason_cd") or "") for t in excl_from + excl_to})
+        emit("EXCLUDED_CHANGE", -excl_delta, {
+            "from_excluded": round(_sum(excl_from), 2),
+            "to_excluded": round(_sum(excl_to), 2),
+            "from_txn_count": len(excl_from), "to_txn_count": len(excl_to),
+            "reason_codes": excl_reasons,
+            "formula": "-(to_excluded - from_excluded) — a booking moving to an excluded "
+                       "reason code (e.g. deleted) leaves credited revenue, and vice versa",
         })
 
     # 4. CLAWBACK — change in negative-amount rows among the remainder.
@@ -234,30 +290,38 @@ def attribute_transition(
     from_billable_days: int,
     to_billable_days: int,
     nc_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
+    late_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
+    excl_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
+    mix_warning_fraction: float = MIX_WARNING_FRACTION,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
     `changes` are that transition's revenue_change rows (groups + __TOTAL__).
     `txns_by_group_month` holds the CREDITED transactions;
-    `nc_txns_by_group_month` the NON_CREDITED ones (ELIGIBILITY step, R1-8).
+    `nc_txns_by_group_month` the NON_CREDITED ones (ELIGIBILITY step, R1-8);
+    `late_txns_by_group_month` the LATE ones (LATE_PROCESSING, FIX_SPEC_R3 T1-1)
+    and `excl_txns_by_group_month` the EXCLUDED ones (EXCLUDED_CHANGE, T1-2).
     Group-level drivers attach to their group's change row; MARKET and NET_FLOW
     are emitted once per transition on the __TOTAL__ row (contribution 0, DUMMY)
     so the missing data sources stay visible. rank is global per transition by
     |contribution| descending; contribution_pct is the share of the transition's
     total change."""
     nc_txns_by_group_month = nc_txns_by_group_month or {}
+    late_txns_by_group_month = late_txns_by_group_month or {}
+    excl_txns_by_group_month = excl_txns_by_group_month or {}
     total_row = next(c for c in changes if c["group_id"] == TOTAL_GROUP)
     total_change = _num(total_row["change_amt"])
     from_month, to_month = total_row["from_month_id"], total_row["to_month_id"]
     raw: list[tuple[dict, dict]] = []  # (change_row, driver)
 
     # Advisor-level account presence for the NEW/LOST_ACCOUNT test. Presence
-    # counts credited AND non-credited activity: an account whose rows merely
-    # became non-credited (e.g. 9E) is still trading — that is an ELIGIBILITY
-    # move, not a lost account.
+    # counts credited, non-credited AND late activity: an account whose rows
+    # merely became non-credited (e.g. 9E) or processed late is still trading —
+    # an ELIGIBILITY / LATE_PROCESSING move, not a lost account. EXCLUDED rows
+    # (deleted bookings) are not evidence of trading and do not count.
     from_all: set[str] = set()
     to_all: set[str] = set()
-    for source in (txns_by_group_month, nc_txns_by_group_month):
+    for source in (txns_by_group_month, nc_txns_by_group_month, late_txns_by_group_month):
         for (_g, month), txns in source.items():
             if month == from_month:
                 from_all.update(str(t.get("account_no")) for t in txns)
@@ -281,8 +345,29 @@ def attribute_transition(
             advisor_lost_accounts=advisor_lost,
             from_nc_txns=nc_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_nc_txns=nc_txns_by_group_month.get((group_id, change["to_month_id"]), []),
+            from_late_txns=late_txns_by_group_month.get((group_id, change["from_month_id"]), []),
+            to_late_txns=late_txns_by_group_month.get((group_id, change["to_month_id"]), []),
+            from_excl_txns=excl_txns_by_group_month.get((group_id, change["from_month_id"]), []),
+            to_excl_txns=excl_txns_by_group_month.get((group_id, change["to_month_id"]), []),
         ):
             raw.append((change, d))
+
+    # T1-3 self-check: MIX is a residual of last resort. A large MIX relative to
+    # the transition's total change means a named driver is missing or
+    # mis-specified — WARN with the breakdown; never block (reconciliation
+    # still holds by construction).
+    mix_total = sum(_num(d["contribution_amt"]) for _c, d in raw if d["cause_id"] == "MIX")
+    if abs(total_change) >= 1.0 and abs(mix_total) > mix_warning_fraction * abs(total_change):
+        by_cause: dict[str, float] = defaultdict(float)
+        for _c, d in raw:
+            by_cause[d["cause_id"]] += _num(d["contribution_amt"])
+        logger.warning(
+            "MIX residual is %.1f%% of the total change for %s %s->%s "
+            "(MIX %.2f of change %.2f) — a named driver may be missing. Breakdown: %s",
+            abs(mix_total) / abs(total_change) * 100,
+            total_row["advisor_sid"], from_month, to_month, mix_total, total_change,
+            {c: round(v, 2) for c, v in sorted(by_cause.items())},
+        )
 
     for cause in DUMMY_CAUSES:
         raw.append((total_row, {

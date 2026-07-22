@@ -17,6 +17,10 @@ The transaction set is engineered so every driver cause is exercised:
   BILLABLE_DAYS May has 21 business days vs Apr 22 / Jun 22 (recurring groups)
   VOLUME        equities trade counts swing month to month
   CLAWBACK      mutual-fund trail reversals (negative credited_amt) vary
+  LATE_PROCESSING SMPL003's 900 UMA fee processes 100 days late in Apr only —
+                credited from May on, so Apr->May gains 900 via the 90-day rule
+  EXCLUDED_CHANGE SMPL003's 500 MFT booking is credited in Apr, deleted (9X)
+                from May on — Apr->May loses 500 to the excluded bucket
   MIX           the remainder of every decomposition
   MARKET / NET_FLOW emitted as DUMMY zero-contribution drivers (no source data)
 
@@ -25,7 +29,7 @@ Reason-code coverage (R1-11) — every eligibility path is visible in the UI:
   91        equity-below-minimum rows (credited, incentive-INeligible)
   9E        the ELIGIBILITY story above (non-credited)
   9G        SMPL002 inherited account, steady non-credited trail all 3 months
-  9X        one deleted SMPL003 equity row (EXCLUDED — in no total at all)
+  9X        SMPL003's deleted trail booking (EXCLUDED — in no total at all)
   + one SMPL003 UMA row with days_to_process > 90 (the 90-day rule)
   + UMA|PAYS pay-type-summary rows (grid_type filter, OUT_OF_GRID by config)
 
@@ -119,21 +123,25 @@ PRODUCTS = [
     ("UMA|PAYS", "UMA", "PAYS", "UMA Pay-Type Summary", "unified_managed_account", "PAY_TYPE_SUMMARY"),
 ]
 
-# ELIGIBILITY (R1-8) sits immediately after ONE_TIME in the attribution order.
+# ELIGIBILITY (R1-8) sits immediately after ONE_TIME in the attribution order;
+# LATE_PROCESSING and EXCLUDED_CHANGE (FIX_SPEC_R3 T1) immediately after it —
+# every subtrahend of the credited identity has a named driver.
 CAUSES = [
     ("VOLUME", "Transaction volume", "More or fewer transactions at similar rates", "REAL", 1),
     ("ONE_TIME", "One-time items", "Syndicate allocations, new issues, referrals that don't repeat", "REAL", 2),
     ("ELIGIBILITY", "Credited eligibility", "Revenue moved between credited and non-credited reason codes month over month", "REAL", 3),
-    ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 4),
-    ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 5),
-    ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 6),
-    ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 7),
-    ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 8),
-    ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 9),
-    ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 10),
-    ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 11),
-    ("MARKET", "Market performance", "Asset value movement", "DUMMY", 12),
-    ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 13),
+    ("LATE_PROCESSING", "Late processing", "Revenue excluded by the 90-day rule (processed more than 90 days after the trade) changed month over month", "REAL", 4),
+    ("EXCLUDED_CHANGE", "Excluded bookings", "Revenue moved between credited and excluded reason codes (e.g. deleted bookings) month over month", "REAL", 5),
+    ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 6),
+    ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 7),
+    ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 8),
+    ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 9),
+    ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 10),
+    ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 11),
+    ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 12),
+    ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 13),
+    ("MARKET", "Market performance", "Asset value movement", "DUMMY", 14),
+    ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 15),
 ]
 
 PRODUCT_GROUP = {p[0]: p[4] for p in PRODUCTS}
@@ -241,13 +249,18 @@ def build_transactions() -> list[dict]:
             if new and m == "202606":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", new, 28,
                                     round(4100 + ai * 350, 2), rate_bps=rate, file_key="ace"))
-            # 90-day rule: one SMPL003 April UMA row processed 100 days late —
-            # in Total revenue, excluded from Credited (LATE).
-            if adv == "SMPL003" and m == "202604":
+            # 90-day rule (LATE_PROCESSING driver, FIX_SPEC_R3 T1-1): SMPL003
+            # carries a 900 UMA fee all three months. April's instance processed
+            # 100 days late (in Total, excluded from Credited); May and June
+            # process on time — so Apr->May credited genuinely gains 900 and
+            # the LATE_PROCESSING driver claims exactly that.
+            if adv == "SMPL003":
+                late = m == "202604"
                 txns.append(_mk_txn(adv, m, "UMA|FEE", accounts[2], 2, 900.0,
                                     rate_bps=82.0, file_key="ace",
-                                    description="MONTH M04-2026 LATE PROCESS",
-                                    proc_days=100))
+                                    description=f"MONTH M{int(m[4:6]):02d}-2026"
+                                                + (" LATE PROCESS" if late else ""),
+                                    proc_days=100 if late else 1))
             # Pay-type-summary rows (grid_type demo): extracted but OUT_OF_GRID
             # under the default CREDITED_GRID_TYPES config.
             if adv == "SMPL001":
@@ -294,12 +307,18 @@ def build_transactions() -> list[dict]:
                                     round(140 + RNG.uniform(-25, 25), 2), file_key="ace",
                                     description="EQUITY TRADE COMMISSION",
                                     reason="91" if k == 0 else ""))
-            # 9X deleted transaction: EXCLUDED — appears in NO revenue figure.
-            if adv == "SMPL003" and m == "202605":
-                txns.append(_mk_txn(adv, m, "EQ|COMM", accounts[5], 14, 500.0,
-                                    file_key="ace",
-                                    description="EQUITY TRADE COMMISSION (DELETED)",
-                                    reason="9X"))
+            # 9X deleted booking (EXCLUDED_CHANGE driver, FIX_SPEC_R3 T1-2): a
+            # 500 MFT trail booking is credited in Apr, then deleted (9X) in
+            # May; the deletion marker persists in Jun. Apr->May credited
+            # genuinely loses 500 and EXCLUDED_CHANGE claims exactly that;
+            # May->Jun the excluded amount is unchanged, so no driver fires.
+            if adv == "SMPL003":
+                deleted = m != "202604"
+                txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 20, 500.0,
+                                    rate_bps=25.0, file_key="mf_12b1",
+                                    description="TRAIL BOOKING"
+                                                + (" (DELETED)" if deleted else ""),
+                                    reason="9X" if deleted else ""))
             # Cash management — steady.
             txns.append(_mk_txn(adv, m, "CASH|SWP", accounts[7], 24,
                                 round(1450 + ai * 150, 2), rate_bps=18.0,
@@ -347,6 +366,13 @@ def main() -> int:
     nc_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for t in split[elig.NON_CREDITED]:
         nc_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
+    # FIX_SPEC_R3 T1: the LATE and EXCLUDED buckets feed their own drivers.
+    late_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    for t in split[elig.LATE]:
+        late_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
+    excl_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    for t in split[elig.EXCLUDED]:
+        excl_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
 
     drivers: list[dict] = []
     by_transition: dict[tuple, list[dict]] = defaultdict(list)
@@ -357,6 +383,8 @@ def main() -> int:
             rows, cred_by_advisor[advisor], RECURRING_CLASS_GROUPS,
             BILLABLE_DAYS[from_m], BILLABLE_DAYS[to_m],
             nc_txns_by_group_month=nc_by_advisor[advisor],
+            late_txns_by_group_month=late_by_advisor[advisor],
+            excl_txns_by_group_month=excl_by_advisor[advisor],
         ))
 
     report = reconcile(changes, drivers)

@@ -26,6 +26,10 @@ _CAUSE_FINDING = {
     "ONE_TIME": "one-time items in one month did not repeat in the other",
     "ELIGIBILITY": "revenue moved between credited and non-credited reason codes "
                    "(e.g. a household crossing the minimum-household threshold)",
+    "LATE_PROCESSING": "revenue excluded by the 90-day rule (processed more than 90 "
+                       "days after the trade) changed between the months",
+    "EXCLUDED_CHANGE": "revenue moved between credited and excluded reason codes "
+                       "(e.g. a booking being deleted)",
     "TIMING": "quarterly billing fell in only one month of the pair",
     "FEE_RATE": "the effective fee rate on the recurring base moved",
     "DISCOUNT": "discounting changed between the months",
@@ -42,17 +46,20 @@ _CAUSE_FINDING = {
 # The attribution order (app/v2/drivers/attribution.py). NEW_ACCOUNT and
 # LOST_ACCOUNT share step 1 (one presence test, two signs).
 ATTRIBUTION_ORDER = [
-    "NEW_ACCOUNT/LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "CLAWBACK", "TIMING",
+    "NEW_ACCOUNT/LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "EXCLUDED_CHANGE", "CLAWBACK", "TIMING",
     "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "MARKET", "NET_FLOW", "MIX",
 ]
 _CAUSE_STEP = {
     "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
-    "CLAWBACK": 4, "TIMING": 5, "FEE_RATE": 6, "DISCOUNT": 7,
-    "BILLABLE_DAYS": 8, "VOLUME": 9, "MARKET": 10, "NET_FLOW": 11, "MIX": 12,
+    "LATE_PROCESSING": 4, "EXCLUDED_CHANGE": 5,
+    "CLAWBACK": 6, "TIMING": 7, "FEE_RATE": 8, "DISCOUNT": 9,
+    "BILLABLE_DAYS": 10, "VOLUME": 11, "MARKET": 12, "NET_FLOW": 13, "MIX": 14,
 }
 # Deterministic per-cause ordering for the waterfall (step order, split pairs).
 _WATERFALL_CAUSE_ORDER = [
-    "NEW_ACCOUNT", "LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "CLAWBACK",
+    "NEW_ACCOUNT", "LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "EXCLUDED_CHANGE", "CLAWBACK",
     "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
     "MARKET", "NET_FLOW", "MIX",
 ]
@@ -131,6 +138,45 @@ _CAUSE_WHY: dict[str, dict] = {
              "non-credited is still trading — an eligibility move, not a lost account"},
             {"cause": "MIX", "reason": "the movement is explained by reason-code eligibility, "
              "so it is claimed before the residual"},
+        ],
+    },
+    "LATE_PROCESSING": {
+        "rule": "Revenue failing the 90-day rule (processed more than 90 days after the "
+                "trade) is in Total but outside Credited. Contribution = -(change in "
+                "late-excluded revenue): more revenue going late means credited fell by "
+                "that amount, and revenue returning to on-time processing brings it back. "
+                "Accounts already claimed by NEW_ACCOUNT/LOST_ACCOUNT are excluded to "
+                "prevent double-counting.",
+        "inputs_tested": ["days_to_process per row (proc_dt - trade_dt vs the 90-day limit)",
+                          "late-excluded totals per month",
+                          "accounts already claimed by NEW/LOST_ACCOUNT"],
+        "rejected": [
+            {"cause": "ELIGIBILITY", "reason": "the rows' reason codes are credited-eligible; "
+             "only the processing delay excludes them, so this is the 90-day rule, not a "
+             "reason-code move"},
+            {"cause": "LOST_ACCOUNT", "reason": "an account whose rows merely processed late "
+             "is still trading — a late-processing move, not a lost account"},
+            {"cause": "MIX", "reason": "the movement is explained by the 90-day rule, so it "
+             "is claimed before the residual"},
+        ],
+    },
+    "EXCLUDED_CHANGE": {
+        "rule": "Excluded rows (deleted bookings, e.g. reason 9X) sit outside every revenue "
+                "figure{codes}. A booking moving between credited and excluded month over "
+                "month still moves credited revenue: contribution = -(change in excluded "
+                "revenue). Accounts already claimed by NEW_ACCOUNT/LOST_ACCOUNT are "
+                "excluded to prevent double-counting.",
+        "inputs_tested": ["reason_cd per row (vs the phx_dm_v2_reason_code eligibility rows)",
+                          "excluded totals per month",
+                          "accounts already claimed by NEW/LOST_ACCOUNT"],
+        "rejected": [
+            {"cause": "ELIGIBILITY", "reason": "non-credited revenue stays inside Total; "
+             "excluded revenue is outside every figure — the two buckets have separate "
+             "drivers so neither movement hides in the other"},
+            {"cause": "CLAWBACK", "reason": "a deleted booking is removed by reason code, "
+             "not reversed by a negative amount"},
+            {"cause": "MIX", "reason": "the movement is explained by an excluding reason "
+             "code, so it is claimed before the residual"},
         ],
     },
     "CLAWBACK": {
@@ -238,7 +284,7 @@ def _why_for(driver: dict, from_month: str, to_month: str) -> dict:
         "inputs_tested": [], "rejected": [],
     }
     codes = ""
-    if driver["cause_id"] == "ELIGIBILITY":
+    if driver["cause_id"] in ("ELIGIBILITY", "EXCLUDED_CHANGE"):
         involved = [c for c in (driver.get("inputs") or {}).get("reason_codes", []) if c]
         if involved:
             codes = f" — reason codes involved: {', '.join(involved)}"
@@ -492,7 +538,7 @@ def build_evidence(revenue_output: dict, driver: dict, version_id: str) -> dict:
             "formula": inputs.get("formula", "sum of component changes"),
             # R4-1 — why this cause, sourced from the attribution code.
             "why": _why_for(driver, from_month, to_month),
-            # R4-2 — step n of 12 and what earlier steps already claimed.
+            # R4-2 — step n of the attribution order and what earlier steps claimed.
             "attribution": _attribution_for(driver, revenue_output),
             # R4-3 — from_revenue + Σ cause steps = to_revenue, exactly.
             "waterfall": _waterfall_for(revenue_output),

@@ -79,7 +79,53 @@ def main() -> int:
           f"{sum(len(r) for r in c.store.vertices.values())} vertices")
 
     causes = {a["cause_id"] for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values()}
-    check("all 13 causes exercised (incl. ELIGIBILITY)", len(causes) == 13, str(sorted(causes)))
+    check("all 15 causes exercised (incl. LATE_PROCESSING/EXCLUDED_CHANGE)",
+          len(causes) == 15, str(sorted(causes)))
+
+    # T1-4: MIX magnitude per transition. Reconciliation at $0.00 proves
+    # COMPLETENESS only — MIX absorbs whatever named drivers don't claim, so it
+    # holds no matter how wrong a named driver is. A large MIX share means a
+    # driver is missing or mis-specified; report every transition's share so
+    # attribution quality is visible at a glance.
+    from collections import defaultdict as _dd
+    mix_by_tr, tot_by_tr = _dd(float), {}
+    for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values():
+        adv, f, t, _g = a["change_id"].split("|")
+        if a["cause_id"] == "MIX":
+            mix_by_tr[(adv, f, t)] += float(a.get("contribution_amt") or 0)
+    for a in c.store.all_vertices("phx_dm_v2_revenue_change").values():
+        if a.get("group_id") == "__TOTAL__":
+            tot_by_tr[(a["advisor_sid"], a["from_month_id"], a["to_month_id"])] = \
+                float(a.get("change_amt") or 0)
+    mix_lines, mix_large = [], []
+    for k in sorted(tot_by_tr):
+        total = tot_by_tr[k]
+        pct = abs(mix_by_tr.get(k, 0.0)) / abs(total) * 100 if total else 0.0
+        mix_lines.append(f"{'|'.join(k)} MIX {mix_by_tr.get(k, 0.0):.2f} = {pct:.1f}% of {total:.2f}")
+        if pct >= 15.0:
+            mix_large.append(mix_lines[-1])
+    print("  MIX share per transition:\n   ", "\n    ".join(mix_lines))
+    check("MIX residual < 15% of every transition's change", not mix_large, str(mix_large))
+
+    # T1-6: OUT_OF_GRID must be near-empty and fully explained. grid_type is a
+    # static product attribute and CREDITED_GRID_TYPES fixed config, so
+    # out-of-grid revenue cannot move month over month into credited (that is
+    # why it needs no driver). On real data this bucket should be ~empty; the
+    # sample deliberately carries PAY_TYPE_SUMMARY demo rows. Flag LOUDLY if
+    # anything else lands here.
+    products = c.store.all_vertices("phx_dm_v2_product")
+    oog_amt, oog_unexpected = 0.0, []
+    for tid, a in c.store.all_vertices("phx_dm_v2_revenue_transaction").items():
+        grid = str(products.get(str(a.get("product_id")), {}).get("grid_type") or "PRODUCT_TYPE")
+        if grid not in {"PRODUCT_TYPE"}:
+            oog_amt += float(a.get("credited_amt") or 0)
+            if grid != "PAY_TYPE_SUMMARY":
+                oog_unexpected.append(f"{tid}:{grid}")
+    print(f"  OUT_OF_GRID total: {oog_amt:.2f} "
+          "(sample carries deliberate PAY_TYPE_SUMMARY demo rows; on REAL data "
+          "this should be near zero — investigate loudly if it is not)")
+    check("OUT_OF_GRID contains only PAY_TYPE_SUMMARY rows", not oog_unexpected,
+          str(oog_unexpected[:3]))
 
     # R1-6: the stored credited breakdown must satisfy the client's identity
     # revenue = total_revenue - non_credited_amt - late_excluded_amt per cell.

@@ -168,7 +168,7 @@
         "cause_id",
         "data_source"
       ],
-      "expected_rows": 13,
+      "expected_rows": 15,
       "workflow_generated": false
     },
     {
@@ -236,7 +236,7 @@
         "txn_id",
         "data_source"
       ],
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -341,7 +341,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 86,
+      "expected_rows": 88,
       "workflow_generated": false
     },
     {
@@ -502,7 +502,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -515,7 +515,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -528,7 +528,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -541,7 +541,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -554,7 +554,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 213,
+      "expected_rows": 217,
       "workflow_generated": false
     },
     {
@@ -684,7 +684,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 86,
+      "expected_rows": 88,
       "workflow_generated": false
     },
     {
@@ -697,7 +697,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 86,
+      "expected_rows": 88,
       "workflow_generated": false
     },
     {
@@ -710,7 +710,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 74,
+      "expected_rows": 76,
       "workflow_generated": false
     },
     {
