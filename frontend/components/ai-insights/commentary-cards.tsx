@@ -8,7 +8,8 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { EvidenceRequest } from "@/components/ai-insights/types";
-import { downloadCsv } from "@/components/ai-insights/export-csv";
+import { exportDriversData } from "@/components/ai-insights/export-data";
+import { useV2Context } from "@/components/layout/v2-shell";
 import {
   AI_BOUNDARY_TEXT,
   AiGeneratedChip,
@@ -22,6 +23,7 @@ import type {
   CommentaryRow,
   CommentaryVersion,
   MonthlyTotals,
+  RevenueChangeRow,
 } from "@/lib/api/v2";
 import { monthFull } from "@/lib/v2/format";
 
@@ -54,18 +56,6 @@ function parseBullets(row: CommentaryRow): CommentaryBullet[] {
   }
 }
 
-export function exportCommentaryCsv(rows: CommentaryRow[]): void {
-  downloadCsv("commentary.csv", [
-    ["commentary_id", "version_id", "advisor_sid", "from_month", "to_month", "headline", "narrative_text", "status", "blocked_reason", "data_source"],
-    ...rows.map((r) => [
-      r.commentary_id, r.version_id, r.advisor_sid, r.from_month_id, r.to_month_id,
-      r.headline, r.narrative_text, r.status, r.blocked_reason, r.data_source,
-    ]),
-    // R7-2 — mark model-authored columns in the export too.
-    ["# AI-generated columns: narrative_text. All other columns are computed from graph data."],
-  ]);
-}
-
 export function CommentaryCards({
   rows,
   totals,
@@ -81,6 +71,7 @@ export function CommentaryCards({
   onViewMode,
   selectedTo = "",
   onSelectTo,
+  changes = [],
 }: {
   rows: CommentaryRow[];
   totals: MonthlyTotals | null;
@@ -99,7 +90,12 @@ export function CommentaryCards({
   /** to-month of the transition in Single mode ("" = latest). */
   selectedTo?: string;
   onSelectTo?: (toMonthId: string) => void;
+  /** T6-1 — stored __TOTAL__ changes; the data export is built from these +
+   * the driver API, never from rendered DOM values. */
+  changes?: RevenueChangeRow[];
 }) {
+  const { advisorId, advisor, fromMonth, toMonth } = useV2Context();
+  const [exporting, setExporting] = useState(false);
   const latest = latestPublished(versions);
   const sorted = [...rows].sort((a, b) => a.from_month_id.localeCompare(b.from_month_id));
   const selectValue = selectedVersion || latest?.version_id || "";
@@ -144,22 +140,47 @@ export function CommentaryCards({
                 </option>
               ))}
           </select>
+          {/* T7-1 — main action gets the primary navy fill; exports are
+              secondary outline. Hover/focus/disabled states styled. */}
           <button
             type="button"
             onClick={onRegenerate}
             disabled={busy}
-            className="flex h-7 items-center gap-1.5 rounded-[3px] border border-v2-border bg-white px-2.5 text-[11.5px] text-v2-navy hover:bg-v2-sub-bg disabled:opacity-60"
+            className="flex h-7 items-center gap-1.5 rounded-[3px] bg-v2-navy px-3 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-3 w-3 ${busy ? "animate-spin" : ""}`} />
             {busy ? "Generating…" : "Regenerate"}
           </button>
+          {/* T6-3 — two clearly-labelled exports: stored-data CSV + print PDF. */}
           <button
             type="button"
-            onClick={() => exportCommentaryCsv(sorted)}
-            disabled={sorted.length === 0}
-            className="h-7 rounded-[3px] border border-v2-border bg-white px-2.5 text-[11.5px] text-v2-navy hover:bg-v2-sub-bg disabled:opacity-60"
+            onClick={() => {
+              if (!advisorId || exporting) return;
+              setExporting(true);
+              void exportDriversData({
+                advisorId,
+                advisorName: advisor?.advisor_name ?? "",
+                fromMonth,
+                toMonth,
+                commentaries: sorted,
+                changes,
+                version: versionMeta ?? null,
+              }).finally(() => setExporting(false));
+            }}
+            disabled={sorted.length === 0 || exporting || !advisorId}
+            title="CSV built from the stored data — one row per transition and revenue driver"
+            className="h-7 rounded-[3px] border border-v2-navy bg-white px-2.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
           >
-            Export ⌄
+            {exporting ? "Exporting…" : "Export data"}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            disabled={sorted.length === 0}
+            title="Print-quality PDF of this view (vector, deck-ready)"
+            className="h-7 rounded-[3px] border border-v2-navy bg-white px-2.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
+          >
+            Export PDF
           </button>
         </div>
       </div>
@@ -369,14 +390,19 @@ function TransitionCard({
             {evaluation && <JudgeBadge verdict={evaluation.verdict} />}
           </span>
         </div>
-        <div className="mt-0.5 flex items-baseline justify-between">
+        <div className="mt-0.5">
           <span className={`text-[19px] font-semibold ${up ? "text-v2-positive" : "text-v2-negative"}`}>
             {row.headline}
           </span>
-          {txnCount != null && (
-            <span className="text-[11px] text-v2-muted">{txnCount.toLocaleString("en-US")} transactions</span>
-          )}
         </div>
+        {/* T7-2 — the transaction count is COMPUTED, not AI-generated; it sits
+            on its own line behind a hairline so it never reads as covered by
+            the AI chip above (which marks the narrative wording only). */}
+        {txnCount != null && (
+          <div className="num mt-1.5 border-t border-black/10 pt-1 text-[10.5px] text-v2-muted">
+            {txnCount.toLocaleString("en-US")} transactions · computed from graph data
+          </div>
+        )}
       </div>
 
       {row.status === "BLOCKED" ? (

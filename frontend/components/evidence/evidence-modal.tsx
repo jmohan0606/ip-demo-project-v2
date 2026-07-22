@@ -1034,7 +1034,7 @@ export function EvidenceModal({
         <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-v2-border bg-white px-6 py-3">
           <span className="min-w-0 truncate text-[10.5px] text-v2-faint">
             {version
-              ? `Commentary v${version.version_no} · model ${version.model} · prompt v${version.prompt_version} · generated ${fmtDate(version.generated_at)} · data snapshot ${fmtDate(version.data_snapshot_dt)}`
+              ? `Commentary v${version.version_no} · model ${version.model} · prompt ${version.prompt_version} · generated ${fmtDate(version.generated_at)} · data snapshot ${fmtDate(version.data_snapshot_dt)}`
               : `Commentary ${versionId}`}
             {evidence ? ` · query ${evidence.gsql_query_name}` : ""}
           </span>

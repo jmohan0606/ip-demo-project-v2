@@ -101,13 +101,13 @@ Resume from: T1-1
 | T5-2 | T5 | view-mode control (single / compare two / all) | DONE | (this) | segmented control; single default w/ transition dropdown; compare 2 dropdowns; all → walk anchor |
 | T5-3 | T5 | clickable chart arrows → single view | DONE | (this) | arrows + pills clickable (wide hit area); selected arrow heavier + pill ring |
 | T5-4 | T5 | static walk version selector | DONE | (this) | walk inherits top selector; static "Version N (latest)" text |
-| T6-1 | T6 | real data export (CSV/Excel) from stored data | TODO | | |
-| T6-2 | T6 | presentation PDF export | TODO | | |
-| T6-3 | T6 | two themed export buttons + AI marking in output | TODO | | |
-| T7-1 | T7 | button theming | TODO | | |
-| T7-2 | T7 | AI-chip adjacency on card header | TODO | | |
-| T8-1 | T8 | .gitignore CRLF / data/real protection | TODO | | |
-| T8-2 | T8 | app/models tracked | TODO | | |
+| T6-1 | T6 | real data export (CSV/Excel) from stored data | DONE | (this) | export-data.ts: API-built, human headers, row per (transition, driver); walk export per month w/ drivers; negatives parenthesised |
+| T6-2 | T6 | presentation PDF export | DONE | (this) | print stylesheet + window.print(); chrome print:hidden; print footer w/ advisor/version/date/AI note |
+| T6-3 | T6 | two themed export buttons + AI marking in output | DONE | (this) | "Export data" + "Export PDF" outline-navy; AI footer in CSVs + print footer |
+| T7-1 | T7 | button theming | DONE | (this) | Regenerate/Generate navy fill; exports outline; hover/focus/disabled styled |
+| T7-2 | T7 | AI-chip adjacency on card header | DONE | (this) | computed count on own line behind hairline: "N transactions · computed from graph data" |
+| T8-1 | T8 | .gitignore CRLF / data/real protection | DONE | (this) | .gitignore is LF (ASCII); `git check-ignore data/real/x` prints path — protected |
+| T8-2 | T8 | app/models tracked | DONE | (this) | `git ls-files app/models` → 6 files tracked |
 
 ## Decisions
 | When | Decision | Why |

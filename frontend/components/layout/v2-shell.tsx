@@ -102,16 +102,19 @@ export function V2Shell({ children }: { children: ReactNode }) {
 
   return (
     <V2Context.Provider value={value}>
-      <div className="min-h-screen bg-v2-page font-v2 text-v2-text">
-        <TopNav pathname={pathname ?? ""} />
-        <SubNav pathname={pathname ?? ""} />
-        {modes?.data_set === "sample" && (
-          <div className="border-b border-v2-border bg-v2-warn-bg px-6 py-1.5 text-[11px] font-semibold text-v2-warn">
-            Sample data — not client figures.
-          </div>
-        )}
-        {isResults && <AdvisorContextBar />}
-        <main className="px-6 py-4">{children}</main>
+      <div className="min-h-screen bg-v2-page font-v2 text-v2-text print:bg-white">
+        {/* T6-2 — chrome is hidden in print; the page content prints clean. */}
+        <div className="print:hidden">
+          <TopNav pathname={pathname ?? ""} />
+          <SubNav pathname={pathname ?? ""} />
+          {modes?.data_set === "sample" && (
+            <div className="border-b border-v2-border bg-v2-warn-bg px-6 py-1.5 text-[11px] font-semibold text-v2-warn">
+              Sample data — not client figures.
+            </div>
+          )}
+          {isResults && <AdvisorContextBar />}
+        </div>
+        <main className="px-6 py-4 print:px-0 print:py-0">{children}</main>
       </div>
     </V2Context.Provider>
   );

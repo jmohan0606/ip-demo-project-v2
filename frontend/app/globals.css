@@ -94,3 +94,16 @@
   position: relative;
   z-index: 5;
 }
+
+/* T6-2 — presentation PDF export: print stylesheet (vector-clean, not a
+   bitmap). Chrome carries print:hidden; content prints on white with exact
+   chart colours; cards avoid page breaks; interactive controls disappear. */
+@media print {
+  body { background: #fff !important; }
+  .print-hide, button, select { display: none !important; }
+  .rounded-\[3px\] { break-inside: avoid; }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

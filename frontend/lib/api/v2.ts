@@ -74,6 +74,11 @@ export interface MonthlyRevenueRow {
   avg_rate_bps: number;
   recurring_amt: number;
   one_time_amt: number;
+  /** R1-6 credited-definition breakdown carried on every mpr row. */
+  total_revenue?: number;
+  non_credited_amt?: number;
+  excluded_amt?: number;
+  late_excluded_amt?: number;
   data_source: Provenance;
 }
 

@@ -176,6 +176,7 @@ export default function AiInsightsPage() {
             onViewMode={setViewMode}
             selectedTo={selectedTo}
             onSelectTo={setSelectedTo}
+            changes={changes ?? []}
           />
         )}
       </AsyncBoundary>
@@ -197,6 +198,19 @@ export default function AiInsightsPage() {
           />
         )}
       </AsyncBoundary>
+
+      {/* T6-2 — print footer: only visible in the PDF export. */}
+      <div className="hidden border-t border-v2-border pt-2 text-[10px] text-v2-muted print:block">
+        <p>
+          Advisor {advisorId}
+          {advisor?.advisor_name ? ` · ${advisor.advisor_name}` : ""} · Commentary version{" "}
+          {resolvedVersion || "n/a"} · Exported {new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+        </p>
+        <p className="mt-0.5 italic">
+          Narrative wording is AI-generated. All figures are computed from graph data and
+          validated before publication — the model never produces or alters a number.
+        </p>
+      </div>
 
       {modal && advisorId && (
         <EvidenceModal

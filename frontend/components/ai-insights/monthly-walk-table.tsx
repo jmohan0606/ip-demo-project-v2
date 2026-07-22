@@ -5,9 +5,11 @@
  * one row per month, narrative_text as the commentary column, Evidence link
  * per non-baseline row opening the modal for that transition's TOP driver.
  */
+import { useState } from "react";
 import type { EvidenceRequest } from "@/components/ai-insights/types";
-import { downloadCsv } from "@/components/ai-insights/export-csv";
+import { exportWalkData } from "@/components/ai-insights/export-data";
 import { latestPublished } from "@/components/ai-insights/commentary-cards";
+import { useV2Context } from "@/components/layout/v2-shell";
 import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
 import type { CommentaryRow, CommentaryVersion, MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
 import { fmtMoney, fmtPct, monthFull, monthShort } from "@/lib/v2/format";
@@ -40,23 +42,23 @@ export function MonthlyWalkTable({
     ? `Version ${selectedMeta.version_no}${latest && selectedMeta.version_id === latest.version_id ? " (latest)" : ""}`
     : null;
 
-  const exportCsv = () =>
-    downloadCsv("monthly-walk.csv", [
-      ["month", "total_revenue", "change_amt", "change_pct", "commentary"],
-      ...monthIds.map((m, i) => {
-        const change = i === 0 ? null : changeByTo.get(m) ?? null;
-        const commentary = i === 0 ? null : commentaryByTo.get(m) ?? null;
-        return [
-          monthShort(m),
-          totals.revenue_by_month[m] ?? 0,
-          change ? change.change_amt : "",
-          change ? change.change_pct : "",
-          i === 0 ? "Baseline month — no prior period in the current data set." : commentary?.narrative_text ?? "",
-        ];
-      }),
-      // R7-2 — mark model-authored columns in the export too.
-      ["# AI-generated columns: commentary. All other columns are computed from graph data."],
-    ]);
+  // T6-1 — export from the STORED data (commentary rows, __TOTAL__ changes and
+  // the driver API), never from rendered DOM values.
+  const { advisorId, advisor } = useV2Context();
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = () => {
+    if (!advisorId || exporting) return;
+    setExporting(true);
+    void exportWalkData({
+      advisorId,
+      advisorName: advisor?.advisor_name ?? "",
+      monthIds,
+      revenueByMonth: totals.revenue_by_month,
+      commentaries: rows,
+      changes,
+      version: selectedMeta,
+    }).finally(() => setExporting(false));
+  };
 
   return (
     <div id="monthly-walk" className="rounded-[3px] border border-v2-border bg-v2-card p-5">
@@ -71,9 +73,11 @@ export function MonthlyWalkTable({
           <button
             type="button"
             onClick={exportCsv}
-            className="h-7 rounded-[3px] border border-v2-border bg-white px-2.5 text-[11.5px] text-v2-navy hover:bg-v2-sub-bg"
+            disabled={exporting || !advisorId}
+            title="CSV built from the stored data — one row per month with its drivers and commentary"
+            className="h-7 rounded-[3px] border border-v2-navy bg-white px-2.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
           >
-            Export ⌄
+            {exporting ? "Exporting…" : "Export data"}
           </button>
           {versionText && (
             <span
