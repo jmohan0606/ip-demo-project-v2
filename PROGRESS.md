@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-22T12:00:00Z
-Current phase: ROUND 4 (FIX_SPEC_R4.md) — work-stream A
-Resume from: S-A1
+Last updated: 2026-07-22T15:30:00Z
+Current phase: ROUND 4 (FIX_SPEC_R4.md) — COMPLETE
+Resume from: — (all S-tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -9,7 +9,7 @@ Resume from: S-A1
 | 1 | 2026-07-20 | 2026-07-20 | fresh start | Phases 0-7 complete in one session; DoD met |
 | 2 | 2026-07-21 | 2026-07-21 | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
 | 3 | 2026-07-22 | 2026-07-22 | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 all DONE; verify OVERALL PASS; 8/8 screens 0 console errors |
-| 4 | 2026-07-22 | | round 4 fresh start | FIX_SPEC_R4.md: S-A (UI fixes) then S-B (real-data pipeline) |
+| 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -109,17 +109,17 @@ Resume from: S-A1
 | T7-2 | T7 | AI-chip adjacency on card header | DONE | (this) | computed count on own line behind hairline: "N transactions · computed from graph data" |
 | T8-1 | T8 | .gitignore CRLF / data/real protection | DONE | (this) | .gitignore is LF (ASCII); `git check-ignore data/real/x` prints path — protected |
 | T8-2 | T8 | app/models tracked | DONE | (this) | `git ls-files app/models` → 6 files tracked |
-| S-A1 | R4-A | Portal the glossary dialog; fix `<h2>`-in-`<p>` on both screens | DONE | (next) | createPortal(document.body) inside RevenueDriverGlossaryDialog — all usages safe; audited: EvidenceModal renders at page level, no other inline dialogs |
-| S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | DONE | (next) | scope = clicked driver's group; waterfall rebuilt from group change row + group drivers (per-group MIX residual ⇒ exact); __TOTAL__ scope explicitly labelled "Total — all product groups" |
-| S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | DONE | (next) | paging/count/←→ over group list; "Driver n of N in <Group>"; caption relates card top-5 vs group walk |
-| S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | DONE | (next) | other slot's choice disabled in each dropdown; keys slot-scoped; slot B defaults to a different transition or empty |
-| S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | DONE | (next) | 13/13 shots (8 original + 5 new R4 proofs) zero console errors; group waterfall verified numerically vs API for every group |
-| S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | DONE | (next) | RAW_CONTRACT in build_real_data.py: 3 files, exact SELECT-list columns; loud validation on missing file/column |
-| S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | DONE | (next) | calls shared app/v2/dataset/builder (same month_rows/split/aggregate/attribute/reconcile); reconciliation $0.00 asserted as stop condition; summary prints MIX%/OUT_OF_GRID/>90d |
+| S-A1 | R4-A | Portal the glossary dialog; fix `<h2>`-in-`<p>` on both screens | DONE | 652c212 | createPortal(document.body) inside RevenueDriverGlossaryDialog — all usages safe; audited: EvidenceModal renders at page level, no other inline dialogs |
+| S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | DONE | 5a1a447 | scope = clicked driver's group; waterfall rebuilt from group change row + group drivers (per-group MIX residual ⇒ exact); __TOTAL__ scope explicitly labelled "Total — all product groups" |
+| S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | DONE | 5a1a447 | paging/count/←→ over group list; "Driver n of N in <Group>"; caption relates card top-5 vs group walk |
+| S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | DONE | ae7dd90 | other slot's choice disabled in each dropdown; keys slot-scoped; slot B defaults to a different transition or empty |
+| S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | DONE | c7d5fb8 | 13/13 shots (8 original + 5 new R4 proofs) zero console errors; group waterfall verified numerically vs API for every group |
+| S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | DONE | a095acd | RAW_CONTRACT in build_real_data.py: 3 files, exact SELECT-list columns; loud validation on missing file/column |
+| S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | DONE | a095acd | calls shared app/v2/dataset/builder (same month_rows/split/aggregate/attribute/reconcile); reconciliation $0.00 asserted as stop condition; summary prints MIX%/OUT_OF_GRID/>90d |
 | S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | DONE | c23dbe5 | provenance.py ARTIFACT_SOURCE + require_stamped (never blank); sample regeneration byte-identical |
-| S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | DONE | (prev) | V2 template; 128/128 settings keys present (programmatic cross-check) |
-| S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | DONE | (next) | 9 numbered steps w/ commands, expected output, failure+first-check; headless CLI added to generation_workflow (__main__) and proven |
-| S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | IN_PROGRESS | | fixtures→build→tier-2 load→recon $0.00→headless commentary v1 all proven; BUILD_REPORT section pending |
+| S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | DONE | f2efd02 | V2 template; 128/128 settings keys present (programmatic cross-check) |
+| S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | DONE | 84f94c4 | 9 numbered steps w/ commands, expected output, failure+first-check; headless CLI added to generation_workflow (__main__) and proven |
+| S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | DONE | (this) | fixtures→build→tier-2 load→recon $0.00→headless commentary v1 all proven; BUILD_REPORT §10 records proven-vs-client-machine table |
 
 ## Decisions
 | When | Decision | Why |
@@ -136,6 +136,11 @@ Resume from: S-A1
 | 2026-07-22 | Sample late/deleted stories persist across months (late fee recurs on time; 9X marker persists) | Makes LATE_PROCESSING/EXCLUDED_CHANGE fire on genuine credited movement instead of a phantom delta offset by MIX |
 | 2026-07-22 | v8 (1 BLOCKED) retained in history; v9 is the published version | Versions are additive (CLAUDE.md §7); the v8 block was a guardrail false positive (reason code 9E read as figure 9), fixed in the extractor regex |
 | 2026-07-22 | EXCLUDED_CHANGE/LATE_PROCESSING guard NEW/LOST-claimed accounts; presence counts credited+non-credited+late | Prevents double-counting between account-presence drivers and bucket-delta drivers; excluded (deleted) rows are not evidence of trading |
+| 2026-07-22 | Evidence modal __TOTAL__-scoped drivers get an explicit "Total — all product groups" scope whose waterfall aggregates ALL causes | FIX_SPEC_R4 A2 allows a transition-level view only if explicitly labelled; MARKET/NET_FLOW attach to __TOTAL__ and a total-only waterfall could not reconcile |
+| 2026-07-22 | Group waterfall REBUILT in the modal from stored rows (group change row + group drivers), not re-stored per version | Stored evidence keeps the transition waterfall; per-group attribution with per-group MIX residual makes the group walk exact from data already stored — arranging stored numbers is presentation, not computation |
+| 2026-07-22 | Shared ingestion manifest reflects the ACTIVE data set; repo keeps sample scope | build_real_data.py rewrites it with real counts on the client machine; after the local fixture proof the sample manifest was regenerated so the committed state stays sample-scoped |
+| 2026-07-22 | Real product_name = "product_cd sub_cd"; account_typ/wrap_flg blank; blank advisor names -> id shown | The extracts carry no display names/types — never invent data (CLAUDE.md §11) |
+| 2026-07-22 | Fixture GENERATOR committed (make_test_raw_extracts.py); fixture DATA gitignored under data/real/_raw | Reviewers can reproduce the B6 proof; FIX_SPEC_R4 forbids committing anything under data/real/ |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
