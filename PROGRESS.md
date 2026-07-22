@@ -112,8 +112,8 @@ Resume from: S-A1
 | S-A1 | R4-A | Portal the glossary dialog; fix `<h2>`-in-`<p>` on both screens | DONE | (next) | createPortal(document.body) inside RevenueDriverGlossaryDialog — all usages safe; audited: EvidenceModal renders at page level, no other inline dialogs |
 | S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | DONE | (next) | scope = clicked driver's group; waterfall rebuilt from group change row + group drivers (per-group MIX residual ⇒ exact); __TOTAL__ scope explicitly labelled "Total — all product groups" |
 | S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | DONE | (next) | paging/count/←→ over group list; "Driver n of N in <Group>"; caption relates card top-5 vs group walk |
-| S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | TODO | | |
-| S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | TODO | | |
+| S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | DONE | (next) | other slot's choice disabled in each dropdown; keys slot-scoped; slot B defaults to a different transition or empty |
+| S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | IN_PROGRESS | | started 2026-07-22T12:20Z |
 | S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | TODO | | |
 | S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | TODO | | |
 | S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | TODO | | |

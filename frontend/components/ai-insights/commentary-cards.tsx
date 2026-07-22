@@ -247,8 +247,11 @@ function TransitionViews({
 }) {
   const single =
     sorted.find((r) => r.to_month_id === selectedTo) ?? sorted[sorted.length - 1];
+  // S-A4 — the two compare slots default to two DIFFERENT transitions (no
+  // fallback to slot A's value: with a single transition, slot B stays empty
+  // rather than duplicating A).
   const [compareA, setCompareA] = useState(sorted[0]?.to_month_id ?? "");
-  const [compareB, setCompareB] = useState(sorted[1]?.to_month_id ?? sorted[0]?.to_month_id ?? "");
+  const [compareB, setCompareB] = useState(sorted[1]?.to_month_id ?? "");
   const byTo = (to: string) => sorted.find((r) => r.to_month_id === to) ?? null;
   const compareRows = [byTo(compareA), byTo(compareB)].filter(
     (r): r is CommentaryRow => r != null,
@@ -261,9 +264,11 @@ function TransitionViews({
   ];
   const selectCls = "h-7 rounded-[3px] border border-v2-border bg-white px-1.5 text-[11.5px]";
 
-  const card = (row: CommentaryRow) => (
+  // S-A4 — keys are slot-scoped so an accidental duplicate selection can
+  // never produce two children with the same key.
+  const card = (row: CommentaryRow, slotKey: string | number = "s") => (
     <TransitionCard
-      key={row.commentary_id}
+      key={`${slotKey}-${row.commentary_id}`}
       row={row}
       totals={totals}
       versionId={versionId || row.version_id}
@@ -314,15 +319,21 @@ function TransitionViews({
         )}
         {viewMode === "compare" && (
           <>
+            {/* S-A4 — the transition already chosen in the other slot is
+                disabled, so the same transition can never be picked twice. */}
             <select value={compareA} onChange={(e) => setCompareA(e.target.value)} aria-label="First transition" className={selectCls}>
               {sorted.map((r) => (
-                <option key={r.to_month_id} value={r.to_month_id}>{transitionLabelOf(r)}</option>
+                <option key={r.to_month_id} value={r.to_month_id} disabled={r.to_month_id === compareB}>
+                  {transitionLabelOf(r)}
+                </option>
               ))}
             </select>
             <span className="text-[11px] text-v2-muted">vs</span>
             <select value={compareB} onChange={(e) => setCompareB(e.target.value)} aria-label="Second transition" className={selectCls}>
               {sorted.map((r) => (
-                <option key={r.to_month_id} value={r.to_month_id}>{transitionLabelOf(r)}</option>
+                <option key={r.to_month_id} value={r.to_month_id} disabled={r.to_month_id === compareA}>
+                  {transitionLabelOf(r)}
+                </option>
               ))}
             </select>
           </>
