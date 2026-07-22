@@ -1,14 +1,10 @@
 cd C:\Users\R757680\ds\workspace\ip-demo-project-v2
 
-# 1. header + first rows of the files that loaded 0
-Get-Content data\real\vertices\revenue_class.csv -TotalCount 3
-Get-Content data\real\vertices\product_line.csv  -TotalCount 3
-Get-Content data\real\vertices\reason_code.csv   -TotalCount 3
+# common locations for ingestion state
+Get-ChildItem -Recurse -Directory | Where-Object { $_.Name -match "checkpoint|ingestion|runtime|state|\.cache" } | Select-Object FullName
 
-# 2. duplicate primary keys (first column) in the partially-loaded files
-Import-Csv data\real\vertices\product_group.csv | Group-Object group_id   | Where-Object Count -gt 1 | Select-Object Name,Count
-Import-Csv data\real\vertices\product.csv       | Group-Object product_id | Where-Object Count -gt 1 | Select-Object Name,Count
-Import-Csv data\real\vertices\driver_cause.csv  | Group-Object cause_id   | Where-Object Count -gt 1 | Select-Object Name,Count
+# any json/db that mentions these entities or "checkpoint"
+Get-ChildItem -Recurse -Include *.json,*.db,*.sqlite,*.state | Where-Object { $_.FullName -notmatch "node_modules|\.venv|data\\sample|data\\real\\vertices|data\\real\\edges" } | Select-Object FullName
 
-# 3. blank first column (blank key) in a zero-loaded file
-Import-Csv data\real\vertices\product_line.csv | Where-Object { -not $_.line_id } | Select-Object -First 5
+# and grep for the delta/checkpoint state referencing revenue_class
+Get-ChildItem -Recurse -Include *.json | Select-String -List "last_processed_row|checkpoint|revenue_class" | Select-Object Path -Unique
