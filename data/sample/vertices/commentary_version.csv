@@ -5,4 +5,6 @@ v3,3,2026-07-20 12:13:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:13:44,SUPE
 v4,4,2026-07-20 12:14:29,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:14:29,SUPERSEDED,3,6,2,v4 — rounding tolerance covers truncation,DERIVED
 v5,5,2026-07-20 12:15:14,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:15:14,SUPERSEDED,3,6,0,v5 — identifier digits excluded from figure extraction,DERIVED
 v6,6,2026-07-21 16:24:06,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:24:06,SUPERSEDED,3,6,0,"Round 2 R1: credited-revenue definition corrected (reason-code eligibility, 90-day rule, grid-type config); full regeneration",DERIVED
-v7,7,2026-07-21 16:40:04,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:40:04,PUBLISHED,3,6,0,"Round 2: deepened evidence (why/attribution/waterfall/rev_nature/credited breakdown), component units, LLM-as-judge first run",DERIVED
+v7,7,2026-07-21 16:40:04,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:40:04,SUPERSEDED,3,6,0,"Round 2: deepened evidence (why/attribution/waterfall/rev_nature/credited breakdown), component units, LLM-as-judge first run",DERIVED
+v8,8,2026-07-22 10:12:54,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:12:54,SUPERSEDED,3,6,1,Round 3 T1: LATE_PROCESSING + EXCLUDED_CHANGE drivers added; regenerated on corrected attribution,DERIVED
+v9,9,2026-07-22 10:15:30,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:15:30,PUBLISHED,3,6,0,Round 3 T1: regenerated after guardrail reason-code fix; LATE_PROCESSING + EXCLUDED_CHANGE live,DERIVED

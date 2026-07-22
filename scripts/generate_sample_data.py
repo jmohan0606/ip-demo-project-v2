@@ -385,6 +385,7 @@ def main() -> int:
             nc_txns_by_group_month=nc_by_advisor[advisor],
             late_txns_by_group_month=late_by_advisor[advisor],
             excl_txns_by_group_month=excl_by_advisor[advisor],
+            max_processing_days=CTX.max_processing_days,
         ))
 
     report = reconcile(changes, drivers)

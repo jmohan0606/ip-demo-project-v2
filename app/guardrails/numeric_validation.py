@@ -14,8 +14,10 @@ from typing import Any
 RECONCILE_TOLERANCE = 1.0
 
 # The lookbehind keeps digits inside identifiers (account "SMPLACCT-1109",
-# trade "SMPLTRD00048") from being read as figures.
-_NUMBER_RE = re.compile(r"(?<![\w-])\$?\(?\s*\d[\d,]*\.?\d*\s*k?\)?%?")
+# trade "SMPLTRD00048") from being read as figures; the lookahead keeps
+# digit-letter codes (reason codes "9E", "9G", "9X") from being read as the
+# bare figure "9" (the 'k' thousands suffix is consumed by the match itself).
+_NUMBER_RE = re.compile(r"(?<![\w-])\$?\(?\s*\d[\d,]*\.?\d*\s*k?\)?%?(?![A-Za-z])")
 # A minus applied to a figure ("-$44.1k", "- 17.7%"). The lookbehind excludes
 # intra-word hyphens and date/month ranges like "202604-202605" or "one-time".
 _MINUS_FIGURE_RE = re.compile(r"(?<![\w])[-−]\s*\$?\d")

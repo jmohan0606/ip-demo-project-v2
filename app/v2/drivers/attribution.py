@@ -71,6 +71,7 @@ def attribute_group(
     to_late_txns: list[dict] | None = None,
     from_excl_txns: list[dict] | None = None,
     to_excl_txns: list[dict] | None = None,
+    max_processing_days: int = 90,
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
     change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8),
@@ -181,7 +182,8 @@ def attribute_group(
             "from_late_excluded": round(_sum(late_from), 2),
             "to_late_excluded": round(_sum(late_to), 2),
             "from_txn_count": len(late_from), "to_txn_count": len(late_to),
-            "max_days_to_process": sorted({int(_num(t.get("days_to_process"))) for t in late_from + late_to}),
+            "processing_days_limit": max_processing_days,
+            "days_to_process_seen": sorted({int(_num(t.get("days_to_process"))) for t in late_from + late_to}),
             "formula": "-(to_late_excluded - from_late_excluded) — revenue processed more than "
                        "90 days after the trade leaves credited revenue, and vice versa",
         })
@@ -293,6 +295,7 @@ def attribute_transition(
     late_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
     excl_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
     mix_warning_fraction: float = MIX_WARNING_FRACTION,
+    max_processing_days: int = 90,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
@@ -349,6 +352,7 @@ def attribute_transition(
             to_late_txns=late_txns_by_group_month.get((group_id, change["to_month_id"]), []),
             from_excl_txns=excl_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_excl_txns=excl_txns_by_group_month.get((group_id, change["to_month_id"]), []),
+            max_processing_days=max_processing_days,
         ):
             raw.append((change, d))
 
