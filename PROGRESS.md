@@ -114,9 +114,9 @@ Resume from: S-A1
 | S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | DONE | (next) | paging/count/←→ over group list; "Driver n of N in <Group>"; caption relates card top-5 vs group walk |
 | S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | DONE | (next) | other slot's choice disabled in each dropdown; keys slot-scoped; slot B defaults to a different transition or empty |
 | S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | DONE | (next) | 13/13 shots (8 original + 5 new R4 proofs) zero console errors; group waterfall verified numerically vs API for every group |
-| S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | TODO | | |
-| S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | TODO | | |
-| S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | TODO | | |
+| S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | DONE | (next) | RAW_CONTRACT in build_real_data.py: 3 files, exact SELECT-list columns; loud validation on missing file/column |
+| S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | DONE | (next) | calls shared app/v2/dataset/builder (same month_rows/split/aggregate/attribute/reconcile); reconciliation $0.00 asserted as stop condition; summary prints MIX%/OUT_OF_GRID/>90d |
+| S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | DONE | c23dbe5 | provenance.py ARTIFACT_SOURCE + require_stamped (never blank); sample regeneration byte-identical |
 | S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | TODO | | |
 | S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | TODO | | |
 | S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | TODO | | |
