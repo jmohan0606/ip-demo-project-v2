@@ -110,8 +110,8 @@ Resume from: S-A1
 | T8-1 | T8 | .gitignore CRLF / data/real protection | DONE | (this) | .gitignore is LF (ASCII); `git check-ignore data/real/x` prints path — protected |
 | T8-2 | T8 | app/models tracked | DONE | (this) | `git ls-files app/models` → 6 files tracked |
 | S-A1 | R4-A | Portal the glossary dialog; fix `<h2>`-in-`<p>` on both screens | DONE | (next) | createPortal(document.body) inside RevenueDriverGlossaryDialog — all usages safe; audited: EvidenceModal renders at page level, no other inline dialogs |
-| S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | IN_PROGRESS | | started 2026-07-22T12:05Z |
-| S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | TODO | | |
+| S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | DONE | (next) | scope = clicked driver's group; waterfall rebuilt from group change row + group drivers (per-group MIX residual ⇒ exact); __TOTAL__ scope explicitly labelled "Total — all product groups" |
+| S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | DONE | (next) | paging/count/←→ over group list; "Driver n of N in <Group>"; caption relates card top-5 vs group walk |
 | S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | TODO | | |
 | S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | TODO | | |
 | S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | TODO | | |

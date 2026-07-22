@@ -13,6 +13,7 @@ import {
   type CommentaryVersion,
   type DriverRow,
   type EvidenceRecord,
+  type RevenueChangeRow,
   v2Api,
 } from "@/lib/api/v2";
 import { fmtDate, fmtMoney, monthShort } from "@/lib/v2/format";
@@ -106,6 +107,22 @@ interface CheckRow {
  * evidence deepening.) */
 const DEEP_EVIDENCE_FROM_VERSION = 7;
 
+/** S-A2 — the modal is single-scoped to the clicked driver's product group,
+ * and the waterfall is rebuilt for that group only. This order mirrors the
+ * backend's deterministic waterfall cause order
+ * (app/agents/nodes/explainability_agent._WATERFALL_CAUSE_ORDER) so the bars
+ * read the same way everywhere. */
+const WATERFALL_CAUSE_ORDER = [
+  "NEW_ACCOUNT", "LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+  "EXCLUDED_CHANGE", "CLAWBACK",
+  "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
+  "MARKET", "NET_FLOW", "MIX",
+];
+const causeOrder = (cause: string): number => {
+  const i = WATERFALL_CAUSE_ORDER.indexOf(cause);
+  return i === -1 ? WATERFALL_CAUSE_ORDER.length : i;
+};
+
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw) return fallback;
   try {
@@ -157,11 +174,15 @@ function ReconciliationWaterfall({
   data,
   fromLabel,
   toLabel,
+  scopeLabel,
   focusCause,
 }: {
   data: WaterfallJson;
   fromLabel: string;
   toLabel: string;
+  /** S-A2 — the scope every number in this waterfall belongs to (a product
+   * group, or "Total — all product groups"). */
+  scopeLabel: string;
   /** cause_id of the driver currently in focus — its bar highlights (T3-2). */
   focusCause?: string;
 }) {
@@ -201,10 +222,10 @@ function ReconciliationWaterfall({
     <div>
       {/* T3-2 — plain-English lead sentence. */}
       <p className="mb-2 text-[11.5px] leading-relaxed text-v2-text">
-        This shows how {fromLabel}&apos;s credited revenue of {fmtMoney(data.from_revenue)} became{" "}
-        {toLabel}&apos;s {fmtMoney(data.to_revenue)}. Each bar is one revenue driver&apos;s
-        contribution; because every dollar of change is attributed, the bars sum exactly to the
-        total change.
+        This shows how {scopeLabel}&apos;s credited revenue of {fmtMoney(data.from_revenue)} in{" "}
+        {fromLabel} became {fmtMoney(data.to_revenue)} in {toLabel}. Each bar is one revenue
+        driver&apos;s contribution within {scopeLabel}; because every dollar of change is
+        attributed, the bars sum exactly to {scopeLabel}&apos;s change.
       </p>
       <div className="overflow-x-auto">
         <div className="flex items-stretch gap-2" style={{ minWidth: cols.length * 96 }}>
@@ -261,10 +282,10 @@ function ReconciliationWaterfall({
       </button>
       {showHow && (
         <p className="mt-1 rounded-[3px] bg-v2-sub-bg px-3 py-2 text-[11px] leading-relaxed text-v2-muted">
-          Start at the left bar ({fromLabel}&apos;s credited revenue) and walk right: each green bar
-          adds revenue, each red bar removes it, and the highlighted bar is the driver you are
-          reading now. The right bar is {toLabel}&apos;s credited revenue — the walk always lands
-          exactly on it.
+          Start at the left bar ({scopeLabel}&apos;s credited revenue in {fromLabel}) and walk
+          right: each green bar adds revenue, each red bar removes it, and the highlighted bar is
+          the driver you are reading now. The right bar is {scopeLabel}&apos;s credited revenue in{" "}
+          {toLabel} — the walk always lands exactly on it.
         </p>
       )}
       <p className="mt-1.5 text-[10.5px] italic text-v2-faint">
@@ -333,9 +354,15 @@ export function EvidenceModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  // T2-1 — the modal holds the transition's FULL ordered driver set and pages
-  // through it (Previous / Next, ←/→); evidence is lazy-loaded per driver.
+  // S-A2/S-A3 — ONE scope per modal: the clicked driver's product group.
+  // `drivers` holds that GROUP's ordered driver set and paging moves through
+  // it only; `allDrivers` keeps the whole transition (needed to rebuild the
+  // waterfall when the scope group is __TOTAL__). Evidence stays lazy-loaded
+  // per driver (T2-1/T2-3).
   const [drivers, setDrivers] = useState<DriverRow[] | null>(null);
+  const [allDrivers, setAllDrivers] = useState<DriverRow[]>([]);
+  const [scopeGroupId, setScopeGroupId] = useState("");
+  const [changes, setChanges] = useState<RevenueChangeRow[]>([]);
   const [index, setIndex] = useState(0);
   const [evidenceByDriver, setEvidenceByDriver] = useState<
     Record<string, { record: EvidenceRecord | null; error: string | null }>
@@ -359,9 +386,11 @@ export function EvidenceModal({
 
   // driverId shape: "advisor|from|to|group|CAUSE|seq"
   const parts = driverId.split("|");
-  const groupSegment = driver?.group_id ?? parts[3] ?? "";
+  const groupSegment = scopeGroupId || driver?.group_id || parts[3] || "";
   const causeSegment = driver?.cause_id ?? parts[4] ?? "";
   const groupLabel = humanizeGroup(groupSegment);
+  const isTotalScope = groupSegment === "__TOTAL__";
+  const scopeLabel = isTotalScope ? "Total — all product groups" : groupLabel;
 
   const page = useCallback(
     (delta: number) => {
@@ -404,14 +433,31 @@ export function EvidenceModal({
       v2Api.insightsDrivers(advisorId, fromMonthId, toMonthId),
       v2Api.versions(),
       v2Api.evaluations(versionId),
-    ]).then(([dr, vs, evals]) => {
+      v2Api.trendsChanges(advisorId, fromMonthId, toMonthId),
+    ]).then(([dr, vs, evals, ch]) => {
       if (!active) return;
       if (dr.status === "fulfilled") {
         const list = [...dr.value.drivers].sort((a, b) => a.rank - b.rank);
         if (list.length) {
-          setDrivers(list);
+          setAllDrivers(list);
+          // S-A2 — resolve the modal's single scope: the clicked driver's
+          // product group (walk entry has no initial driver → the top-ranked
+          // driver's group). Everything in the modal holds this scope.
+          const initial = initialDriverId
+            ? list.find((d) => d.driver_id === initialDriverId)
+            : undefined;
+          const group =
+            initial?.group_id ??
+            (initialDriverId ? initialDriverId.split("|")[3] : undefined) ??
+            list[0].group_id;
+          const groupList = list.filter((d) => d.group_id === group);
+          // A superseded initial driver whose group no longer exists falls
+          // back to the current top driver's group — never an empty modal.
+          const scoped = groupList.length ? groupList : list.filter((d) => d.group_id === list[0].group_id);
+          setScopeGroupId(scoped[0]?.group_id ?? group);
+          setDrivers(scoped);
           const start = initialDriverId
-            ? list.findIndex((d) => d.driver_id === initialDriverId)
+            ? scoped.findIndex((d) => d.driver_id === initialDriverId)
             : 0;
           setIndex(start >= 0 ? start : 0);
         } else {
@@ -420,6 +466,7 @@ export function EvidenceModal({
       } else {
         setError(dr.reason instanceof Error ? dr.reason.message : "Failed to load the driver set.");
       }
+      setChanges(ch.status === "fulfilled" ? ch.value.changes : []);
       if (vs.status === "fulfilled") {
         setVersion(vs.value.versions.find((v) => v.version_id === versionId) ?? null);
       }
@@ -498,6 +545,39 @@ export function EvidenceModal({
     [evidence],
   );
 
+  // S-A2 — the waterfall is rebuilt for the modal's scope group from stored
+  // rows: FROM/TO come from the group's revenue_change row and each bar is
+  // one of the group's revenue drivers. Attribution runs per group with a
+  // per-group MIX residual, so the bars sum exactly to the group's change —
+  // header, waterfall and credited breakdown now all describe the same
+  // group-level change. For the __TOTAL__ scope (MARKET/NET_FLOW attach
+  // there) the waterfall is the whole transition — all causes aggregated
+  // across groups — and is explicitly labelled as such. Stored rows are only
+  // arranged here; nothing is computed beyond ordering and rounding.
+  const groupWaterfall = useMemo<WaterfallJson | null>(() => {
+    if (!scopeGroupId) return null;
+    const changeRow = changes.find((c) => c.group_id === scopeGroupId);
+    if (!changeRow) return null;
+    let steps: { label: string; amount: number }[];
+    if (scopeGroupId === "__TOTAL__") {
+      const byCause = new Map<string, number>();
+      for (const d of allDrivers) {
+        byCause.set(d.cause_id, (byCause.get(d.cause_id) ?? 0) + d.contribution_amt);
+      }
+      steps = [...byCause.entries()].map(([label, amount]) => ({ label, amount }));
+    } else {
+      steps = (drivers ?? []).map((d) => ({ label: d.cause_id, amount: d.contribution_amt }));
+    }
+    steps = steps
+      .map((s) => ({ label: s.label, amount: Math.round(s.amount * 100) / 100 }))
+      .sort((a, b) => causeOrder(a.label) - causeOrder(b.label));
+    return {
+      from_revenue: Math.round(changeRow.from_revenue * 100) / 100,
+      steps,
+      to_revenue: Math.round(changeRow.to_revenue * 100) / 100,
+    };
+  }, [scopeGroupId, changes, allDrivers, drivers]);
+
   // Component units (R2-1): the backend stamps each component with a unit and
   // the formatter switches on it. Only `currency` components may be summed.
   // The label heuristic remains as a fallback for evidence stored before units.
@@ -561,7 +641,7 @@ export function EvidenceModal({
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-v2-border bg-white px-6 py-4">
           <div>
             <h2 className="text-[16px] font-semibold">
-              Evidence — {groupLabel}
+              Evidence — {scopeLabel}
               {driver && (
                 <span className={`ml-2 ${driver.contribution_amt < 0 ? "text-v2-negative" : "text-v2-positive"}`}>
                   {driver.contribution_amt < 0 ? "▼" : "▲"} {fmtMoney(driver.contribution_amt)}
@@ -571,8 +651,17 @@ export function EvidenceModal({
             <p className="mt-0.5 text-[11.5px] text-v2-muted">
               {transitionLabel} · Advisor {advisorId}
               {advisorName ? ` · ${advisorName}` : ""}
-              {driverCount > 0 ? ` · Revenue Driver ${index + 1} of ${driverCount}` : ""}
+              {driverCount > 0 ? ` · Revenue Driver ${index + 1} of ${driverCount} in ${groupLabel}` : ""}
             </p>
+            {/* S-A3 — the one-line caption relating the card's advisor-wide
+                top 5 to this modal's group-scoped walk. */}
+            {driverCount > 0 && (
+              <p className="mt-0.5 text-[10.5px] text-v2-faint">
+                The AI-Insights card ranks the top 5 revenue drivers across all product groups;
+                this modal walks all {driverCount} driver{driverCount === 1 ? "" : "s"} within{" "}
+                {groupLabel}.
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {(evidence || driver) && (
@@ -732,10 +821,10 @@ export function EvidenceModal({
 
                   {/* T3-1 — older evidence records lack the deepened panels;
                       say so plainly instead of leaving a gap. */}
-                  {!calc.why && !calc.attribution && !calc.waterfall && (
+                  {!calc.why && !calc.attribution && (
                     <p className="mt-3 rounded-[3px] border border-v2-border bg-v2-sub-bg px-4 py-2.5 text-[11.5px] text-v2-muted">
                       Detailed evidence panels (why this revenue driver, attribution order,
-                      reconciliation waterfall, credited breakdown) are available from version{" "}
+                      credited breakdown) are available from version{" "}
                       {DEEP_EVIDENCE_FROM_VERSION} onward — this version predates them and they
                       cannot be honestly reconstructed for its superseded driver set.
                     </p>
@@ -814,13 +903,17 @@ export function EvidenceModal({
                     </SubPanel>
                   )}
 
-                  {/* R4-3 — Reconciliation waterfall */}
-                  {calc.waterfall && (
-                    <SubPanel title="Reconciliation waterfall">
+                  {/* R4-3 / S-A2 — reconciliation waterfall, rebuilt for the
+                      modal's scope group so it ties to the header and the
+                      credited breakdown. Never the transition-wide walk
+                      unless the scope IS the total, in which case it says so. */}
+                  {groupWaterfall && (
+                    <SubPanel title={`Reconciliation waterfall — ${scopeLabel}`}>
                       <ReconciliationWaterfall
-                        data={calc.waterfall}
+                        data={groupWaterfall}
                         fromLabel={fromLabel}
                         toLabel={toLabel}
+                        scopeLabel={scopeLabel}
                         focusCause={causeSegment}
                       />
                     </SubPanel>
@@ -1049,7 +1142,7 @@ export function EvidenceModal({
               ‹ Previous
             </button>
             <span className="num whitespace-nowrap text-[11px] text-v2-muted">
-              {driverCount > 0 ? `Revenue Driver ${index + 1} of ${driverCount}` : "—"}
+              {driverCount > 0 ? `Revenue Driver ${index + 1} of ${driverCount} in ${groupLabel}` : "—"}
             </span>
             <button
               type="button"
