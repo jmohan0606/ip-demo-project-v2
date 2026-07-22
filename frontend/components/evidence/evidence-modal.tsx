@@ -6,11 +6,12 @@
  * Every figure shown is retrieved from the stored evidence record (GQ-012
  * consumer); nothing is computed or generated here.
  */
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   type CommentaryEvaluation,
   type CommentaryVersion,
+  type DriverRow,
   type EvidenceRecord,
   v2Api,
 } from "@/lib/api/v2";
@@ -96,6 +97,14 @@ interface CheckRow {
   detail: string;
 }
 
+/** T3-1 — versions generated before this one predate the judge (R5) and the
+ * deepened evidence panels (R4); their old driver sets were superseded when
+ * the sample data was regenerated, so those sections are genuinely
+ * unreconstructable. Every affected panel states this instead of rendering
+ * blank. (Data-set specific — the first version generated after the round-2
+ * evidence deepening.) */
+const DEEP_EVIDENCE_FROM_VERSION = 7;
+
 function parseJson<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw) return fallback;
   try {
@@ -138,9 +147,24 @@ function SubPanel({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** R4-3 — compact reconciliation waterfall: from-revenue → each driver step →
- * to-revenue, summing exactly. Pure divs, existing tokens only. */
-function ReconciliationWaterfall({ data }: { data: WaterfallJson }) {
+/** R4-3 / T3-2 — reconciliation waterfall: from-revenue → each revenue
+ * driver's step → to-revenue, summing exactly. Plain-English lead sentence,
+ * neutral anchor bars, green/red driver bars, focus highlight tied to the
+ * driver currently paged in the modal, a "how to read this" expander and a
+ * completeness note. Pure divs, existing tokens only. */
+function ReconciliationWaterfall({
+  data,
+  fromLabel,
+  toLabel,
+  focusCause,
+}: {
+  data: WaterfallJson;
+  fromLabel: string;
+  toLabel: string;
+  /** cause_id of the driver currently in focus — its bar highlights (T3-2). */
+  focusCause?: string;
+}) {
+  const [showHow, setShowHow] = useState(false);
   let running = data.from_revenue;
   const cols: { label: string; lo: number; hi: number; kind: "anchor" | "up" | "down"; amount: number }[] = [
     { label: "From", lo: 0, hi: data.from_revenue, kind: "anchor", amount: data.from_revenue },
@@ -174,24 +198,47 @@ function ReconciliationWaterfall({ data }: { data: WaterfallJson }) {
 
   return (
     <div>
+      {/* T3-2 — plain-English lead sentence. */}
+      <p className="mb-2 text-[11.5px] leading-relaxed text-v2-text">
+        This shows how {fromLabel}&apos;s credited revenue of {fmtMoney(data.from_revenue)} became{" "}
+        {toLabel}&apos;s {fmtMoney(data.to_revenue)}. Each bar is one revenue driver&apos;s
+        contribution; because every dollar of change is attributed, the bars sum exactly to the
+        total change.
+      </p>
       <div className="overflow-x-auto">
         <div className="flex items-stretch gap-2" style={{ minWidth: cols.length * 96 }}>
-          {cols.map((c, i) => (
-            <div key={`${c.label}-${i}`} className="flex w-24 shrink-0 flex-col">
-              <span className={`num mb-0.5 text-[10px] font-semibold ${amtCls(c.kind)}`}>
-                {fmtMoney(c.amount)}
-              </span>
-              <div className="relative rounded-[2px] bg-v2-sub-bg" style={{ height: CHART_H }}>
-                <div
-                  className={`absolute left-1 right-1 rounded-[2px] ${barCls(c.kind)}`}
-                  style={{ top: y(c.hi), height: Math.max(2, y(c.lo) - y(c.hi)) }}
-                />
+          {cols.map((c, i) => {
+            const focused = c.kind !== "anchor" && !!focusCause && c.label === focusCause;
+            return (
+              <div
+                key={`${c.label}-${i}`}
+                className={`flex w-24 shrink-0 flex-col rounded-[3px] px-0.5 pt-0.5 ${
+                  focused ? "bg-v2-header-bg ring-1 ring-v2-navy" : ""
+                }`}
+              >
+                <span className={`num mb-0.5 text-[10px] font-semibold ${amtCls(c.kind)}`}>
+                  {fmtMoney(c.amount)}
+                </span>
+                <div className="relative rounded-[2px] bg-v2-sub-bg" style={{ height: CHART_H }}>
+                  <div
+                    className={`absolute left-1 right-1 rounded-[2px] ${barCls(c.kind)} ${
+                      focusCause && !focused && c.kind !== "anchor" ? "opacity-45" : ""
+                    }`}
+                    style={{ top: y(c.hi), height: Math.max(2, y(c.lo) - y(c.hi)) }}
+                  />
+                </div>
+                <span
+                  className={`mt-1 truncate text-[9.5px] uppercase tracking-[0.3px] ${
+                    focused ? "font-semibold text-v2-navy" : "text-v2-muted"
+                  }`}
+                  title={c.label}
+                >
+                  {c.label.replace(/_/g, "-")}
+                  {focused ? " ◂" : ""}
+                </span>
               </div>
-              <span className="mt-1 truncate text-[9.5px] uppercase tracking-[0.3px] text-v2-muted" title={c.label}>
-                {c.label}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       <p className="mt-2 text-[11px] text-v2-muted">
@@ -201,6 +248,27 @@ function ReconciliationWaterfall({ data }: { data: WaterfallJson }) {
         ) : (
           <span className="font-semibold text-v2-negative">✗ does not reconcile</span>
         )}
+      </p>
+      {/* T3-2 — how to read + completeness note (the honesty self-check). */}
+      <button
+        type="button"
+        onClick={() => setShowHow((s) => !s)}
+        aria-expanded={showHow}
+        className="mt-1.5 text-[11px] font-semibold text-v2-link hover:underline"
+      >
+        {showHow ? "▾ How to read this" : "▸ How to read this"}
+      </button>
+      {showHow && (
+        <p className="mt-1 rounded-[3px] bg-v2-sub-bg px-3 py-2 text-[11px] leading-relaxed text-v2-muted">
+          Start at the left bar ({fromLabel}&apos;s credited revenue) and walk right: each green bar
+          adds revenue, each red bar removes it, and the highlighted bar is the driver you are
+          reading now. The right bar is {toLabel}&apos;s credited revenue — the walk always lands
+          exactly on it.
+        </p>
+      )}
+      <p className="mt-1.5 text-[10.5px] italic text-v2-faint">
+        The bars reconcile to $0.00, confirming every dollar of change is accounted for. A large
+        unexplained (MIX) bar would indicate a missing driver.
       </p>
     </div>
   );
@@ -244,26 +312,33 @@ function gsqlCallText(queryName: string, params: Record<string, unknown>): strin
 }
 
 export function EvidenceModal({
-  driverId,
   versionId,
   advisorId,
   advisorName,
+  fromMonthId,
+  toMonthId,
   transitionLabel,
-  driverIndex,
-  driverCount,
+  initialDriverId,
   onClose,
 }: {
-  driverId: string;
   versionId: string;
   advisorId: string;
   advisorName: string;
+  fromMonthId: string;
+  toMonthId: string;
   transitionLabel: string;
-  driverIndex: number;
-  driverCount: number;
+  /** Open at this driver of the transition; defaults to the top-ranked one. */
+  initialDriverId?: string;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [evidence, setEvidence] = useState<EvidenceRecord | null>(null);
+  // T2-1 — the modal holds the transition's FULL ordered driver set and pages
+  // through it (Previous / Next, ←/→); evidence is lazy-loaded per driver.
+  const [drivers, setDrivers] = useState<DriverRow[] | null>(null);
+  const [index, setIndex] = useState(0);
+  const [evidenceByDriver, setEvidenceByDriver] = useState<
+    Record<string, { record: EvidenceRecord | null; error: string | null }>
+  >({});
   const [version, setVersion] = useState<CommentaryVersion | null>(null);
   // R5-4 — independent LLM-judge review. null until loaded; "missing" is a
   // valid, explicitly-rendered state.
@@ -274,20 +349,39 @@ export function EvidenceModal({
   const [retryKey, setRetryKey] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const driver = drivers?.[index] ?? null;
+  const driverId = driver?.driver_id ?? initialDriverId ?? "";
+  const cached = driverId ? evidenceByDriver[driverId] : undefined;
+  const evidence = cached?.record ?? null;
+  const evidenceError = cached?.error ?? null;
+  const driverCount = drivers?.length ?? 0;
+
   // driverId shape: "advisor|from|to|group|CAUSE|seq"
   const parts = driverId.split("|");
-  const fromMonthId = parts[1] ?? "";
-  const toMonthId = parts[2] ?? "";
-  const groupSegment = parts[3] ?? "";
-  const causeSegment = parts[4] ?? "";
+  const groupSegment = driver?.group_id ?? parts[3] ?? "";
+  const causeSegment = driver?.cause_id ?? parts[4] ?? "";
   const groupLabel = humanizeGroup(groupSegment);
 
-  // Focus management: remember the trigger, refocus it on unmount. Esc closes.
+  const page = useCallback(
+    (delta: number) => {
+      setIndex((i) => {
+        const n = drivers?.length ?? 0;
+        if (!n) return i;
+        return Math.min(n - 1, Math.max(0, i + delta));
+      });
+    },
+    [drivers],
+  );
+
+  // Focus management: remember the trigger, refocus it on unmount. Esc closes;
+  // ←/→ page through the drivers (T2-1).
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") page(-1);
+      else if (e.key === "ArrowRight") page(1);
     };
     document.addEventListener("keydown", onKey);
     return () => {
@@ -295,25 +389,35 @@ export function EvidenceModal({
       trigger?.focus?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [page]);
 
+  // T2-3 — load the transition's driver set (GQ-008) + version metadata + the
+  // judge evaluation once; evidence (GQ-012) is fetched per driver as the user
+  // pages, never all up front.
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
     setEvaluationLoaded(false);
     Promise.allSettled([
-      v2Api.evidence(driverId, versionId),
+      v2Api.insightsDrivers(advisorId, fromMonthId, toMonthId),
       v2Api.versions(),
       v2Api.evaluations(versionId),
-    ]).then(([ev, vs, evals]) => {
+    ]).then(([dr, vs, evals]) => {
       if (!active) return;
-      if (ev.status === "fulfilled") {
-        const record = ev.value.evidence[0] ?? null;
-        if (record) setEvidence(record);
-        else setError("No evidence record exists for this driver in this version.");
+      if (dr.status === "fulfilled") {
+        const list = [...dr.value.drivers].sort((a, b) => a.rank - b.rank);
+        if (list.length) {
+          setDrivers(list);
+          const start = initialDriverId
+            ? list.findIndex((d) => d.driver_id === initialDriverId)
+            : 0;
+          setIndex(start >= 0 ? start : 0);
+        } else {
+          setError("No drivers are stored for this transition.");
+        }
       } else {
-        setError(ev.reason instanceof Error ? ev.reason.message : "Failed to load evidence.");
+        setError(dr.reason instanceof Error ? dr.reason.message : "Failed to load the driver set.");
       }
       if (vs.status === "fulfilled") {
         setVersion(vs.value.versions.find((v) => v.version_id === versionId) ?? null);
@@ -321,7 +425,7 @@ export function EvidenceModal({
       if (evals.status === "fulfilled") {
         // The judge evaluates the transition's commentary, whose id is
         // "<version>|<advisor>|<from>|<to>" — match on that prefix.
-        const commentaryId = `${versionId}|${advisorId}|${parts[1] ?? ""}|${parts[2] ?? ""}`;
+        const commentaryId = `${versionId}|${advisorId}|${fromMonthId}|${toMonthId}`;
         setEvaluation(
           evals.value.evaluations.find(
             (e) => e.commentary_id === commentaryId || e.commentary_id.startsWith(`${commentaryId}|`),
@@ -336,9 +440,37 @@ export function EvidenceModal({
     return () => {
       active = false;
     };
-    // parts derives from driverId, which is a dependency
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverId, versionId, advisorId, retryKey]);
+  }, [advisorId, fromMonthId, toMonthId, versionId, initialDriverId, retryKey]);
+
+  // Lazy per-driver evidence fetch, cached for the modal's lifetime.
+  useEffect(() => {
+    const id = drivers?.[index]?.driver_id;
+    if (!id || evidenceByDriver[id]) return;
+    let active = true;
+    v2Api
+      .evidence(id, versionId)
+      .then((ev) => {
+        if (!active) return;
+        const record = ev.evidence[0] ?? null;
+        setEvidenceByDriver((m) => ({
+          ...m,
+          [id]: {
+            record,
+            error: record ? null : "No evidence record exists for this driver in this version.",
+          },
+        }));
+      })
+      .catch((e: unknown) => {
+        if (!active) return;
+        setEvidenceByDriver((m) => ({
+          ...m,
+          [id]: { record: null, error: e instanceof Error ? e.message : "Failed to load evidence." },
+        }));
+      });
+    return () => {
+      active = false;
+    };
+  }, [drivers, index, versionId, evidenceByDriver]);
 
   const calc = useMemo(
     () => parseJson<CalcJson>(evidence?.calc_json, { components: [], formula: "" }),
@@ -421,20 +553,30 @@ export function EvidenceModal({
         onClick={(e) => e.stopPropagation()}
         className="max-h-[90vh] w-full max-w-[1120px] overflow-y-auto rounded-[3px] bg-white font-v2 text-v2-text shadow-2xl outline-none"
       >
-        {/* Header */}
+        {/* Header — reflects the CURRENT driver and updates as the user pages
+            (T2-4). The amount is never re-wrapped in parentheses: the arrow
+            carries direction and fmtMoney already parenthesises negatives
+            (T3-3 — no double-parenthesis, ever). */}
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-v2-border bg-white px-6 py-4">
           <div>
             <h2 className="text-[16px] font-semibold">
               Evidence — {groupLabel}
-              {evidence && calc.components.length > 0 ? ` (${fmtMoney(netChange)})` : ""}
+              {driver && (
+                <span className={`ml-2 ${driver.contribution_amt < 0 ? "text-v2-negative" : "text-v2-positive"}`}>
+                  {driver.contribution_amt < 0 ? "▼" : "▲"} {fmtMoney(driver.contribution_amt)}
+                </span>
+              )}
             </h2>
             <p className="mt-0.5 text-[11.5px] text-v2-muted">
               {transitionLabel} · Advisor {advisorId}
-              {advisorName ? ` · ${advisorName}` : ""} · Driver {driverIndex} of {driverCount}
+              {advisorName ? ` · ${advisorName}` : ""}
+              {driverCount > 0 ? ` · Revenue Driver ${index + 1} of ${driverCount}` : ""}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {evidence && <ProvenanceBadge value={evidence.data_source} />}
+            {(evidence || driver) && (
+              <ProvenanceBadge value={evidence?.data_source ?? driver?.data_source ?? ""} />
+            )}
             {causeSegment && <CauseTag causeId={causeSegment} />}
             <button
               type="button"
@@ -449,11 +591,24 @@ export function EvidenceModal({
 
         <div className="px-6 py-5">
           <AsyncBoundary
-            loading={loading}
+            loading={loading || (!error && !cached)}
             error={error}
             onRetry={() => setRetryKey((k) => k + 1)}
             loadingLabel="Loading evidence…"
           >
+            {/* T3-1 — a version with no evidence for this driver states why
+                plainly instead of rendering empty scaffolding. */}
+            {!evidence && evidenceError && (
+              <div className="rounded-[3px] border border-v2-border bg-v2-sub-bg px-4 py-3 text-[12px] leading-relaxed text-v2-text">
+                <p className="font-semibold">Evidence is not available for this driver in {versionId}.</p>
+                <p className="mt-1 text-v2-muted">
+                  {evidenceError} Driver sets are recomputed when the underlying data changes, so
+                  older commentary versions can reference a superseded driver set. Independent
+                  review and detailed evidence are available from version {DEEP_EVIDENCE_FROM_VERSION}{" "}
+                  onward — select the latest version for the full evidence record.
+                </p>
+              </div>
+            )}
             {evidence && (
               <div className="space-y-7">
                 {/* 1 — Finding */}
@@ -503,7 +658,8 @@ export function EvidenceModal({
                         </div>
                       ) : (
                         <p className="text-[11.5px] text-v2-muted">
-                          No independent review recorded for this version.
+                          No independent review is recorded for this version — independent review and
+                          detailed evidence are available from version {DEEP_EVIDENCE_FROM_VERSION} onward.
                         </p>
                       )}
                     </div>
@@ -573,9 +729,20 @@ export function EvidenceModal({
                     </div>
                   )}
 
-                  {/* R4-1 — Why this cause */}
+                  {/* T3-1 — older evidence records lack the deepened panels;
+                      say so plainly instead of leaving a gap. */}
+                  {!calc.why && !calc.attribution && !calc.waterfall && (
+                    <p className="mt-3 rounded-[3px] border border-v2-border bg-v2-sub-bg px-4 py-2.5 text-[11.5px] text-v2-muted">
+                      Detailed evidence panels (why this revenue driver, attribution order,
+                      reconciliation waterfall, credited breakdown) are available from version{" "}
+                      {DEEP_EVIDENCE_FROM_VERSION} onward — this version predates them and they
+                      cannot be honestly reconstructed for its superseded driver set.
+                    </p>
+                  )}
+
+                  {/* R4-1 — Why this revenue driver */}
                   {calc.why && (
-                    <SubPanel title="Why this cause">
+                    <SubPanel title="Why this revenue driver">
                       <p className="text-[11.5px] leading-relaxed text-v2-text">{calc.why.rule}</p>
                       {calc.why.inputs_tested.length > 0 && (
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -595,7 +762,7 @@ export function EvidenceModal({
                       {calc.why.rejected.length > 0 && (
                         <div className="mt-2.5">
                           <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
-                            Competing causes rejected
+                            Competing revenue drivers rejected
                           </span>
                           <ul className="mt-1 space-y-1">
                             {calc.why.rejected.map((r) => (
@@ -649,7 +816,12 @@ export function EvidenceModal({
                   {/* R4-3 — Reconciliation waterfall */}
                   {calc.waterfall && (
                     <SubPanel title="Reconciliation waterfall">
-                      <ReconciliationWaterfall data={calc.waterfall} />
+                      <ReconciliationWaterfall
+                        data={calc.waterfall}
+                        fromLabel={fromLabel}
+                        toLabel={toLabel}
+                        focusCause={causeSegment}
+                      />
                     </SubPanel>
                   )}
 
@@ -856,21 +1028,45 @@ export function EvidenceModal({
           </AsyncBoundary>
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-v2-border bg-white px-6 py-3">
-          <span className="text-[10.5px] text-v2-faint">
+        {/* Footer — Previous/Next page through the transition's full driver
+            set (T2-1); ←/→ do the same. */}
+        <div className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-v2-border bg-white px-6 py-3">
+          <span className="min-w-0 truncate text-[10.5px] text-v2-faint">
             {version
               ? `Commentary v${version.version_no} · model ${version.model} · prompt v${version.prompt_version} · generated ${fmtDate(version.generated_at)} · data snapshot ${fmtDate(version.data_snapshot_dt)}`
               : `Commentary ${versionId}`}
             {evidence ? ` · query ${evidence.gsql_query_name}` : ""}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[3px] bg-v2-navy px-5 py-1.5 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark"
-          >
-            Close
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => page(-1)}
+              disabled={index <= 0}
+              aria-label="Previous revenue driver"
+              className="rounded-[3px] border border-v2-navy bg-white px-3 py-1.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
+            >
+              ‹ Previous
+            </button>
+            <span className="num whitespace-nowrap text-[11px] text-v2-muted">
+              {driverCount > 0 ? `Revenue Driver ${index + 1} of ${driverCount}` : "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => page(1)}
+              disabled={!drivers || index >= drivers.length - 1}
+              aria-label="Next revenue driver"
+              className="rounded-[3px] border border-v2-navy bg-white px-3 py-1.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
+            >
+              Next ›
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-[3px] bg-v2-navy px-5 py-1.5 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

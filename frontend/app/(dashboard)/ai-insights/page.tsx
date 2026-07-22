@@ -179,13 +179,13 @@ export default function AiInsightsPage() {
 
       {modal && advisorId && (
         <EvidenceModal
-          driverId={modal.driverId}
           versionId={modal.versionId}
           advisorId={advisorId}
           advisorName={advisor?.advisor_name ?? ""}
+          fromMonthId={modal.fromMonthId}
+          toMonthId={modal.toMonthId}
           transitionLabel={modal.transitionLabel}
-          driverIndex={modal.driverIndex}
-          driverCount={modal.driverCount}
+          initialDriverId={modal.initialDriverId}
           onClose={() => setModal(null)}
         />
       )}

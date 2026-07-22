@@ -250,12 +250,14 @@ function TransitionCard({
                 <button
                   type="button"
                   onClick={() =>
+                    // T2-2 — open at THIS driver, with the transition's full
+                    // set loaded so the user can page to the others.
                     onOpenEvidence({
-                      driverId: b.driver_id,
                       versionId,
+                      fromMonthId: row.from_month_id,
+                      toMonthId: row.to_month_id,
                       transitionLabel,
-                      driverIndex: i + 1,
-                      driverCount: bullets.length,
+                      initialDriverId: b.driver_id,
                     })
                   }
                   className="mt-1 text-[11px] text-v2-link hover:underline"

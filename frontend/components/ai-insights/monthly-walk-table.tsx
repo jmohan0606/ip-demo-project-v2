@@ -9,18 +9,8 @@ import type { EvidenceRequest } from "@/components/ai-insights/types";
 import { downloadCsv } from "@/components/ai-insights/export-csv";
 import { latestPublished } from "@/components/ai-insights/commentary-cards";
 import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
-import type { CommentaryBullet, CommentaryRow, CommentaryVersion, MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
+import type { CommentaryRow, CommentaryVersion, MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
 import { fmtMoney, fmtPct, monthFull, monthShort } from "@/lib/v2/format";
-
-function topDriver(row: CommentaryRow): { driver: CommentaryBullet; count: number } | null {
-  try {
-    const bullets = JSON.parse(row.bullets_json || "[]") as CommentaryBullet[];
-    if (!Array.isArray(bullets) || bullets.length === 0) return null;
-    return { driver: bullets[0], count: bullets.length };
-  } catch {
-    return null;
-  }
-}
 
 export function MonthlyWalkTable({
   totals,
@@ -128,7 +118,6 @@ export function MonthlyWalkTable({
               const baseline = i === 0;
               const change = baseline ? null : changeByTo.get(m) ?? null;
               const commentary = baseline ? null : commentaryByTo.get(m) ?? null;
-              const top = commentary ? topDriver(commentary) : null;
               const up = (change?.change_amt ?? 0) >= 0;
               const changeCls = up ? "text-v2-positive" : "text-v2-negative";
               return (
@@ -158,16 +147,18 @@ export function MonthlyWalkTable({
                     )}
                   </td>
                   <td className="px-3 py-3 text-right">
-                    {!baseline && top && commentary && (
+                    {!baseline && commentary && (
                       <button
                         type="button"
                         onClick={() =>
+                          // T2-2 — transition-level entry: open at driver 1
+                          // with the FULL set for the transition (the modal
+                          // loads and pages the whole set, not just the top).
                           onOpenEvidence({
-                            driverId: top.driver.driver_id,
                             versionId: resolvedVersion || commentary.version_id,
+                            fromMonthId: commentary.from_month_id,
+                            toMonthId: commentary.to_month_id,
                             transitionLabel: `${monthFull(commentary.from_month_id)} → ${monthFull(commentary.to_month_id)}`,
-                            driverIndex: 1,
-                            driverCount: top.count,
                           })
                         }
                         className="rounded-[3px] border border-v2-border bg-white px-2.5 py-1 text-[11px] text-v2-link hover:bg-v2-sub-bg"

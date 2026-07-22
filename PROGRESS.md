@@ -87,13 +87,13 @@ Resume from: T1-1
 | T1-4 | T1 | MIX-magnitude in verification/report | DONE | 5c4b7bf | verify suite prints MIX share per transition; all ≤1.0% |
 | T1-5 | T1 | regenerate commentary; reconcile $0.00 + MIX small | DONE | (this) | v9 published 6/6, 88 evidence; verify OVERALL PASS. v8 had 1 BLOCKED from guardrail reading reason code "9E" as figure "9" — regex fixed (lookahead), kept as history |
 | T1-6 | T1 | relabel total_revenue → in_scope; OUT_OF_GRID near-empty check | DONE | 5c4b7bf/(this) | UI ledger label "In-scope revenue" + grid-type footnote (field name unchanged — presentation change per T4-1 principle); OUT_OF_GRID composition check loud in verify |
-| T2-1 | T2 | evidence modal takes driver SET + Prev/Next | TODO | | |
-| T2-2 | T2 | unify walk + card entry points | TODO | | |
-| T2-3 | T2 | efficient full-set load | TODO | | |
-| T2-4 | T2 | header reflects current driver | TODO | | |
-| T3-1 | T3 | old-version evidence: backfill or explicit label | TODO | | |
-| T3-2 | T3 | reconciliation waterfall overhaul + focus highlight | TODO | | |
-| T3-3 | T3 | fix double-parenthesis header | TODO | | |
+| T2-1 | T2 | evidence modal takes driver SET + Prev/Next | DONE | (this) | modal loads full ranked set via GQ-008; Prev/Next + ←/→; Esc closes |
+| T2-2 | T2 | unify walk + card entry points | DONE | (this) | walk opens at driver 1; card bullet opens at that driver; both carry full set |
+| T2-3 | T2 | efficient full-set load | DONE | (this) | driver set once per open; evidence lazy per driver, cached |
+| T2-4 | T2 | header reflects current driver | DONE | (this) | title/amount/badge/tag + "Revenue Driver n of N" update on page |
+| T3-1 | T3 | old-version evidence: backfill or explicit label | DONE | (this) | LABEL (not backfill): v1-v6 driver sets superseded by data regenerations — honest backfill impossible; explicit notices, no blank panels |
+| T3-2 | T3 | reconciliation waterfall overhaul + focus highlight | DONE | (this) | plain-English lead, focus highlight follows paging, how-to-read expander, completeness note |
+| T3-3 | T3 | fix double-parenthesis header | DONE | (this) | header now ▲/▼ + single-parens colored; audited repo — no other double-wrap |
 | T4-1 | T4 | rename cause → Revenue Driver(s) in UI | TODO | | |
 | T4-2 | T4 | drivers as a titled column in cards | TODO | | |
 | T4-3 | T4 | Revenue-Driver glossary popup | TODO | | |
