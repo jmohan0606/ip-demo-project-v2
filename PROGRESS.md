@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-22T11:00:00Z
-Current phase: ROUND 3 (FIX_SPEC_R3.md) — COMPLETE
-Resume from: — (all T-tasks DONE)
+Last updated: 2026-07-22T12:00:00Z
+Current phase: ROUND 4 (FIX_SPEC_R4.md) — work-stream A
+Resume from: S-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -9,6 +9,7 @@ Resume from: — (all T-tasks DONE)
 | 1 | 2026-07-20 | 2026-07-20 | fresh start | Phases 0-7 complete in one session; DoD met |
 | 2 | 2026-07-21 | 2026-07-21 | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
 | 3 | 2026-07-22 | 2026-07-22 | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 all DONE; verify OVERALL PASS; 8/8 screens 0 console errors |
+| 4 | 2026-07-22 | | round 4 fresh start | FIX_SPEC_R4.md: S-A (UI fixes) then S-B (real-data pipeline) |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -108,6 +109,17 @@ Resume from: — (all T-tasks DONE)
 | T7-2 | T7 | AI-chip adjacency on card header | DONE | (this) | computed count on own line behind hairline: "N transactions · computed from graph data" |
 | T8-1 | T8 | .gitignore CRLF / data/real protection | DONE | (this) | .gitignore is LF (ASCII); `git check-ignore data/real/x` prints path — protected |
 | T8-2 | T8 | app/models tracked | DONE | (this) | `git ls-files app/models` → 6 files tracked |
+| S-A1 | R4-A | Portal the glossary dialog; fix `<h2>`-in-`<p>` on both screens | DONE | (next) | createPortal(document.body) inside RevenueDriverGlossaryDialog — all usages safe; audited: EvidenceModal renders at page level, no other inline dialogs |
+| S-A2 | R4-A | Evidence modal single-scoped; waterfall rebuilt per clicked group | IN_PROGRESS | | started 2026-07-22T12:05Z |
+| S-A3 | R4-A | Driver paging scoped to the clicked group; consistent count + caption | TODO | | |
+| S-A4 | R4-A | Compare-two: prevent duplicate selection + slot-scoped keys | TODO | | |
+| S-A5 | R4-A | Regression sweep + fresh Playwright screenshots, zero console errors | TODO | | |
+| S-B1 | R4-B | Raw-extract contract (filenames, location, columns) documented + validated | TODO | | |
+| S-B2 | R4-B | scripts/build_real_data.py reusing app/v2 transform functions | TODO | | |
+| S-B3 | R4-B | data_source stamping centralised; sample + real use same helper | TODO | | |
+| S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | TODO | | |
+| S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | TODO | | |
+| S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | TODO | | |
 
 ## Decisions
 | When | Decision | Why |

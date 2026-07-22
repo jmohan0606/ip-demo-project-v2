@@ -8,6 +8,7 @@
  * Market / Net Flow carry the DUMMY badge: modelled, awaiting data.
  */
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ProvenanceBadge } from "@/components/patterns/provenance-badge";
 
 interface GlossaryRow {
@@ -126,7 +127,12 @@ export function RevenueDriverGlossaryDialog({ onClose }: { onClose: () => void }
     };
   }, [onClose]);
 
-  return (
+  // S-A1 — portal to document.body: the trigger link lives inside a <p> on
+  // two screens, and a dialog rendered as its sibling puts an <h2> inside
+  // that <p> (invalid HTML → 8 hydration errors). The portal guarantees the
+  // dialog is never a DOM descendant of its trigger. The dialog only mounts
+  // after a click, so document is always available.
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-10"
       onClick={onClose}
@@ -186,7 +192,8 @@ export function RevenueDriverGlossaryDialog({ onClose }: { onClose: () => void }
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
