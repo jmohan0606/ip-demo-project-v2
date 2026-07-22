@@ -1,13 +1,14 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-21T17:00:00Z
-Current phase: ROUND 2 (FIX_SPEC.md) — COMPLETE
-Resume from: — (all R-tasks DONE)
+Last updated: 2026-07-22T00:00:00Z
+Current phase: ROUND 3 (FIX_SPEC_R3.md)
+Resume from: T1-1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
 |---|---------|-------|--------------|-------|
 | 1 | 2026-07-20 | 2026-07-20 | fresh start | Phases 0-7 complete in one session; DoD met |
-| 2 | 2026-07-21 | | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
+| 2 | 2026-07-21 | 2026-07-21 | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
+| 3 | 2026-07-22 | | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -80,6 +81,33 @@ Resume from: — (all R-tasks DONE)
 | R7-2 | R7 | "AI Generated" chips + boundary helper text | DONE | a40815f | 4 marked regions, no computed figure marked; CSV footers |
 | R8-1 | R8 | V1 dead-reference cleanup | DONE | 076df02 | 22 dead files removed; app/models gitignore bug fixed |
 | R9-1 | R9 | SOLUTION_GUIDE.md | DONE | (this) | 10 chapters, worked examples from sample data |
+| T1-1 | T1 | LATE_PROCESSING driver cause + seed | TODO | | |
+| T1-2 | T1 | audit identity subtrahends for missing drivers | TODO | | |
+| T1-3 | T1 | MIX >15% self-check (WARNING) | TODO | | |
+| T1-4 | T1 | MIX-magnitude in verification/report | TODO | | |
+| T1-5 | T1 | regenerate commentary; reconcile $0.00 + MIX small | TODO | | |
+| T1-6 | T1 | relabel total_revenue → in_scope; OUT_OF_GRID near-empty check | TODO | | |
+| T2-1 | T2 | evidence modal takes driver SET + Prev/Next | TODO | | |
+| T2-2 | T2 | unify walk + card entry points | TODO | | |
+| T2-3 | T2 | efficient full-set load | TODO | | |
+| T2-4 | T2 | header reflects current driver | TODO | | |
+| T3-1 | T3 | old-version evidence: backfill or explicit label | TODO | | |
+| T3-2 | T3 | reconciliation waterfall overhaul + focus highlight | TODO | | |
+| T3-3 | T3 | fix double-parenthesis header | TODO | | |
+| T4-1 | T4 | rename cause → Revenue Driver(s) in UI | TODO | | |
+| T4-2 | T4 | drivers as a titled column in cards | TODO | | |
+| T4-3 | T4 | Revenue-Driver glossary popup | TODO | | |
+| T5-1 | T5 | remove dead legend dropdown | TODO | | |
+| T5-2 | T5 | view-mode control (single / compare two / all) | TODO | | |
+| T5-3 | T5 | clickable chart arrows → single view | TODO | | |
+| T5-4 | T5 | static walk version selector | TODO | | |
+| T6-1 | T6 | real data export (CSV/Excel) from stored data | TODO | | |
+| T6-2 | T6 | presentation PDF export | TODO | | |
+| T6-3 | T6 | two themed export buttons + AI marking in output | TODO | | |
+| T7-1 | T7 | button theming | TODO | | |
+| T7-2 | T7 | AI-chip adjacency on card header | TODO | | |
+| T8-1 | T8 | .gitignore CRLF / data/real protection | TODO | | |
+| T8-2 | T8 | app/models tracked | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
