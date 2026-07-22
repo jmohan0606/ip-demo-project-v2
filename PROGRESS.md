@@ -94,9 +94,9 @@ Resume from: T1-1
 | T3-1 | T3 | old-version evidence: backfill or explicit label | DONE | (this) | LABEL (not backfill): v1-v6 driver sets superseded by data regenerations — honest backfill impossible; explicit notices, no blank panels |
 | T3-2 | T3 | reconciliation waterfall overhaul + focus highlight | DONE | (this) | plain-English lead, focus highlight follows paging, how-to-read expander, completeness note |
 | T3-3 | T3 | fix double-parenthesis header | DONE | (this) | header now ▲/▼ + single-parens colored; audited repo — no other double-wrap |
-| T4-1 | T4 | rename cause → Revenue Driver(s) in UI | TODO | | |
-| T4-2 | T4 | drivers as a titled column in cards | TODO | | |
-| T4-3 | T4 | Revenue-Driver glossary popup | TODO | | |
+| T4-1 | T4 | rename cause → Revenue Driver(s) in UI | DONE | (this) | labels/panel titles/tooltips + evidence wording maps; cause_id fields untouched; v10 generated with new wording |
+| T4-2 | T4 | drivers as a titled column in cards | DONE | (this) | "Revenue Drivers" column header + Source·Driver header on card rows |
+| T4-3 | T4 | Revenue-Driver glossary popup | DONE | (this) | 15 drivers (spec's 14 + EXCLUDED_CHANGE from T1-2) w/ meaning+computation; DUMMY badges on Market/Net Flow; links on AI-Insights + evidence modal; SOLUTION_GUIDE ch.6 references it |
 | T5-1 | T5 | remove dead legend dropdown | TODO | | |
 | T5-2 | T5 | view-mode control (single / compare two / all) | TODO | | |
 | T5-3 | T5 | clickable chart arrows → single view | TODO | | |

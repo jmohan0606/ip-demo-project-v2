@@ -384,7 +384,7 @@ The stored drivers for this transition (`revenue_driver.csv`), ranked by |contri
 
 Sum of contributions: **($29,745.28)** — exactly the total change. Discrepancy $0.00.
 
-### 6.3 The 12-step attribution order, and why order matters
+### 6.3 The 14-step attribution order, and why order matters
 
 Per group, steps run in this fixed order (`attribute_group()`); each step **claims**
 part of the change and **removes its transactions from all later steps**:
@@ -393,16 +393,27 @@ part of the change and **removes its transactions from all later steps**:
  1. NEW_ACCOUNT / LOST_ACCOUNT      (advisor-level account presence)
  2. ONE_TIME                        (rev_nature ONE_TIME delta)
  3. ELIGIBILITY                     (credited <-> non-credited movement)   [Round 2]
- 4. CLAWBACK                        (negative-amount rows delta)
- 5. TIMING                          (quarterly-billed group in one month only)
- 6. FEE_RATE                        (effective bps movement on the remaining base)
- 7. DISCOUNT                        (discounting delta on the remainder)
- 8. BILLABLE_DAYS                   (recurring groups; business-day count)
- 9. VOLUME                          (transaction-count effect, non-recurring groups)
-10. MARKET                          (DUMMY placeholder, $0.00)
-11. NET_FLOW                        (DUMMY placeholder, $0.00)
-12. MIX                             (the remainder)
+ 4. LATE_PROCESSING                 (90-day-rule movement, -(Δ late-excluded)) [Round 3]
+ 5. EXCLUDED_CHANGE                 (credited <-> excluded movement, e.g. 9X)  [Round 3]
+ 6. CLAWBACK                        (negative-amount rows delta)
+ 7. TIMING                          (quarterly-billed group in one month only)
+ 8. FEE_RATE                        (effective bps movement on the remaining base)
+ 9. DISCOUNT                        (discounting delta on the remainder)
+10. BILLABLE_DAYS                   (recurring groups; business-day count)
+11. VOLUME                          (transaction-count effect, non-recurring groups)
+12. MARKET                          (DUMMY placeholder, $0.00)
+13. NET_FLOW                        (DUMMY placeholder, $0.00)
+14. MIX                             (the remainder)
 ```
+
+**The Revenue-Driver glossary is the client-facing form of this list** — the UI's
+"What do these mean?" popup and this chapter share one source
+(`frontend/components/patterns/revenue-driver-glossary.tsx`): every driver's display
+name, plain-English meaning, and how it is computed. Round 3 guarantees every
+subtrahend of the credited identity has a named driver (`credited = in-scope total −
+non-credited − late-excluded`, with EXCLUDED outside every figure and OUT_OF_GRID
+static by construction), and a self-check WARNs whenever |MIX| exceeds 15% of a
+transition's change — a large residual means a driver is missing, not "product mix".
 
 Why this matters, in three sentences:
 

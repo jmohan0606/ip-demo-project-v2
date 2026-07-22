@@ -16,10 +16,13 @@ export function ProvenanceBadge({ value, className = "" }: { value: string; clas
   );
 }
 
-/** Cause tag — deliberately quieter than the provenance badge. */
+/** Revenue-driver tag — deliberately quieter than the provenance badge.
+ * (Internally still keyed by cause_id; "Revenue Driver" is the client's term
+ * for the concept — labels only, data fields unchanged, T4-1.) */
 export function CauseTag({ causeId, className = "" }: { causeId: string; className?: string }) {
   return (
     <span
+      title="Revenue driver"
       className={`inline-block rounded-full bg-v2-header-bg px-2 py-0.5 text-[9.5px] font-semibold uppercase text-v2-navy ${className}`}
     >
       {causeId.replace(/_/g, "-")}

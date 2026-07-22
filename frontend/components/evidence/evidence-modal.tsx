@@ -23,6 +23,7 @@ import {
 } from "@/components/patterns/ai-generated-chip";
 import { AsyncBoundary } from "@/components/patterns/async-state";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
+import { GlossaryLink } from "@/components/patterns/revenue-driver-glossary";
 
 interface CalcComponent {
   label: string;
@@ -668,7 +669,7 @@ export function EvidenceModal({
 
                 {/* 2 — Calculation */}
                 <section>
-                  <SectionHeader n={2} title="Calculation" />
+                  <SectionHeader n={2} title="Calculation" extra={<GlossaryLink />} />
                   <p className="mb-2 text-[11.5px] text-v2-muted">
                     Each component is aggregated directly from transaction records in the graph.
                   </p>

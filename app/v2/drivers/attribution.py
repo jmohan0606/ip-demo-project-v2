@@ -279,8 +279,8 @@ def attribute_group(
     if abs(remainder) >= 0.005:
         emit("MIX", remainder, {
             "change_amt": round(change_amt, 2),
-            "sum_of_attributed_causes": round(claimed - remainder, 2),
-            "formula": "change_amt - sum(all attributed causes)",
+            "sum_of_attributed_drivers": round(claimed - remainder, 2),
+            "formula": "change_amt - sum(all attributed revenue drivers)",
         })
     return drivers
 

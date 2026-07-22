@@ -14,6 +14,7 @@ import {
   JudgeBadge,
 } from "@/components/patterns/ai-generated-chip";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
+import { GlossaryLink } from "@/components/patterns/revenue-driver-glossary";
 import type {
   CommentaryBullet,
   CommentaryEvaluation,
@@ -108,7 +109,8 @@ export function CommentaryCards({
             What is driving the changes in my month-over-month credited revenue?
           </h2>
           <p className="mt-0.5 text-[11.5px] text-v2-muted">
-            One card per month-over-month move · five drivers ranked by impact · every figure computed from graph data
+            One card per month-over-month move · five revenue drivers ranked by impact · every
+            figure computed from graph data · <GlossaryLink />
           </p>
           <p className="mt-1 text-[10.5px] text-v2-faint">{AI_BOUNDARY_TEXT}</p>
         </div>
@@ -235,7 +237,18 @@ function TransitionCard({
           {row.blocked_reason || "Validation failed — reason not recorded."}
         </div>
       ) : (
-        <div className="flex-1 divide-y divide-v2-border-subtle px-4">
+        <div className="flex-1 px-4">
+          {/* T4-2 — the ✓/✗ rows are the transition's revenue drivers; a
+              first-time viewer gets an explicit column header saying so. */}
+          <div className="flex items-center justify-between border-b border-v2-border pb-1.5 pt-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
+              Revenue Drivers
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.5px] text-v2-muted">
+              Source · Driver
+            </span>
+          </div>
+          <div className="divide-y divide-v2-border-subtle">
           {bullets.map((b, i) => (
             <div key={b.driver_id || i} className="flex items-start gap-2.5 py-2.5">
               <span
@@ -271,6 +284,7 @@ function TransitionCard({
               </div>
             </div>
           ))}
+          </div>
         </div>
       )}
 

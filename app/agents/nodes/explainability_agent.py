@@ -89,7 +89,7 @@ _CAUSE_WHY: dict[str, dict] = {
              "rev_nature is tested, so it is not double-counted as a one-time item"},
             {"cause": "VOLUME", "reason": "count growth caused by accounts present in only one "
              "month is an account opening, not organic volume — those rows are removed first"},
-            {"cause": "MIX", "reason": "a genuinely new account is an explicit cause and is "
+            {"cause": "MIX", "reason": "a genuinely new account is an explicit revenue driver and is "
              "claimed before anything falls to the residual"},
         ],
     },
@@ -105,7 +105,7 @@ _CAUSE_WHY: dict[str, dict] = {
              "activity, so a household crossing an eligibility threshold is not read as lost"},
             {"cause": "VOLUME", "reason": "count decline caused by accounts absent in {to_m} is "
              "an account closure, not organic volume — those rows are removed first"},
-            {"cause": "MIX", "reason": "a genuinely lost account is an explicit cause and is "
+            {"cause": "MIX", "reason": "a genuinely lost account is an explicit revenue driver and is "
              "claimed before anything falls to the residual"},
         ],
     },
@@ -241,7 +241,7 @@ _CAUSE_WHY: dict[str, dict] = {
     "VOLUME": {
         "rule": "Transaction-based (non-recurring-class) groups: contribution = "
                 "(to_txn_count - from_txn_count) x from-month average transaction value, "
-                "computed after every earlier cause removed its rows.",
+                "computed after every earlier revenue driver removed its rows.",
         "inputs_tested": ["remaining transaction counts per month",
                           "from-month average transaction value"],
         "rejected": [
@@ -264,13 +264,13 @@ _CAUSE_WHY: dict[str, dict] = {
         "rejected": [],
     },
     "MIX": {
-        "rule": "The remainder after every explicit cause claimed its portion: "
-                "change_amt - sum(attributed causes). This is what makes the drivers "
+        "rule": "The remainder after every explicit revenue driver claimed its portion: "
+                "change_amt - sum(attributed revenue drivers). This is what makes the drivers "
                 "reconcile to the total change by construction; economically it is shifts "
                 "between products at different rates.",
-        "inputs_tested": ["group change_amt", "sum of all earlier attributed causes"],
+        "inputs_tested": ["group change_amt", "sum of all earlier attributed revenue drivers"],
         "rejected": [
-            {"cause": "ALL_EARLIER_STEPS", "reason": "every measurable cause claimed its "
+            {"cause": "ALL_EARLIER_STEPS", "reason": "every measurable revenue driver claimed its "
              "portion first; MIX is only what none of them explained"},
         ],
     },
