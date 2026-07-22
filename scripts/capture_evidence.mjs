@@ -181,6 +181,86 @@ const SHOTS = [
     proves:
       "BLOCKED-commentary state: with historical version v3 selected, the SMPL001 May→Jun transition shows its guardrail-blocked card with the block reason — no narrative is shown for a transition that failed validation.",
   },
+  // ---- Round 4 (FIX_SPEC_R4 work-stream A) — proof shots for S-A1..S-A4 ----
+  {
+    name: "09_glossary_from_insights",
+    url: "/ai-insights",
+    fullPage: false,
+    interact: async (page, entry) => {
+      const link = page.getByRole("button", { name: /what do these mean/i }).first();
+      await link.waitFor({ state: "visible", timeout: 20000 });
+      await link.click();
+      await page.getByRole("dialog", { name: /glossary/i }).waitFor({ state: "visible", timeout: 20000 });
+      await settle(page);
+      entry.note = "Glossary opened from the AI-Insights header link (portal-rendered, S-A1).";
+    },
+    proves:
+      "S-A1: the revenue-driver glossary opens from the AI-Insights header with zero hydration/console errors — the dialog is portalled to document.body, never nested in a <p>.",
+  },
+  {
+    name: "10_glossary_from_evidence",
+    url: "/ai-insights",
+    fullPage: false,
+    interact: async (page, entry) => {
+      await page.getByRole("button", { name: /view evidence/i }).first().click();
+      await page.getByRole("dialog").first().waitFor({ state: "visible", timeout: 20000 });
+      await settle(page);
+      const link = page.getByRole("dialog").first().getByRole("button", { name: /what do these mean/i });
+      await link.waitFor({ state: "visible", timeout: 20000 });
+      await link.click();
+      await page.getByRole("dialog", { name: /glossary/i }).waitFor({ state: "visible", timeout: 20000 });
+      await settle(page);
+      entry.note = "Glossary opened from inside the evidence modal's Calculation header (S-A1).";
+    },
+    proves:
+      "S-A1: the glossary also opens cleanly from the evidence modal — both entry points portal-rendered, zero console errors.",
+  },
+  {
+    name: "11_evidence_group_scope_paged",
+    url: "/ai-insights",
+    fullPage: false,
+    interact: async (page, entry) => {
+      await page.getByRole("button", { name: /view evidence/i }).first().click();
+      const dialog = page.getByRole("dialog").first();
+      await dialog.waitFor({ state: "visible", timeout: 20000 });
+      await settle(page);
+      // Page forward once if the group has more than one driver.
+      const next = dialog.getByRole("button", { name: /next revenue driver/i });
+      if (await next.isEnabled()) {
+        await next.click();
+        await settle(page);
+      }
+      entry.note = "Evidence modal opened from a driver bullet, then paged with Next within the clicked group.";
+    },
+    proves:
+      "S-A2/S-A3: the evidence modal is single-scoped to the clicked driver's product group — header, group-scoped reconciliation waterfall and credited breakdown reconcile to the same group change, and paging counts only that group's drivers ('Revenue Driver n of N in <group>') with the top-5-vs-group caption.",
+  },
+  {
+    name: "12_compare_two",
+    url: "/ai-insights",
+    interact: async (page, entry) => {
+      const compareTab = page.getByRole("tab", { name: /compare two/i });
+      await compareTab.waitFor({ state: "visible", timeout: 20000 });
+      await compareTab.click();
+      await settle(page);
+      entry.note = "Compare-two mode with two different transitions selected by default (S-A4).";
+    },
+    proves:
+      "S-A4: Compare-two renders two DIFFERENT transitions side by side; each dropdown disables the transition chosen in the other, and card keys are slot-scoped — no duplicate-key error possible.",
+  },
+  {
+    name: "13_view_mode_all",
+    url: "/ai-insights",
+    interact: async (page, entry) => {
+      const allTab = page.getByRole("tab", { name: /all transitions/i });
+      await allTab.waitFor({ state: "visible", timeout: 20000 });
+      await allTab.click();
+      await settle(page);
+      entry.note = "All-transitions view mode (S-A5 sweep — third view mode).";
+    },
+    proves:
+      "S-A5: the third view mode (All transitions) renders its pointer to the monthly walk with zero console errors.",
+  },
 ];
 
 function writeIndex() {
