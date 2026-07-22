@@ -97,10 +97,10 @@ Resume from: T1-1
 | T4-1 | T4 | rename cause → Revenue Driver(s) in UI | DONE | (this) | labels/panel titles/tooltips + evidence wording maps; cause_id fields untouched; v10 generated with new wording |
 | T4-2 | T4 | drivers as a titled column in cards | DONE | (this) | "Revenue Drivers" column header + Source·Driver header on card rows |
 | T4-3 | T4 | Revenue-Driver glossary popup | DONE | (this) | 15 drivers (spec's 14 + EXCLUDED_CHANGE from T1-2) w/ meaning+computation; DUMMY badges on Market/Net Flow; links on AI-Insights + evidence modal; SOLUTION_GUIDE ch.6 references it |
-| T5-1 | T5 | remove dead legend dropdown | TODO | | |
-| T5-2 | T5 | view-mode control (single / compare two / all) | TODO | | |
-| T5-3 | T5 | clickable chart arrows → single view | TODO | | |
-| T5-4 | T5 | static walk version selector | TODO | | |
+| T5-1 | T5 | remove dead legend dropdown | DONE | (this) | T-3 dead control removed entirely |
+| T5-2 | T5 | view-mode control (single / compare two / all) | DONE | (this) | segmented control; single default w/ transition dropdown; compare 2 dropdowns; all → walk anchor |
+| T5-3 | T5 | clickable chart arrows → single view | DONE | (this) | arrows + pills clickable (wide hit area); selected arrow heavier + pill ring |
+| T5-4 | T5 | static walk version selector | DONE | (this) | walk inherits top selector; static "Version N (latest)" text |
 | T6-1 | T6 | real data export (CSV/Excel) from stored data | TODO | | |
 | T6-2 | T6 | presentation PDF export | TODO | | |
 | T6-3 | T6 | two themed export buttons + AI marking in output | TODO | | |

@@ -5,6 +5,7 @@
  * five ranked driver rows each, provenance badge + cause tag, evidence links.
  * Commentary is retrieved (stored + versioned) — never generated on load.
  */
+import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import type { EvidenceRequest } from "@/components/ai-insights/types";
 import { downloadCsv } from "@/components/ai-insights/export-csv";
@@ -76,6 +77,10 @@ export function CommentaryCards({
   onRegenerate,
   busy,
   onOpenEvidence,
+  viewMode = "single",
+  onViewMode,
+  selectedTo = "",
+  onSelectTo,
 }: {
   rows: CommentaryRow[];
   totals: MonthlyTotals | null;
@@ -88,6 +93,12 @@ export function CommentaryCards({
   onRegenerate: () => void;
   busy: boolean;
   onOpenEvidence: (req: EvidenceRequest) => void;
+  /** T5-2 — Single transition (default) / Compare two / All transitions. */
+  viewMode?: "single" | "compare" | "all";
+  onViewMode?: (mode: "single" | "compare" | "all") => void;
+  /** to-month of the transition in Single mode ("" = latest). */
+  selectedTo?: string;
+  onSelectTo?: (toMonthId: string) => void;
 }) {
   const latest = latestPublished(versions);
   const sorted = [...rows].sort((a, b) => a.from_month_id.localeCompare(b.from_month_id));
@@ -166,18 +177,155 @@ export function CommentaryCards({
           </button>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          {sorted.map((row) => (
-            <TransitionCard
-              key={row.commentary_id}
-              row={row}
-              totals={totals}
-              versionId={resolvedVersion || row.version_id}
-              versionMeta={versionMeta ?? null}
-              evaluation={evaluationFor(row)}
-              onOpenEvidence={onOpenEvidence}
-            />
+        <TransitionViews
+          sorted={sorted}
+          totals={totals}
+          versionId={resolvedVersion}
+          versionMeta={versionMeta ?? null}
+          evaluationFor={evaluationFor}
+          onOpenEvidence={onOpenEvidence}
+          viewMode={viewMode}
+          onViewMode={onViewMode}
+          selectedTo={selectedTo}
+          onSelectTo={onSelectTo}
+        />
+      )}
+    </div>
+  );
+}
+
+const transitionLabelOf = (r: CommentaryRow) =>
+  `${monthFull(r.from_month_id)} → ${monthFull(r.to_month_id)}`;
+
+/** T5-2 — the driver section's view-mode control, built for the 12-month
+ * target state: Single transition (default) focuses one month-over-month with
+ * full detail; Compare two keeps the side-by-side view; All transitions points
+ * at the monthly walk table. */
+function TransitionViews({
+  sorted,
+  totals,
+  versionId,
+  versionMeta,
+  evaluationFor,
+  onOpenEvidence,
+  viewMode,
+  onViewMode,
+  selectedTo,
+  onSelectTo,
+}: {
+  sorted: CommentaryRow[];
+  totals: MonthlyTotals | null;
+  versionId: string;
+  versionMeta: CommentaryVersion | null;
+  evaluationFor: (row: CommentaryRow) => CommentaryEvaluation | null;
+  onOpenEvidence: (req: EvidenceRequest) => void;
+  viewMode: "single" | "compare" | "all";
+  onViewMode?: (mode: "single" | "compare" | "all") => void;
+  selectedTo: string;
+  onSelectTo?: (toMonthId: string) => void;
+}) {
+  const single =
+    sorted.find((r) => r.to_month_id === selectedTo) ?? sorted[sorted.length - 1];
+  const [compareA, setCompareA] = useState(sorted[0]?.to_month_id ?? "");
+  const [compareB, setCompareB] = useState(sorted[1]?.to_month_id ?? sorted[0]?.to_month_id ?? "");
+  const byTo = (to: string) => sorted.find((r) => r.to_month_id === to) ?? null;
+  const compareRows = [byTo(compareA), byTo(compareB)].filter(
+    (r): r is CommentaryRow => r != null,
+  );
+
+  const modes: { key: "single" | "compare" | "all"; label: string }[] = [
+    { key: "single", label: "Single transition" },
+    { key: "compare", label: "Compare two" },
+    { key: "all", label: "All transitions" },
+  ];
+  const selectCls = "h-7 rounded-[3px] border border-v2-border bg-white px-1.5 text-[11.5px]";
+
+  const card = (row: CommentaryRow) => (
+    <TransitionCard
+      key={row.commentary_id}
+      row={row}
+      totals={totals}
+      versionId={versionId || row.version_id}
+      versionMeta={versionMeta}
+      evaluation={evaluationFor(row)}
+      onOpenEvidence={onOpenEvidence}
+    />
+  );
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div
+          role="tablist"
+          aria-label="Transition view mode"
+          className="flex overflow-hidden rounded-[3px] border border-v2-border"
+        >
+          {modes.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              role="tab"
+              aria-selected={viewMode === m.key}
+              onClick={() => onViewMode?.(m.key)}
+              className={`h-7 px-3 text-[11.5px] font-semibold ${
+                viewMode === m.key
+                  ? "bg-v2-navy text-white"
+                  : "bg-white text-v2-navy hover:bg-v2-sub-bg"
+              }`}
+            >
+              {m.label}
+            </button>
           ))}
+        </div>
+        {viewMode === "single" && (
+          <select
+            value={single?.to_month_id ?? ""}
+            onChange={(e) => onSelectTo?.(e.target.value)}
+            aria-label="Transition"
+            className={selectCls}
+          >
+            {sorted.map((r) => (
+              <option key={r.to_month_id} value={r.to_month_id}>
+                {transitionLabelOf(r)}
+              </option>
+            ))}
+          </select>
+        )}
+        {viewMode === "compare" && (
+          <>
+            <select value={compareA} onChange={(e) => setCompareA(e.target.value)} aria-label="First transition" className={selectCls}>
+              {sorted.map((r) => (
+                <option key={r.to_month_id} value={r.to_month_id}>{transitionLabelOf(r)}</option>
+              ))}
+            </select>
+            <span className="text-[11px] text-v2-muted">vs</span>
+            <select value={compareB} onChange={(e) => setCompareB(e.target.value)} aria-label="Second transition" className={selectCls}>
+              {sorted.map((r) => (
+                <option key={r.to_month_id} value={r.to_month_id}>{transitionLabelOf(r)}</option>
+              ))}
+            </select>
+          </>
+        )}
+        {viewMode === "single" && (
+          <span className="text-[10.5px] text-v2-faint">
+            Tip: click a chart arrow above to focus that transition.
+          </span>
+        )}
+      </div>
+
+      {viewMode === "single" && single && (
+        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)]">{card(single)}</div>
+      )}
+      {viewMode === "compare" && (
+        <div className="mt-3 grid grid-cols-2 gap-4">{compareRows.map(card)}</div>
+      )}
+      {viewMode === "all" && (
+        <div className="mt-3 rounded-[3px] border border-v2-border bg-v2-sub-bg px-4 py-3 text-[11.5px] text-v2-text">
+          All {sorted.length} transitions are listed in the{" "}
+          <a href="#monthly-walk" className="font-semibold text-v2-link hover:underline">
+            Credited Revenue — Monthly Walk
+          </a>{" "}
+          table below — one row per month with its change, commentary and evidence.
         </div>
       )}
     </div>

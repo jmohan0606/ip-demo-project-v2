@@ -45,6 +45,16 @@ export default function AiInsightsPage() {
 
   const [modal, setModal] = useState<EvidenceRequest | null>(null);
 
+  // T5-2/T5-3 — driver-section view mode + the transition in focus (keyed by
+  // its to-month). Clicking a chart arrow selects that transition and switches
+  // to Single mode; "" = default (the latest transition).
+  const [viewMode, setViewMode] = useState<"single" | "compare" | "all">("single");
+  const [selectedTo, setSelectedTo] = useState("");
+  const selectTransition = useCallback((toMonthId: string) => {
+    setSelectedTo(toMonthId);
+    setViewMode("single");
+  }, []);
+
   const ready = loaded && !!advisorId && !!fromMonth && !!toMonth;
 
   // Card 1 data — chart totals + __TOTAL__ changes.
@@ -134,7 +144,14 @@ export default function AiInsightsPage() {
         onRetry={() => setChartKey((k) => k + 1)}
         skeleton={<div className="rounded-[3px] border border-v2-border bg-v2-card p-5"><CardSkeleton bodyHeight="h-72" /></div>}
       >
-        {chart && changes && <InsightsChartCard totals={chart} changes={changes} />}
+        {chart && changes && (
+          <InsightsChartCard
+            totals={chart}
+            changes={changes}
+            selectedTo={viewMode === "single" ? selectedTo : ""}
+            onSelectTransition={selectTransition}
+          />
+        )}
       </AsyncBoundary>
 
       <AsyncBoundary
@@ -155,6 +172,10 @@ export default function AiInsightsPage() {
             onRegenerate={() => void regenerate()}
             busy={busy}
             onOpenEvidence={setModal}
+            viewMode={viewMode}
+            onViewMode={setViewMode}
+            selectedTo={selectedTo}
+            onSelectTo={setSelectedTo}
           />
         )}
       </AsyncBoundary>

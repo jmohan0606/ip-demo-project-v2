@@ -50,9 +50,14 @@ function useMeasuredWidth(): [React.RefObject<HTMLDivElement | null>, number] {
 export function InsightsChartCard({
   totals,
   changes,
+  selectedTo = "",
+  onSelectTransition,
 }: {
   totals: MonthlyTotals;
   changes: RevenueChangeRow[];
+  /** to-month of the transition currently in focus — its arrow highlights (T5-3). */
+  selectedTo?: string;
+  onSelectTransition?: (toMonthId: string) => void;
 }) {
   const [ref, width] = useMeasuredWidth();
   const monthIds = Object.keys(totals.revenue_by_month).sort();
@@ -65,9 +70,11 @@ export function InsightsChartCard({
         <div>
           <h2 className="text-[14px] font-semibold text-v2-text">Credited Revenue — Month over Month</h2>
           <p className="mt-0.5 text-[11.5px] text-v2-muted">
-            Arrows show the change between consecutive months. Negative values are shown in parentheses.
+            Arrows show the change between consecutive months — click an arrow to focus that
+            transition&apos;s revenue drivers below. Negative values are shown in parentheses.
           </p>
         </div>
+        {/* T5-1 — legend only; the dead range dropdown is gone. */}
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 text-[11px] text-v2-muted">
             <span className="inline-block h-2.5 w-2.5" style={{ backgroundColor: v2.color.chartRecurring }} />
@@ -77,14 +84,6 @@ export function InsightsChartCard({
             <span className="inline-block h-2.5 w-2.5" style={{ backgroundColor: v2.color.chartNonrecurring }} />
             Non-recurring
           </span>
-          <button
-            type="button"
-            disabled
-            title="Only 3 months exist in the current data set"
-            className="h-6 rounded-[3px] border border-v2-border bg-white px-2.5 text-[11px] text-v2-muted"
-          >
-            T-3 ⌄
-          </button>
         </div>
       </div>
 
@@ -99,6 +98,8 @@ export function InsightsChartCard({
             monthIds={monthIds}
             totals={totals}
             changeByTo={changeByTo}
+            selectedTo={selectedTo}
+            onSelectTransition={onSelectTransition}
           />
         ) : (
           <div style={{ height: CHART_HEIGHT }} />
@@ -113,11 +114,15 @@ function ChartSvg({
   monthIds,
   totals,
   changeByTo,
+  selectedTo = "",
+  onSelectTransition,
 }: {
   width: number;
   monthIds: string[];
   totals: MonthlyTotals;
   changeByTo: Map<string, RevenueChangeRow>;
+  selectedTo?: string;
+  onSelectTransition?: (toMonthId: string) => void;
 }) {
   const innerW = Math.max(0, width - MARGIN.left - MARGIN.right);
   const innerH = CHART_HEIGHT - MARGIN.top - MARGIN.bottom;
@@ -137,14 +142,20 @@ function ChartSvg({
     left: number;
     text: string;
     up: boolean;
+    toId: string;
+    selected: boolean;
   }
   const pills: Pill[] = [];
 
+  // T5-3 — each connector arrow is CLICKABLE: clicking selects its transition
+  // and focuses the driver section below in Single mode. A wide invisible hit
+  // line makes the target easy; the selected arrow draws heavier.
   const arrows = monthIds.slice(0, -1).map((fromId, i) => {
     const toId = monthIds[i + 1];
     const change = changeByTo.get(toId);
     if (!change) return null;
     const up = change.change_amt >= 0;
+    const selected = toId === selectedTo;
     const color = up ? v2.color.positive : v2.color.negative;
     const x1 = cx(i) + barW / 2 + 8;
     const x2 = cx(i + 1) - barW / 2 - 8;
@@ -152,20 +163,28 @@ function ChartSvg({
     const y2 = y(monthTotal(toId)) - 26;
     const label = fmtChange(change.change_amt, change.change_pct);
     const showPill = x2 - x1 >= MIN_GAP_FOR_PILL;
-    if (showPill) pills.push({ left: (x1 + x2) / 2, text: label, up });
+    if (showPill) pills.push({ left: (x1 + x2) / 2, text: label, up, toId, selected });
     return (
-      <line
+      <g
         key={toId}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke={color}
-        strokeWidth={1.6}
-        markerEnd={up ? "url(#v2-arrow-up)" : "url(#v2-arrow-down)"}
+        onClick={onSelectTransition ? () => onSelectTransition(toId) : undefined}
+        style={onSelectTransition ? { cursor: "pointer" } : undefined}
+        role={onSelectTransition ? "button" : undefined}
+        aria-label={`Focus transition ending ${toId}: ${label}`}
       >
-        {!showPill && <title>{label}</title>}
-      </line>
+        {/* invisible wide hit area */}
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={18} />
+        <line
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke={color}
+          strokeWidth={selected ? 3 : 1.6}
+          markerEnd={up ? "url(#v2-arrow-up)" : "url(#v2-arrow-down)"}
+        />
+        <title>{onSelectTransition ? `${label} — click to focus this transition` : label}</title>
+      </g>
     );
   });
 
@@ -225,11 +244,15 @@ function ChartSvg({
         {arrows}
       </svg>
 
-      {/* change pills above the arrows */}
+      {/* change pills above the arrows — clickable like the arrows (T5-3) */}
       {pills.map((p) => (
-        <span
+        <button
           key={`${p.left}-${p.text}`}
-          className="absolute whitespace-nowrap rounded-full border px-3 py-0.5 text-[11.5px] font-semibold"
+          type="button"
+          onClick={onSelectTransition ? () => onSelectTransition(p.toId) : undefined}
+          disabled={!onSelectTransition}
+          title={onSelectTransition ? "Click to focus this transition below" : undefined}
+          className="absolute whitespace-nowrap rounded-full border px-3 py-0.5 text-[11.5px] font-semibold disabled:cursor-default"
           style={{
             left: p.left,
             top: 14,
@@ -237,10 +260,12 @@ function ChartSvg({
             color: p.up ? v2.color.positive : v2.color.negative,
             borderColor: p.up ? v2.color.positive : v2.color.negative,
             backgroundColor: p.up ? v2.color.positiveBg : v2.color.negativeBg,
+            boxShadow: p.selected ? `0 0 0 2px ${p.up ? v2.color.positive : v2.color.negative}` : undefined,
+            cursor: onSelectTransition ? "pointer" : undefined,
           }}
         >
           {p.text}
-        </span>
+        </button>
       ))}
     </>
   );

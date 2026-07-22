@@ -34,8 +34,10 @@ export function MonthlyWalkTable({
   const commentaryByTo = new Map(rows.map((r) => [r.to_month_id, r]));
   const latest = latestPublished(versions);
   const selectedMeta = versions.find((v) => v.version_id === resolvedVersion) ?? null;
-  const versionChip = selectedMeta
-    ? `v${selectedMeta.version_no}${latest && selectedMeta.version_id === latest.version_id ? " (latest)" : ""} ⌄`
+  // T5-4 — the walk INHERITS the top section's version selector; this is
+  // static text, not a control (the old lookalike dropdown was dead).
+  const versionText = selectedMeta
+    ? `Version ${selectedMeta.version_no}${latest && selectedMeta.version_id === latest.version_id ? " (latest)" : ""}`
     : null;
 
   const exportCsv = () =>
@@ -57,7 +59,7 @@ export function MonthlyWalkTable({
     ]);
 
   return (
-    <div className="rounded-[3px] border border-v2-border bg-v2-card p-5">
+    <div id="monthly-walk" className="rounded-[3px] border border-v2-border bg-v2-card p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[14px] font-semibold text-v2-text">Credited Revenue — Monthly Walk</h2>
@@ -73,9 +75,12 @@ export function MonthlyWalkTable({
           >
             Export ⌄
           </button>
-          {versionChip && (
-            <span className="flex h-7 items-center rounded-[3px] border border-v2-border bg-white px-2.5 text-[11.5px] text-v2-link">
-              {versionChip}
+          {versionText && (
+            <span
+              title="The walk shows the version selected in the commentary section above."
+              className="flex h-7 items-center text-[11.5px] font-semibold text-v2-muted"
+            >
+              {versionText}
             </span>
           )}
         </div>
