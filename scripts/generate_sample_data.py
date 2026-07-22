@@ -33,35 +33,29 @@ Reason-code coverage (R1-11) — every eligibility path is visible in the UI:
   + one SMPL003 UMA row with days_to_process > 90 (the 90-day rule)
   + UMA|PAYS pay-type-summary rows (grid_type filter, OUT_OF_GRID by config)
 
-Derived CSVs (monthly_product_revenue, revenue_change, revenue_driver) are
-computed by the SAME Phase-4 code the app uses (app/v2/revenue, app/v2/drivers)
-— nothing is hand-typed twice. Workflow CSVs (commentary/evidence) are
-PRESERVED if they exist: regeneration of the data set must not delete
-commentary history (versions are additive).
+Since FIX_SPEC_R4 (S-B2/S-B3) everything downstream of the fabricated
+transactions — eligibility, aggregation, attribution, reconciliation, CSV
+writing, data_source stamping and the manifest — lives in the SHARED builder
+(app/v2/dataset/builder.py), which scripts/build_real_data.py also calls with
+transactions parsed from real extracts. This script only fabricates the demo
+inputs. Workflow CSVs (commentary/evidence) are PRESERVED if they exist:
+regeneration of the data set must not delete commentary history (versions are
+additive).
 """
 from __future__ import annotations
 
-import csv
 import json
 import os
 import random
 import sys
-from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.v2.calendar import month_rows
-from app.v2.drivers.attribution import attribute_transition, reconcile
+from app.v2.dataset.builder import ReconciliationError, build_dataset
 from app.v2.revenue import eligibility as elig
-from app.v2.revenue.aggregation import (
-    TOTAL_GROUP,
-    EligibilityContext,
-    aggregate_monthly,
-    derive_rev_nature,
-    split_by_eligibility,
-)
+from app.v2.revenue.aggregation import EligibilityContext, derive_rev_nature
 
 OUT = Path("data/sample")
 MANIFEST = Path("docs/tigergraph_foundation/data/manifest.json")
@@ -123,32 +117,7 @@ PRODUCTS = [
     ("UMA|PAYS", "UMA", "PAYS", "UMA Pay-Type Summary", "unified_managed_account", "PAY_TYPE_SUMMARY"),
 ]
 
-# ELIGIBILITY (R1-8) sits immediately after ONE_TIME in the attribution order;
-# LATE_PROCESSING and EXCLUDED_CHANGE (FIX_SPEC_R3 T1) immediately after it —
-# every subtrahend of the credited identity has a named driver.
-CAUSES = [
-    ("VOLUME", "Transaction volume", "More or fewer transactions at similar rates", "REAL", 1),
-    ("ONE_TIME", "One-time items", "Syndicate allocations, new issues, referrals that don't repeat", "REAL", 2),
-    ("ELIGIBILITY", "Credited eligibility", "Revenue moved between credited and non-credited reason codes month over month", "REAL", 3),
-    ("LATE_PROCESSING", "Late processing", "Revenue excluded by the 90-day rule (processed more than 90 days after the trade) changed month over month", "REAL", 4),
-    ("EXCLUDED_CHANGE", "Excluded bookings", "Revenue moved between credited and excluded reason codes (e.g. deleted bookings) month over month", "REAL", 5),
-    ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 6),
-    ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 7),
-    ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 8),
-    ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 9),
-    ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 10),
-    ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 11),
-    ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 12),
-    ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 13),
-    ("MARKET", "Market performance", "Asset value movement", "DUMMY", 14),
-    ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 15),
-]
-
-PRODUCT_GROUP = {p[0]: p[4] for p in PRODUCTS}
 PRODUCT_GRID = {p[0]: p[5] for p in PRODUCTS}
-GROUP_LINE = {g[0]: g[2] for g in GROUPS}
-LINE_CLASS = {l[0]: l[2] for l in LINES}
-RECURRING_CLASS_GROUPS = {g for g, line in GROUP_LINE.items() if LINE_CLASS[line] == "RECURRING"}
 BILLABLE_DAYS = {"202604": 22, "202605": 21, "202606": 22}
 
 REASONS = elig.reason_map()  # the seed — same rows written to reason_code.csv
@@ -331,253 +300,35 @@ def build_transactions() -> list[dict]:
     return txns
 
 
-def write_csv(path: Path, rows: list[dict], columns: list[str]) -> int:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
-        w.writeheader()
-        for r in rows:
-            w.writerow(r)
-    return len(rows)
-
-
-def preserve_or_create(path: Path, columns: list[str]) -> int | None:
-    """Workflow-generated CSVs (commentary/evidence): keep existing content —
-    versions are additive and regeneration must not delete history. Returns the
-    existing row count, or 0 after creating a header-only file."""
-    if path.exists():
-        with path.open(encoding="utf-8") as f:
-            return max(0, sum(1 for _ in f) - 1)
-    return write_csv(path, [], columns)
-
-
 def main() -> int:
     txns = build_transactions()
-    months = month_rows(MONTHS)
-    mpr = aggregate_monthly(txns, PRODUCT_GROUP, GROUP_LINE, LINE_CLASS, CTX)
-    changes = compute_changes_from(mpr)
+    # Sample account attributes are fabricated (deterministically from the
+    # account number) — that fabrication stays HERE, not in the shared builder;
+    # the real builder writes only what the extracts actually contain.
+    account_ids = sorted({t["account_no"] for t in txns})
+    accounts = [{"account_no": a, "account_typ": "BROKERAGE" if int(a[-1]) % 2 else "ADVISORY",
+                 "wrap_flg": "Y" if int(a[-1]) % 2 == 0 else "N", "data_source": "REAL"}
+                for a in account_ids]
 
-    # Attribution runs on CREDITED transactions; the ELIGIBILITY step reads the
-    # NON_CREDITED ones (FIX_SPEC R1-8).
-    split = split_by_eligibility(txns, CTX)
-    cred_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for t in split[elig.CREDITED]:
-        cred_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
-    nc_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for t in split[elig.NON_CREDITED]:
-        nc_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
-    # FIX_SPEC_R3 T1: the LATE and EXCLUDED buckets feed their own drivers.
-    late_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for t in split[elig.LATE]:
-        late_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
-    excl_by_advisor: dict[str, dict[tuple, list[dict]]] = defaultdict(lambda: defaultdict(list))
-    for t in split[elig.EXCLUDED]:
-        excl_by_advisor[t["advisor_sid"]][(PRODUCT_GROUP[t["product_id"]], t["month_id"])].append(t)
-
-    drivers: list[dict] = []
-    by_transition: dict[tuple, list[dict]] = defaultdict(list)
-    for c in changes:
-        by_transition[(c["advisor_sid"], c["from_month_id"], c["to_month_id"])].append(c)
-    for (advisor, from_m, to_m), rows in sorted(by_transition.items()):
-        drivers.extend(attribute_transition(
-            rows, cred_by_advisor[advisor], RECURRING_CLASS_GROUPS,
-            BILLABLE_DAYS[from_m], BILLABLE_DAYS[to_m],
-            nc_txns_by_group_month=nc_by_advisor[advisor],
-            late_txns_by_group_month=late_by_advisor[advisor],
-            excl_txns_by_group_month=excl_by_advisor[advisor],
-            max_processing_days=CTX.max_processing_days,
-        ))
-
-    report = reconcile(changes, drivers)
-    if not report["all_reconcile"]:
-        print("RECONCILIATION FAILED:", json.dumps(report, indent=2))
+    try:
+        summary = build_dataset(
+            out_dir=OUT, manifest_path=MANIFEST,
+            month_ids=MONTHS, billable_days=BILLABLE_DAYS,
+            txns=txns, advisors=ADVISORS, classes=CLASSES,
+            lines=LINES, groups=GROUPS, products=PRODUCTS,
+            accounts=accounts, ctx=CTX,
+        )
+    except ReconciliationError as exc:
+        print(exc)
         return 1
 
-    # ------------------------------------------------ vertex CSVs
-    v = OUT / "vertices"
-    counts: dict[str, int] = {}
-    counts["advisor.csv"] = write_csv(v / "advisor.csv", ADVISORS,
-        ["advisor_sid", "advisor_name", "rep_code", "branch_cd", "standard_id", "data_source"])
-    counts["month.csv"] = write_csv(v / "month.csv", months, list(months[0].keys()))
-    counts["revenue_class.csv"] = write_csv(v / "revenue_class.csv", CLASSES,
-        ["class_id", "class_name", "display_order", "data_source"])
-    counts["product_line.csv"] = write_csv(v / "product_line.csv",
-        [{"line_id": l, "line_name": n, "display_order": o, "data_source": "REAL"} for l, n, _c, o in LINES],
-        ["line_id", "line_name", "display_order", "data_source"])
-    counts["product_group.csv"] = write_csv(v / "product_group.csv",
-        [{"group_id": g, "group_name": n, "display_order": o, "data_source": "REAL"} for g, n, _l, o in GROUPS],
-        ["group_id", "group_name", "display_order", "data_source"])
-    counts["product.csv"] = write_csv(v / "product.csv",
-        [{"product_id": pid, "product_cd": cd, "product_sub_cd": sub, "product_name": name,
-          "grid_type": grid, "data_source": "REAL"} for pid, cd, sub, name, _g, grid in PRODUCTS],
-        ["product_id", "product_cd", "product_sub_cd", "product_name", "grid_type", "data_source"])
-    account_ids = sorted({t["account_no"] for t in txns})
-    counts["account.csv"] = write_csv(v / "account.csv",
-        [{"account_no": a, "account_typ": "BROKERAGE" if int(a[-1]) % 2 else "ADVISORY",
-          "wrap_flg": "Y" if int(a[-1]) % 2 == 0 else "N", "data_source": "REAL"} for a in account_ids],
-        ["account_no", "account_typ", "wrap_flg", "data_source"])
-    counts["driver_cause.csv"] = write_csv(v / "driver_cause.csv",
-        [{"cause_id": c, "cause_name": n, "cause_description": d, "default_data_source": s,
-          "display_order": o, "data_source": "REAL"} for c, n, d, s, o in CAUSES],
-        ["cause_id", "cause_name", "cause_description", "default_data_source", "display_order", "data_source"])
-    counts["reason_code.csv"] = write_csv(v / "reason_code.csv", elig.seed_rows(),
-        ["reason_code", "description", "ui_mapping", "owned_by", "eligibility",
-         "include_in_credited", "incentive_eligible", "display_order", "data_source"])
-    txn_cols = ["txn_id", "trade_ref_no", "split_seq_no", "advisor_sid", "month_id", "product_id",
-                "account_no", "trade_dt", "proc_dt", "credited_amt", "pre_split_amt", "split_pct",
-                "client_rate_bps", "std_tier_rate", "concession_type", "discount_amt", "eff_disc_pct",
-                "avg_balance_amt", "file_key", "trade_description", "rev_nature",
-                "reason_cd", "rm_sid", "cs_sid", "revenue_eligibility", "incentive_eligible",
-                "days_to_process", "posting_month_id", "data_source"]
-    counts["revenue_transaction.csv"] = write_csv(v / "revenue_transaction.csv", txns, txn_cols)
-    counts["monthly_product_revenue.csv"] = write_csv(v / "monthly_product_revenue.csv", mpr,
-        ["mpr_id", "advisor_sid", "month_id", "group_id", "line_id", "class_id", "revenue",
-         "txn_count", "account_count", "avg_rate_bps", "recurring_amt", "one_time_amt",
-         "total_revenue", "non_credited_amt", "excluded_amt", "late_excluded_amt", "data_source"])
-    balances = [{"balance_id": f"{a}|{m}", "account_no": a, "month_id": m,
-                 "avg_billable_assets": 0.0, "effective_fee_bps": 0.0,
-                 "billable_days": BILLABLE_DAYS[m], "data_source": "DUMMY"}
-                for a in account_ids for m in MONTHS]
-    counts["account_month_balance.csv"] = write_csv(v / "account_month_balance.csv", balances,
-        ["balance_id", "account_no", "month_id", "avg_billable_assets", "effective_fee_bps",
-         "billable_days", "data_source"])
-    counts["revenue_change.csv"] = write_csv(v / "revenue_change.csv", changes,
-        ["change_id", "advisor_sid", "from_month_id", "to_month_id", "group_id", "from_revenue",
-         "to_revenue", "change_amt", "change_pct", "direction", "data_source"])
-    counts["revenue_driver.csv"] = write_csv(v / "revenue_driver.csv", drivers,
-        ["driver_id", "change_id", "cause_id", "group_id", "contribution_amt", "contribution_pct",
-         "direction", "rank", "inputs_json", "data_source"])
-    # Workflow-generated vertices: PRESERVED if present (versions are additive);
-    # created header-only on a fresh data set.
-    counts["commentary_version.csv"] = preserve_or_create(v / "commentary_version.csv",
-        ["version_id", "version_no", "generated_at", "model", "prompt_version", "data_snapshot_dt",
-         "status", "advisor_count", "transition_count", "blocked_count", "notes", "data_source"])
-    counts["commentary.csv"] = preserve_or_create(v / "commentary.csv",
-        ["commentary_id", "version_id", "advisor_sid", "from_month_id", "to_month_id", "headline",
-         "narrative_text", "bullets_json", "status", "blocked_reason", "data_source"])
-    counts["commentary_evaluation.csv"] = preserve_or_create(v / "commentary_evaluation.csv",
-        ["evaluation_id", "commentary_id", "version_id", "judge_model", "faithfulness_score",
-         "hallucination_flag", "completeness_score", "clarity_score", "verdict", "reasoning",
-         "evaluated_at", "data_source"])
-    counts["evidence.csv"] = preserve_or_create(v / "evidence.csv",
-        ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
-         "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
-         "source_sql", "source_table", "source_row_count", "data_source"])
-
-    # ------------------------------------------------ edge CSVs
-    e = OUT / "edges"
-
-    def edge_rows(name: str, pairs: list[tuple[str, str]]) -> int:
-        seen, rows = set(), []
-        for f_, t_ in pairs:
-            if (f_, t_) not in seen:
-                seen.add((f_, t_))
-                rows.append({"from_id": f_, "to_id": t_})
-        return write_csv(e / f"{name}.csv", rows, ["from_id", "to_id"])
-
-    counts["product_in_group.csv"] = edge_rows("product_in_group",
-        [(pid, g) for pid, _cd, _sub, _name, g, _grid in PRODUCTS])
-    counts["group_in_line.csv"] = edge_rows("group_in_line", [(g, l) for g, _n, l, _o in GROUPS])
-    counts["line_in_class.csv"] = edge_rows("line_in_class", [(l, c) for l, _n, c, _o in LINES])
-    counts["txn_for_advisor.csv"] = edge_rows("txn_for_advisor", [(t["txn_id"], t["advisor_sid"]) for t in txns])
-    counts["txn_in_month.csv"] = edge_rows("txn_in_month", [(t["txn_id"], t["month_id"]) for t in txns])
-    counts["txn_for_product.csv"] = edge_rows("txn_for_product", [(t["txn_id"], t["product_id"]) for t in txns])
-    counts["txn_for_account.csv"] = edge_rows("txn_for_account", [(t["txn_id"], t["account_no"]) for t in txns])
-    counts["txn_has_reason.csv"] = edge_rows("txn_has_reason", [(t["txn_id"], t["reason_cd"]) for t in txns])
-    counts["mpr_for_advisor.csv"] = edge_rows("mpr_for_advisor", [(r["mpr_id"], r["advisor_sid"]) for r in mpr])
-    counts["mpr_in_month.csv"] = edge_rows("mpr_in_month", [(r["mpr_id"], r["month_id"]) for r in mpr])
-    counts["mpr_for_group.csv"] = edge_rows("mpr_for_group", [(r["mpr_id"], r["group_id"]) for r in mpr])
-    counts["balance_for_account.csv"] = edge_rows("balance_for_account", [(b["balance_id"], b["account_no"]) for b in balances])
-    counts["balance_in_month.csv"] = edge_rows("balance_in_month", [(b["balance_id"], b["month_id"]) for b in balances])
-    counts["change_for_advisor.csv"] = edge_rows("change_for_advisor", [(c["change_id"], c["advisor_sid"]) for c in changes])
-    counts["change_for_group.csv"] = edge_rows("change_for_group",
-        [(c["change_id"], c["group_id"]) for c in changes if c["group_id"] != TOTAL_GROUP])
-    counts["change_from_month.csv"] = edge_rows("change_from_month", [(c["change_id"], c["from_month_id"]) for c in changes])
-    counts["change_to_month.csv"] = edge_rows("change_to_month", [(c["change_id"], c["to_month_id"]) for c in changes])
-    counts["driver_of_change.csv"] = edge_rows("driver_of_change", [(d["driver_id"], d["change_id"]) for d in drivers])
-    counts["driver_has_cause.csv"] = edge_rows("driver_has_cause", [(d["driver_id"], d["cause_id"]) for d in drivers])
-    counts["driver_for_group.csv"] = edge_rows("driver_for_group",
-        [(d["driver_id"], d["group_id"]) for d in drivers if d["group_id"] != TOTAL_GROUP])
-    # Workflow-generated edges — preserved if present.
-    for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
-                 "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
-                 "evaluation_of_commentary"):
-        counts[f"{name}.csv"] = preserve_or_create(e / f"{name}.csv", ["from_id", "to_id"])
-
-    # ------------------------------------------------ manifest
-    WORKFLOW_FILES = {"commentary_version.csv", "commentary.csv", "evidence.csv",
-                      "commentary_evaluation.csv",
-                      "commentary_for_advisor.csv", "commentary_from_month.csv",
-                      "commentary_to_month.csv", "commentary_in_version.csv",
-                      "commentary_cites_driver.csv", "evidence_for_driver.csv",
-                      "evaluation_of_commentary.csv"}
-    schema = json.load(open("docs/tigergraph_foundation/tigergraph/schema/schema_catalog.json"))
-    files = []
-    vertex_order = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
-                    "account", "driver_cause", "reason_code", "revenue_transaction",
-                    "monthly_product_revenue", "account_month_balance", "revenue_change",
-                    "revenue_driver", "commentary_version", "commentary",
-                    "commentary_evaluation", "evidence"]
-    order = 0
-    for name in vertex_order:
-        target = f"phx_dm_v2_{name}"
-        spec = schema["vertices"][target]
-        cols = list(spec["attributes"].keys())
-        fname = f"{name}.csv"
-        order += 1
-        files.append({
-            "kind": "vertex", "target": target, "file": f"vertices/{fname}", "order": order,
-            "id_column": spec["primary_id"]["name"],
-            "columns": {c: c for c in cols},
-            "required_columns": [spec["primary_id"]["name"], "data_source"],
-            "expected_rows": None if fname in WORKFLOW_FILES else counts[fname],
-            "workflow_generated": fname in WORKFLOW_FILES,
-        })
-    edge_order = ["product_in_group", "group_in_line", "line_in_class",
-                  "txn_for_advisor", "txn_in_month", "txn_for_product", "txn_for_account",
-                  "txn_has_reason",
-                  "mpr_for_advisor", "mpr_in_month", "mpr_for_group",
-                  "balance_for_account", "balance_in_month",
-                  "change_for_advisor", "change_for_group", "change_from_month", "change_to_month",
-                  "driver_of_change", "driver_has_cause", "driver_for_group",
-                  "commentary_for_advisor", "commentary_from_month", "commentary_to_month",
-                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
-                  "evaluation_of_commentary"]
-    for name in edge_order:
-        target = f"phx_dm_v2_{name}"
-        spec = schema["edges"][target]
-        fname = f"{name}.csv"
-        order += 1
-        files.append({
-            "kind": "edge", "target": target, "file": f"edges/{fname}", "order": order,
-            "from_type": spec["from"], "to_type": spec["to"],
-            "from_column": "from_id", "to_column": "to_id",
-            "columns": {},
-            "expected_rows": None if fname in WORKFLOW_FILES else counts[fname],
-            "workflow_generated": fname in WORKFLOW_FILES,
-        })
-    manifest = {
-        "graph": "iperform_v2_revenue",
-        "prefix": "phx_dm_v2_",
-        "batch_size": 500,
-        "note": "Files listed in dependency order: dimensions, facts, analytics, then edges. "
-                "Load top-to-bottom; delete bottom-to-top (vertex deletes cascade their edges). "
-                "workflow_generated files start header-only and are appended by the commentary workflow.",
-        "files": files,
-    }
-    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    json.dump(manifest, open(MANIFEST, "w"), indent=2)
-
-    print(f"transactions: {len(txns)}  mpr: {len(mpr)}  changes: {len(changes)}  drivers: {len(drivers)}")
-    print("eligibility mix:", {k: len(rows) for k, rows in split.items()})
-    print("reconciliation:", json.dumps(report["transitions"], indent=2)[:400], "…")
-    print("causes exercised:", sorted({d['cause_id'] for d in drivers}))
+    print(f"transactions: {len(txns)}  mpr: {len(summary['mpr'])}  "
+          f"changes: {len(summary['changes'])}  drivers: {len(summary['drivers'])}")
+    print("eligibility mix:", summary["split_sizes"])
+    print("reconciliation:", json.dumps(summary["report"]["transitions"], indent=2)[:400], "…")
+    print("MIX share:", json.dumps(summary["mix_share"], indent=2))
+    print("causes exercised:", sorted({d["cause_id"] for d in summary["drivers"]}))
     return 0
-
-
-def compute_changes_from(mpr: list[dict]) -> list[dict]:
-    from app.v2.revenue.aggregation import compute_changes
-    return compute_changes(mpr, MONTHS)
 
 
 if __name__ == "__main__":
