@@ -427,3 +427,128 @@ R4/R5/R7 frontend · R6 Playwright harness · R8 read-only dead-code analysis
 (applied by the main thread) · R9 guide draft. Subagents did not commit; the
 main thread reviewed, verified, committed, regenerated v7 and re-verified
 end-to-end (ALL PASS).
+
+## 9. Round 3 (FIX_SPEC_R3.md, 2026-07-22)
+
+### What was done
+
+**T1 — Correctness: the missing LATE_PROCESSING revenue driver (done first, main thread).**
+The credited identity (`credited = in-scope total − non_credited − excluded −
+late_excluded − out_of_grid`) had two subtrahends with no driver, so their
+month-over-month movement fell into the MIX residual and was narrated as
+"product mix" — a wrong explanation with full evidence behind it. Fixes:
+
+- **LATE_PROCESSING** (`-(Δ late_excluded)`, REAL) added symmetric with
+  ELIGIBILITY, immediately after it in the attribution order; account-guarded
+  against NEW/LOST double-counting; account *presence* now also counts LATE
+  activity (a late-processing account is still trading).
+- **EXCLUDED_CHANGE** (`-(Δ excluded)`, REAL) added for excluded bookings
+  (e.g. reason 9X deleted rows). **OUT_OF_GRID needs no driver by
+  construction** — grid_type is a static product attribute and
+  CREDITED_GRID_TYPES fixed config, so out-of-grid revenue cannot move into or
+  out of credited month over month; the verification suite proves the bucket
+  contains only PAY_TYPE_SUMMARY rows and reports its total loudly
+  (sample: $59,090.91 of deliberate demo rows; on REAL data expect ~0).
+- **MIX self-check**: |MIX| > 15% of a transition's |change| logs a WARNING
+  with the full cause breakdown (advisory, never blocks).
+- **MIX-magnitude reporting** in `verify_end_to_end.py` — reconciliation at
+  $0.00 proves *completeness* only; MIX share proves *attribution quality*.
+  After the fix: **MIX ≤ 1.0% on all six sample transitions** (was: late/9X
+  swings silently absorbed).
+- **Sample data reworked** so both drivers fire on genuine credited movement:
+  SMPL003's 900 UMA fee exists all three months with April processed 100 days
+  late (Apr→May credited genuinely gains 900); SMPL003's 500 MFT booking is
+  credited in Apr and deleted (9X) from May on (Apr→May genuinely loses 500).
+- **total_revenue relabelled** in the evidence ledger as "In-scope revenue"
+  with the footnote "total within credited product grid types" (field names
+  unchanged — presentation-only, same principle as the T4-1 rename).
+- **Commentary regenerated**: v9 (post-fix figures; 6/6 published, judge 5
+  PASS / 1 advisory REVIEW) and v10 (revenue-driver terminology in evidence
+  wording; 6/6 published, judge 6× PASS). The v8 run exposed a real guardrail
+  false positive — the no-invented-figures extractor read reason code "(9E)"
+  as the figure 9 — fixed with a letter lookahead in the number regex;
+  LATE_PROCESSING inputs carry `processing_days_limit` so "90-day" narration
+  stays legal. v8 (1 BLOCKED) is retained as history; versions are additive.
+
+**T2/T3 — Evidence UX.** The modal now takes the transition, loads the FULL
+ranked driver set (GQ-008), pages with Previous/Next + ←/→ ("Revenue Driver n
+of N"), lazy-loads evidence per driver (cached), and its header (title, colored
+▲/▼ amount, provenance badge, driver tag, position) tracks the current driver.
+Both entry points unified: the walk opens at driver 1, a card bullet opens at
+that bullet's driver — both with the full set. Old versions: **labelled, not
+backfilled** — v1–v6 driver sets were superseded by data regenerations, so
+deepened evidence/judge output cannot be honestly reconstructed; every affected
+panel states this explicitly (no blank scaffolding). Waterfall gains the
+plain-English lead sentence, green/red driver bars with the paged driver
+highlighted, a "How to read this" expander, and the completeness note tying
+$0.00 reconciliation to the missing-driver self-check. The double-parenthesis
+header is fixed (arrow = direction, fmtMoney = sign) and the repo audited for
+other double-wraps (also fixed "prompt vv1.0" in the modal footer).
+
+**T4 — Terminology & glossary.** "Revenue Driver(s)" replaces "cause" in all
+labels, panel titles, tooltips and column headers (`cause_id` and every data
+field unchanged). Cards carry an explicit "Revenue Drivers" column header.
+New glossary dialog (openable via "What do these mean?" from AI-Insights and
+the evidence modal) lists **all 15 revenue drivers** — the spec's 14 plus
+EXCLUDED_CHANGE born of T1-2 — with plain-English meaning and computation;
+Market/Net Flow carry the DUMMY badge. SOLUTION_GUIDE ch. 6 now documents the
+14-step attribution order and references the glossary as the shared source.
+
+**T5 — AI-Insights interaction.** Dead T-3 legend dropdown removed. The driver
+section has a segmented Single transition (default) / Compare two / All
+transitions control with transition dropdowns; chart connector arrows and
+change pills are clickable (wide hit areas) and focus that transition in
+Single mode with a visible highlight; the walk's lookalike version dropdown is
+static text inheriting the top selector ("Version 10 (latest)").
+
+**T6/T7 — Exports & polish.** "Export data" builds CSV from the STORED data
+via the API (never the DOM): one row per (transition, revenue driver) with
+human headers (Advisor, From/To Month, Total Revenue, Credited Revenue,
+Change $ / %, Revenue Driver, Contribution, Direction, Data Source,
+Commentary), negatives parenthesised, AI-generated column marked; the walk
+exports one row per month with its drivers and commentary. "Export PDF" is a
+print stylesheet + `window.print()` (vector, deck-ready) — chrome hidden, a
+print footer carries advisor, date, version and the AI boundary note.
+Generate/Regenerate take the primary navy fill; exports the secondary outline;
+hover/focus/disabled styled throughout. The computed transaction count is
+separated from the AI chip by a hairline and labelled "computed from graph
+data".
+
+**T8 — Checks.** `.gitignore` is LF (ASCII text); `git check-ignore
+data/real/x` prints the path — real client data is protected. `git ls-files
+app/models` returns 6 tracked files — a fresh clone boots.
+
+### Verification
+
+`verify_end_to_end.py` (extended this round): **OVERALL PASS** — reconciliation
+$0.00 on every transition, all 15 causes exercised, MIX ≤ 1.0% everywhere,
+OUT_OF_GRID composition clean, credited identity holds per cell, 861 evidence
+records complete, every vertex carries data_source. Playwright evidence
+harness: **8/8 screens captured, zero browser console errors** (v10 visible,
+paging modal, view modes, themed buttons, static walk version).
+
+### Decisions taken (also in PROGRESS.md)
+
+- Old-version evidence **labelled, not backfilled** — backfilling would attach
+  today's numbers to yesterday's narratives (dishonest); the spec's fallback
+  applies. The "from version 7 onward" boundary is a documented constant in
+  the modal (`DEEP_EVIDENCE_FROM_VERSION`), data-set specific.
+- The glossary lists 15 drivers, not the spec table's 14 — EXCLUDED_CHANGE was
+  created by T1-2 after the spec was written; omitting it would violate the
+  glossary's "every revenue driver" rule.
+- ELIGIBILITY remains un-split (status-change vs volume) per T9 — client
+  question, not a build decision.
+- Prior-period adjustments / iComp sourcing / Adjusted Credited Revenue remain
+  open client items (FIX_SPEC R9.10 / SOLUTION_GUIDE ch. 10); untouched.
+- LATE_PROCESSING and EXCLUDED_CHANGE inherit the ELIGIBILITY-class
+  approximation: a bucket delta is attributed even when the underlying rows
+  simply vanish rather than move between buckets (the remainder offsets in
+  MIX). Noted for the reviewer; the sample data exercises the genuine-move
+  case.
+
+### Commits (round 3, in order)
+
+02b3d2e progress scaffold · 5c4b7bf T1 drivers + checks + relabel ·
+7fee0f4 T1-5 v9 + guardrail fix · 76d883d T2/T3 evidence UX ·
+960662f T4 terminology/glossary + v10 · d465b29 T5 view modes/arrows ·
+1b23d08 T6/T7 exports/theming + T8 · (this) round-3 report + final verify
