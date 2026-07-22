@@ -1,0 +1,14 @@
+cd C:\Users\R757680\ds\workspace\ip-demo-project-v2
+
+# 1. header + first rows of the files that loaded 0
+Get-Content data\real\vertices\revenue_class.csv -TotalCount 3
+Get-Content data\real\vertices\product_line.csv  -TotalCount 3
+Get-Content data\real\vertices\reason_code.csv   -TotalCount 3
+
+# 2. duplicate primary keys (first column) in the partially-loaded files
+Import-Csv data\real\vertices\product_group.csv | Group-Object group_id   | Where-Object Count -gt 1 | Select-Object Name,Count
+Import-Csv data\real\vertices\product.csv       | Group-Object product_id | Where-Object Count -gt 1 | Select-Object Name,Count
+Import-Csv data\real\vertices\driver_cause.csv  | Group-Object cause_id   | Where-Object Count -gt 1 | Select-Object Name,Count
+
+# 3. blank first column (blank key) in a zero-loaded file
+Import-Csv data\real\vertices\product_line.csv | Where-Object { -not $_.line_id } | Select-Object -First 5
