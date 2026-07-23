@@ -25,6 +25,8 @@ CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
     DEFINE FILENAME f_commentary = "./vertices/commentary.csv";
     DEFINE FILENAME f_commentary_evaluation = "./vertices/commentary_evaluation.csv";
     DEFINE FILENAME f_evidence = "./vertices/evidence.csv";
+    DEFINE FILENAME f_anomaly = "./vertices/anomaly.csv";
+    DEFINE FILENAME f_anomaly_scan = "./vertices/anomaly_scan.csv";
     DEFINE FILENAME f_product_in_group = "./edges/product_in_group.csv";
     DEFINE FILENAME f_group_in_line = "./edges/group_in_line.csv";
     DEFINE FILENAME f_line_in_class = "./edges/line_in_class.csv";
@@ -52,6 +54,9 @@ CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
     DEFINE FILENAME f_commentary_cites_driver = "./edges/commentary_cites_driver.csv";
     DEFINE FILENAME f_evidence_for_driver = "./edges/evidence_for_driver.csv";
     DEFINE FILENAME f_evaluation_of_commentary = "./edges/evaluation_of_commentary.csv";
+    DEFINE FILENAME f_anomaly_for_advisor = "./edges/anomaly_for_advisor.csv";
+    DEFINE FILENAME f_anomaly_in_scan = "./edges/anomaly_in_scan.csv";
+    DEFINE FILENAME f_anomaly_cites_driver = "./edges/anomaly_cites_driver.csv";
 
     LOAD f_advisor TO VERTEX phx_dm_v2_advisor VALUES ($"advisor_sid", $"advisor_name", $"rep_code", $"branch_cd", $"standard_id", $"data_source") USING HEADER="true", SEPARATOR=",";
     LOAD f_month TO VERTEX phx_dm_v2_month VALUES ($"month_id", $"year", $"month_no", $"month_name", $"quarter", $"start_dt", $"end_dt", $"calendar_days", $"billable_days", $"prior_month_id", $"index_return", $"is_current", $"data_source") USING HEADER="true", SEPARATOR=",";
@@ -71,6 +76,8 @@ CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
     LOAD f_commentary TO VERTEX phx_dm_v2_commentary VALUES ($"commentary_id", $"version_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"headline", $"narrative_text", $"bullets_json", $"status", $"blocked_reason", $"data_source") USING HEADER="true", SEPARATOR=",";
     LOAD f_commentary_evaluation TO VERTEX phx_dm_v2_commentary_evaluation VALUES ($"evaluation_id", $"commentary_id", $"version_id", $"judge_model", $"faithfulness_score", $"hallucination_flag", $"completeness_score", $"clarity_score", $"verdict", $"reasoning", $"evaluated_at", $"data_source") USING HEADER="true", SEPARATOR=",";
     LOAD f_evidence TO VERTEX phx_dm_v2_evidence VALUES ($"evidence_id", $"driver_id", $"finding_text", $"calc_json", $"source_records_json", $"lineage_json", $"checks_json", $"gsql_query_name", $"gsql_params_json", $"gsql_result_json", $"source_sql", $"source_table", $"source_row_count", $"data_source") USING HEADER="true", SEPARATOR=",";
+    LOAD f_anomaly TO VERTEX phx_dm_v2_anomaly VALUES ($"anomaly_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"rule_id", $"severity", $"title", $"detail_text", $"metrics_json", $"threshold_json", $"impact_amt", $"group_id", $"scan_id", $"detected_at", $"data_source") USING HEADER="true", SEPARATOR=",";
+    LOAD f_anomaly_scan TO VERTEX phx_dm_v2_anomaly_scan VALUES ($"scan_id", $"started_at", $"advisors_reviewed", $"transitions_reviewed", $"flagged_count", $"thresholds_json", $"status", $"data_source") USING HEADER="true", SEPARATOR=",";
     LOAD f_product_in_group TO EDGE phx_dm_v2_product_in_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
     LOAD f_group_in_line TO EDGE phx_dm_v2_group_in_line VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
     LOAD f_line_in_class TO EDGE phx_dm_v2_line_in_class VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
@@ -98,4 +105,7 @@ CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
     LOAD f_commentary_cites_driver TO EDGE phx_dm_v2_commentary_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
     LOAD f_evidence_for_driver TO EDGE phx_dm_v2_evidence_for_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
     LOAD f_evaluation_of_commentary TO EDGE phx_dm_v2_evaluation_of_commentary VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
+    LOAD f_anomaly_for_advisor TO EDGE phx_dm_v2_anomaly_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
+    LOAD f_anomaly_in_scan TO EDGE phx_dm_v2_anomaly_in_scan VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
+    LOAD f_anomaly_cites_driver TO EDGE phx_dm_v2_anomaly_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
 }

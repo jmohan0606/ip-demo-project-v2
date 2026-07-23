@@ -281,3 +281,38 @@ CREATE VERTEX phx_dm_v2_evidence (
     source_row_count INT,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// ------------------------------------------------------- ANOMALY DETECTION (Round 6 Y)
+// One per flagged (advisor, transition, rule). metrics_json holds the COMPUTED
+// figures that triggered the rule; detail_text is the AI-worded phrasing of
+// those figures (AI-Generated chip in the UI) — the model never computes. DERIVED.
+CREATE VERTEX phx_dm_v2_anomaly (
+    PRIMARY_ID anomaly_id STRING,
+    advisor_sid STRING,
+    from_month_id STRING,
+    to_month_id STRING,
+    rule_id STRING,
+    severity STRING,
+    title STRING,
+    detail_text STRING,
+    metrics_json STRING,
+    threshold_json STRING,
+    impact_amt DOUBLE,
+    group_id STRING,
+    scan_id STRING,
+    detected_at DATETIME,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per scan run. Scans are additive and versioned exactly like commentary —
+// a re-scan creates a new scan_id and never deletes a prior one. DERIVED.
+CREATE VERTEX phx_dm_v2_anomaly_scan (
+    PRIMARY_ID scan_id STRING,
+    started_at DATETIME,
+    advisors_reviewed INT,
+    transitions_reviewed INT,
+    flagged_count INT,
+    thresholds_json STRING,
+    status STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"

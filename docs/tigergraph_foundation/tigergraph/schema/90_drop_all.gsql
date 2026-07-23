@@ -50,6 +50,9 @@ DROP GRAPH iperform_v2_revenue
 USE GLOBAL
 
 // --- 3. reverse edges (separate schema objects; explicit drops required) ---
+DROP EDGE reverse_phx_dm_v2_anomaly_cites_driver
+DROP EDGE reverse_phx_dm_v2_anomaly_in_scan
+DROP EDGE reverse_phx_dm_v2_anomaly_for_advisor
 DROP EDGE reverse_phx_dm_v2_evaluation_of_commentary
 DROP EDGE reverse_phx_dm_v2_evidence_for_driver
 DROP EDGE reverse_phx_dm_v2_commentary_cites_driver
@@ -79,6 +82,9 @@ DROP EDGE reverse_phx_dm_v2_group_in_line
 DROP EDGE reverse_phx_dm_v2_product_in_group
 
 // --- 4. forward edges ---
+DROP EDGE phx_dm_v2_anomaly_cites_driver
+DROP EDGE phx_dm_v2_anomaly_in_scan
+DROP EDGE phx_dm_v2_anomaly_for_advisor
 DROP EDGE phx_dm_v2_evaluation_of_commentary
 DROP EDGE phx_dm_v2_evidence_for_driver
 DROP EDGE phx_dm_v2_commentary_cites_driver
@@ -108,6 +114,8 @@ DROP EDGE phx_dm_v2_group_in_line
 DROP EDGE phx_dm_v2_product_in_group
 
 // --- 5. vertices (facts before dimensions) ---
+DROP VERTEX phx_dm_v2_anomaly_scan
+DROP VERTEX phx_dm_v2_anomaly
 DROP VERTEX phx_dm_v2_evidence
 DROP VERTEX phx_dm_v2_commentary_evaluation
 DROP VERTEX phx_dm_v2_commentary

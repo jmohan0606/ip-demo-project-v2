@@ -74,13 +74,16 @@ WORKFLOW_NAMES = {
     "commentary_to_month", "commentary_in_version",
     "commentary_cites_driver", "evidence_for_driver",
     "evaluation_of_commentary",
+    # R6 Y — anomaly scans are additive workflow artifacts, like commentary.
+    "anomaly_scan", "anomaly",
+    "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver",
 }
 
 VERTEX_ORDER = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
                 "account", "driver_cause", "reason_code", "revenue_transaction",
                 "monthly_product_revenue", "account_month_balance", "revenue_change",
                 "revenue_driver", "commentary_version", "commentary",
-                "commentary_evaluation", "evidence"]
+                "commentary_evaluation", "evidence", "anomaly_scan", "anomaly"]
 
 EDGE_ORDER = ["product_in_group", "group_in_line", "line_in_class",
               "txn_for_advisor", "txn_in_month", "txn_for_product", "txn_for_account",
@@ -91,7 +94,8 @@ EDGE_ORDER = ["product_in_group", "group_in_line", "line_in_class",
               "driver_of_change", "driver_has_cause", "driver_for_group",
               "commentary_for_advisor", "commentary_from_month", "commentary_to_month",
               "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
-              "evaluation_of_commentary"]
+              "evaluation_of_commentary",
+              "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver"]
 
 TXN_COLUMNS = ["txn_id", "trade_ref_no", "split_seq_no", "advisor_sid", "month_id", "product_id",
                "account_no", "trade_dt", "proc_dt", "credited_amt", "pre_split_amt", "split_pct",
@@ -275,6 +279,13 @@ def build_dataset(
         ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
          "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
          "source_sql", "source_table", "source_row_count", "data_source"])
+    counts[csv_file_for("vertex", "anomaly_scan")] = preserve_or_create(out_dir / csv_file_for("vertex", "anomaly_scan"),
+        ["scan_id", "started_at", "advisors_reviewed", "transitions_reviewed",
+         "flagged_count", "thresholds_json", "status", "data_source"])
+    counts[csv_file_for("vertex", "anomaly")] = preserve_or_create(out_dir / csv_file_for("vertex", "anomaly"),
+        ["anomaly_id", "advisor_sid", "from_month_id", "to_month_id", "rule_id", "severity",
+         "title", "detail_text", "metrics_json", "threshold_json", "impact_amt", "group_id",
+         "scan_id", "detected_at", "data_source"])
 
     # ------------------------------------------------ edge CSVs
 
@@ -312,7 +323,8 @@ def build_dataset(
     # Workflow-generated edges — preserved if present.
     for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
-                 "evaluation_of_commentary"):
+                 "evaluation_of_commentary",
+                 "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver"):
         counts[csv_file_for("edge", name)] = preserve_or_create(
             out_dir / csv_file_for("edge", name), ["from_id", "to_id"])
 

@@ -1,0 +1,1 @@
+anomaly_id,advisor_sid,from_month_id,to_month_id,rule_id,severity,title,detail_text,metrics_json,threshold_json,impact_amt,group_id,scan_id,detected_at,data_source

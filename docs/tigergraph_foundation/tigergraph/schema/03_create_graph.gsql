@@ -21,6 +21,8 @@ CREATE GRAPH iperform_v2_revenue (
     phx_dm_v2_commentary,
     phx_dm_v2_commentary_evaluation,
     phx_dm_v2_evidence,
+    phx_dm_v2_anomaly,
+    phx_dm_v2_anomaly_scan,
     phx_dm_v2_product_in_group,
     phx_dm_v2_group_in_line,
     phx_dm_v2_line_in_class,
@@ -47,5 +49,8 @@ CREATE GRAPH iperform_v2_revenue (
     phx_dm_v2_commentary_in_version,
     phx_dm_v2_commentary_cites_driver,
     phx_dm_v2_evidence_for_driver,
-    phx_dm_v2_evaluation_of_commentary
+    phx_dm_v2_evaluation_of_commentary,
+    phx_dm_v2_anomaly_for_advisor,
+    phx_dm_v2_anomaly_in_scan,
+    phx_dm_v2_anomaly_cites_driver
 )

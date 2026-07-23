@@ -1,8 +1,8 @@
 {
   "graph": "iperform_v2_revenue",
   "prefix": "phx_dm_v2_",
-  "vertex_count": 18,
-  "edge_count": 27,
+  "vertex_count": 20,
+  "edge_count": 30,
   "vertices": {
     "phx_dm_v2_advisor": {
       "primary_id": {
@@ -326,6 +326,45 @@
         "source_row_count": "INT",
         "data_source": "STRING"
       }
+    },
+    "phx_dm_v2_anomaly": {
+      "primary_id": {
+        "name": "anomaly_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "anomaly_id": "STRING",
+        "advisor_sid": "STRING",
+        "from_month_id": "STRING",
+        "to_month_id": "STRING",
+        "rule_id": "STRING",
+        "severity": "STRING",
+        "title": "STRING",
+        "detail_text": "STRING",
+        "metrics_json": "STRING",
+        "threshold_json": "STRING",
+        "impact_amt": "DOUBLE",
+        "group_id": "STRING",
+        "scan_id": "STRING",
+        "detected_at": "DATETIME",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_anomaly_scan": {
+      "primary_id": {
+        "name": "scan_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "scan_id": "STRING",
+        "started_at": "DATETIME",
+        "advisors_reviewed": "INT",
+        "transitions_reviewed": "INT",
+        "flagged_count": "INT",
+        "thresholds_json": "STRING",
+        "status": "STRING",
+        "data_source": "STRING"
+      }
     }
   },
   "edges": {
@@ -463,6 +502,21 @@
       "from": "phx_dm_v2_commentary_evaluation",
       "to": "phx_dm_v2_commentary",
       "reverse_edge": "reverse_phx_dm_v2_evaluation_of_commentary"
+    },
+    "phx_dm_v2_anomaly_for_advisor": {
+      "from": "phx_dm_v2_anomaly",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_anomaly_for_advisor"
+    },
+    "phx_dm_v2_anomaly_in_scan": {
+      "from": "phx_dm_v2_anomaly",
+      "to": "phx_dm_v2_anomaly_scan",
+      "reverse_edge": "reverse_phx_dm_v2_anomaly_in_scan"
+    },
+    "phx_dm_v2_anomaly_cites_driver": {
+      "from": "phx_dm_v2_anomaly",
+      "to": "phx_dm_v2_revenue_driver",
+      "reverse_edge": "reverse_phx_dm_v2_anomaly_cites_driver"
     }
   }
 }
