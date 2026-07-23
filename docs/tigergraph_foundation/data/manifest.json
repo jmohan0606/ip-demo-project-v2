@@ -7,7 +7,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_advisor",
-      "file": "vertices/advisor.csv",
+      "file": "vertices/phx_dm_v2_advisor.csv",
       "order": 1,
       "id_column": "advisor_sid",
       "columns": {
@@ -28,7 +28,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_month",
-      "file": "vertices/month.csv",
+      "file": "vertices/phx_dm_v2_month.csv",
       "order": 2,
       "id_column": "month_id",
       "columns": {
@@ -56,7 +56,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_revenue_class",
-      "file": "vertices/revenue_class.csv",
+      "file": "vertices/phx_dm_v2_revenue_class.csv",
       "order": 3,
       "id_column": "class_id",
       "columns": {
@@ -75,7 +75,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_product_line",
-      "file": "vertices/product_line.csv",
+      "file": "vertices/phx_dm_v2_product_line.csv",
       "order": 4,
       "id_column": "line_id",
       "columns": {
@@ -94,7 +94,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_product_group",
-      "file": "vertices/product_group.csv",
+      "file": "vertices/phx_dm_v2_product_group.csv",
       "order": 5,
       "id_column": "group_id",
       "columns": {
@@ -113,7 +113,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_product",
-      "file": "vertices/product.csv",
+      "file": "vertices/phx_dm_v2_product.csv",
       "order": 6,
       "id_column": "product_id",
       "columns": {
@@ -134,7 +134,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_account",
-      "file": "vertices/account.csv",
+      "file": "vertices/phx_dm_v2_account.csv",
       "order": 7,
       "id_column": "account_no",
       "columns": {
@@ -153,7 +153,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_driver_cause",
-      "file": "vertices/driver_cause.csv",
+      "file": "vertices/phx_dm_v2_driver_cause.csv",
       "order": 8,
       "id_column": "cause_id",
       "columns": {
@@ -174,7 +174,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_reason_code",
-      "file": "vertices/reason_code.csv",
+      "file": "vertices/phx_dm_v2_reason_code.csv",
       "order": 9,
       "id_column": "reason_code",
       "columns": {
@@ -198,7 +198,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_revenue_transaction",
-      "file": "vertices/revenue_transaction.csv",
+      "file": "vertices/phx_dm_v2_revenue_transaction.csv",
       "order": 10,
       "id_column": "txn_id",
       "columns": {
@@ -242,7 +242,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_monthly_product_revenue",
-      "file": "vertices/monthly_product_revenue.csv",
+      "file": "vertices/phx_dm_v2_monthly_product_revenue.csv",
       "order": 11,
       "id_column": "mpr_id",
       "columns": {
@@ -274,7 +274,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_account_month_balance",
-      "file": "vertices/account_month_balance.csv",
+      "file": "vertices/phx_dm_v2_account_month_balance.csv",
       "order": 12,
       "id_column": "balance_id",
       "columns": {
@@ -296,7 +296,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_revenue_change",
-      "file": "vertices/revenue_change.csv",
+      "file": "vertices/phx_dm_v2_revenue_change.csv",
       "order": 13,
       "id_column": "change_id",
       "columns": {
@@ -322,7 +322,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_revenue_driver",
-      "file": "vertices/revenue_driver.csv",
+      "file": "vertices/phx_dm_v2_revenue_driver.csv",
       "order": 14,
       "id_column": "driver_id",
       "columns": {
@@ -347,7 +347,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_commentary_version",
-      "file": "vertices/commentary_version.csv",
+      "file": "vertices/phx_dm_v2_commentary_version.csv",
       "order": 15,
       "id_column": "version_id",
       "columns": {
@@ -374,7 +374,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_commentary",
-      "file": "vertices/commentary.csv",
+      "file": "vertices/phx_dm_v2_commentary.csv",
       "order": 16,
       "id_column": "commentary_id",
       "columns": {
@@ -400,7 +400,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_commentary_evaluation",
-      "file": "vertices/commentary_evaluation.csv",
+      "file": "vertices/phx_dm_v2_commentary_evaluation.csv",
       "order": 17,
       "id_column": "evaluation_id",
       "columns": {
@@ -427,7 +427,7 @@
     {
       "kind": "vertex",
       "target": "phx_dm_v2_evidence",
-      "file": "vertices/evidence.csv",
+      "file": "vertices/phx_dm_v2_evidence.csv",
       "order": 18,
       "id_column": "evidence_id",
       "columns": {
@@ -456,7 +456,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_product_in_group",
-      "file": "edges/product_in_group.csv",
+      "file": "edges/phx_dm_v2_product_in_group.csv",
       "order": 19,
       "from_type": "phx_dm_v2_product",
       "to_type": "phx_dm_v2_product_group",
@@ -469,7 +469,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_group_in_line",
-      "file": "edges/group_in_line.csv",
+      "file": "edges/phx_dm_v2_group_in_line.csv",
       "order": 20,
       "from_type": "phx_dm_v2_product_group",
       "to_type": "phx_dm_v2_product_line",
@@ -482,7 +482,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_line_in_class",
-      "file": "edges/line_in_class.csv",
+      "file": "edges/phx_dm_v2_line_in_class.csv",
       "order": 21,
       "from_type": "phx_dm_v2_product_line",
       "to_type": "phx_dm_v2_revenue_class",
@@ -495,7 +495,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_txn_for_advisor",
-      "file": "edges/txn_for_advisor.csv",
+      "file": "edges/phx_dm_v2_txn_for_advisor.csv",
       "order": 22,
       "from_type": "phx_dm_v2_revenue_transaction",
       "to_type": "phx_dm_v2_advisor",
@@ -508,7 +508,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_txn_in_month",
-      "file": "edges/txn_in_month.csv",
+      "file": "edges/phx_dm_v2_txn_in_month.csv",
       "order": 23,
       "from_type": "phx_dm_v2_revenue_transaction",
       "to_type": "phx_dm_v2_month",
@@ -521,7 +521,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_txn_for_product",
-      "file": "edges/txn_for_product.csv",
+      "file": "edges/phx_dm_v2_txn_for_product.csv",
       "order": 24,
       "from_type": "phx_dm_v2_revenue_transaction",
       "to_type": "phx_dm_v2_product",
@@ -534,7 +534,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_txn_for_account",
-      "file": "edges/txn_for_account.csv",
+      "file": "edges/phx_dm_v2_txn_for_account.csv",
       "order": 25,
       "from_type": "phx_dm_v2_revenue_transaction",
       "to_type": "phx_dm_v2_account",
@@ -547,7 +547,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_txn_has_reason",
-      "file": "edges/txn_has_reason.csv",
+      "file": "edges/phx_dm_v2_txn_has_reason.csv",
       "order": 26,
       "from_type": "phx_dm_v2_revenue_transaction",
       "to_type": "phx_dm_v2_reason_code",
@@ -560,7 +560,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_mpr_for_advisor",
-      "file": "edges/mpr_for_advisor.csv",
+      "file": "edges/phx_dm_v2_mpr_for_advisor.csv",
       "order": 27,
       "from_type": "phx_dm_v2_monthly_product_revenue",
       "to_type": "phx_dm_v2_advisor",
@@ -573,7 +573,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_mpr_in_month",
-      "file": "edges/mpr_in_month.csv",
+      "file": "edges/phx_dm_v2_mpr_in_month.csv",
       "order": 28,
       "from_type": "phx_dm_v2_monthly_product_revenue",
       "to_type": "phx_dm_v2_month",
@@ -586,7 +586,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_mpr_for_group",
-      "file": "edges/mpr_for_group.csv",
+      "file": "edges/phx_dm_v2_mpr_for_group.csv",
       "order": 29,
       "from_type": "phx_dm_v2_monthly_product_revenue",
       "to_type": "phx_dm_v2_product_group",
@@ -599,7 +599,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_balance_for_account",
-      "file": "edges/balance_for_account.csv",
+      "file": "edges/phx_dm_v2_balance_for_account.csv",
       "order": 30,
       "from_type": "phx_dm_v2_account_month_balance",
       "to_type": "phx_dm_v2_account",
@@ -612,7 +612,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_balance_in_month",
-      "file": "edges/balance_in_month.csv",
+      "file": "edges/phx_dm_v2_balance_in_month.csv",
       "order": 31,
       "from_type": "phx_dm_v2_account_month_balance",
       "to_type": "phx_dm_v2_month",
@@ -625,7 +625,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_change_for_advisor",
-      "file": "edges/change_for_advisor.csv",
+      "file": "edges/phx_dm_v2_change_for_advisor.csv",
       "order": 32,
       "from_type": "phx_dm_v2_revenue_change",
       "to_type": "phx_dm_v2_advisor",
@@ -638,7 +638,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_change_for_group",
-      "file": "edges/change_for_group.csv",
+      "file": "edges/phx_dm_v2_change_for_group.csv",
       "order": 33,
       "from_type": "phx_dm_v2_revenue_change",
       "to_type": "phx_dm_v2_product_group",
@@ -651,7 +651,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_change_from_month",
-      "file": "edges/change_from_month.csv",
+      "file": "edges/phx_dm_v2_change_from_month.csv",
       "order": 34,
       "from_type": "phx_dm_v2_revenue_change",
       "to_type": "phx_dm_v2_month",
@@ -664,7 +664,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_change_to_month",
-      "file": "edges/change_to_month.csv",
+      "file": "edges/phx_dm_v2_change_to_month.csv",
       "order": 35,
       "from_type": "phx_dm_v2_revenue_change",
       "to_type": "phx_dm_v2_month",
@@ -677,7 +677,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_driver_of_change",
-      "file": "edges/driver_of_change.csv",
+      "file": "edges/phx_dm_v2_driver_of_change.csv",
       "order": 36,
       "from_type": "phx_dm_v2_revenue_driver",
       "to_type": "phx_dm_v2_revenue_change",
@@ -690,7 +690,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_driver_has_cause",
-      "file": "edges/driver_has_cause.csv",
+      "file": "edges/phx_dm_v2_driver_has_cause.csv",
       "order": 37,
       "from_type": "phx_dm_v2_revenue_driver",
       "to_type": "phx_dm_v2_driver_cause",
@@ -703,7 +703,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_driver_for_group",
-      "file": "edges/driver_for_group.csv",
+      "file": "edges/phx_dm_v2_driver_for_group.csv",
       "order": 38,
       "from_type": "phx_dm_v2_revenue_driver",
       "to_type": "phx_dm_v2_product_group",
@@ -716,7 +716,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_commentary_for_advisor",
-      "file": "edges/commentary_for_advisor.csv",
+      "file": "edges/phx_dm_v2_commentary_for_advisor.csv",
       "order": 39,
       "from_type": "phx_dm_v2_commentary",
       "to_type": "phx_dm_v2_advisor",
@@ -729,7 +729,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_commentary_from_month",
-      "file": "edges/commentary_from_month.csv",
+      "file": "edges/phx_dm_v2_commentary_from_month.csv",
       "order": 40,
       "from_type": "phx_dm_v2_commentary",
       "to_type": "phx_dm_v2_month",
@@ -742,7 +742,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_commentary_to_month",
-      "file": "edges/commentary_to_month.csv",
+      "file": "edges/phx_dm_v2_commentary_to_month.csv",
       "order": 41,
       "from_type": "phx_dm_v2_commentary",
       "to_type": "phx_dm_v2_month",
@@ -755,7 +755,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_commentary_in_version",
-      "file": "edges/commentary_in_version.csv",
+      "file": "edges/phx_dm_v2_commentary_in_version.csv",
       "order": 42,
       "from_type": "phx_dm_v2_commentary",
       "to_type": "phx_dm_v2_commentary_version",
@@ -768,7 +768,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_commentary_cites_driver",
-      "file": "edges/commentary_cites_driver.csv",
+      "file": "edges/phx_dm_v2_commentary_cites_driver.csv",
       "order": 43,
       "from_type": "phx_dm_v2_commentary",
       "to_type": "phx_dm_v2_revenue_driver",
@@ -781,7 +781,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_evidence_for_driver",
-      "file": "edges/evidence_for_driver.csv",
+      "file": "edges/phx_dm_v2_evidence_for_driver.csv",
       "order": 44,
       "from_type": "phx_dm_v2_evidence",
       "to_type": "phx_dm_v2_revenue_driver",
@@ -794,7 +794,7 @@
     {
       "kind": "edge",
       "target": "phx_dm_v2_evaluation_of_commentary",
-      "file": "edges/evaluation_of_commentary.csv",
+      "file": "edges/phx_dm_v2_evaluation_of_commentary.csv",
       "order": 45,
       "from_type": "phx_dm_v2_commentary_evaluation",
       "to_type": "phx_dm_v2_commentary",

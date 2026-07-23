@@ -92,7 +92,7 @@ def main() -> int:
     # ---- 2. fail-loud on renamed column ----------------------------------------
     print("\n[2] Fail-loud on column mismatch (A1)")
     svc = fresh_service("_ck_2.db")
-    batch = run_to_completion(svc, "advisor", file_name="vertices/advisor_wrong_column.csv")
+    batch = run_to_completion(svc, "advisor", file_name="vertices/phx_dm_v2_advisor_wrong_column.csv")
     msg = batch.message or ""
     check("wrong-column load FAILS", batch.status.value == "failed", batch.status.value)
     check("error names the missing column", "advisor_name" in msg, msg[:140])
@@ -118,11 +118,11 @@ def main() -> int:
     tmp = FIXTURES / "_lf_check.csv"
     write_csv(tmp, [{"a": "x", "b": "y"}], ["a", "b"])
     check("builder writes LF only", b"\r\n" not in tmp.read_bytes(), "")
-    raw = (FIXTURES / "vertices" / "advisor.csv").read_bytes()
+    raw = (FIXTURES / "vertices" / "phx_dm_v2_advisor.csv").read_bytes()
     check("fixture CSVs are LF", b"\r\n" not in raw, "")
     svc = fresh_service("_ck_4.db")
     store.vertices["phx_dm_v2_advisor"].clear()
-    batch = run_to_completion(svc, "advisor", file_name="vertices/advisor_bom.csv")
+    batch = run_to_completion(svc, "advisor", file_name="vertices/phx_dm_v2_advisor_bom.csv")
     check("BOM-prefixed file parses and loads", batch.status.value == "completed"
           and "FIX001" in store.vertices["phx_dm_v2_advisor"], batch.message)
 

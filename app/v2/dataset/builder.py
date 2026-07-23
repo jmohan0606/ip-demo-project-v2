@@ -46,15 +46,30 @@ from app.v2.revenue.aggregation import (
 
 SCHEMA_CATALOG = Path("docs/tigergraph_foundation/tigergraph/schema/schema_catalog.json")
 
+# ---------------------------------------------------------------- R5 C1/C2
+# THE single catalog for CSV file naming: entity short name -> repo-relative
+# path, with the file named after its full vertex/edge type so a file maps to
+# its target at a glance (data/real/vertices/phx_dm_v2_revenue_class.csv).
+# Every producer and the generated manifest use THIS function; consumers
+# (entity registry, upsert client, foundation store, ingestion) read the
+# manifest — no file name is hardcoded in more than one place.
+SCHEMA_PREFIX = "phx_dm_v2_"
+
+
+def csv_file_for(kind: str, name: str) -> str:
+    """'vertex','advisor' -> 'vertices/phx_dm_v2_advisor.csv'."""
+    sub = "vertices" if kind == "vertex" else "edges"
+    return f"{sub}/{SCHEMA_PREFIX}{name}.csv"
+
 # Workflow-generated files: preserved if present, created header-only on a
 # fresh data set, and never counted as "expected rows" in the manifest.
-WORKFLOW_FILES = {
-    "commentary_version.csv", "commentary.csv", "evidence.csv",
-    "commentary_evaluation.csv",
-    "commentary_for_advisor.csv", "commentary_from_month.csv",
-    "commentary_to_month.csv", "commentary_in_version.csv",
-    "commentary_cites_driver.csv", "evidence_for_driver.csv",
-    "evaluation_of_commentary.csv",
+WORKFLOW_NAMES = {
+    "commentary_version", "commentary", "evidence",
+    "commentary_evaluation",
+    "commentary_for_advisor", "commentary_from_month",
+    "commentary_to_month", "commentary_in_version",
+    "commentary_cites_driver", "evidence_for_driver",
+    "evaluation_of_commentary",
 }
 
 VERTEX_ORDER = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
@@ -187,38 +202,37 @@ def build_dataset(
         )
 
     # ------------------------------------------------ vertex CSVs
-    v = out_dir / "vertices"
     counts: dict[str, int] = {}
-    counts["advisor.csv"] = write_vertex_csv(v / "advisor.csv", advisors,
+    counts[csv_file_for("vertex", "advisor")] = write_vertex_csv(out_dir / csv_file_for("vertex", "advisor"), advisors,
         ["advisor_sid", "advisor_name", "rep_code", "branch_cd", "standard_id", "data_source"],
         "advisor")
-    counts["month.csv"] = write_vertex_csv(v / "month.csv", months, list(months[0].keys()), "month")
-    counts["revenue_class.csv"] = write_vertex_csv(v / "revenue_class.csv", classes,
+    counts[csv_file_for("vertex", "month")] = write_vertex_csv(out_dir / csv_file_for("vertex", "month"), months, list(months[0].keys()), "month")
+    counts[csv_file_for("vertex", "revenue_class")] = write_vertex_csv(out_dir / csv_file_for("vertex", "revenue_class"), classes,
         ["class_id", "class_name", "display_order", "data_source"], "revenue_class")
-    counts["product_line.csv"] = write_vertex_csv(v / "product_line.csv",
+    counts[csv_file_for("vertex", "product_line")] = write_vertex_csv(out_dir / csv_file_for("vertex", "product_line"),
         [{"line_id": l, "line_name": n, "display_order": o} for l, n, _c, o in lines],
         ["line_id", "line_name", "display_order", "data_source"], "product_line")
-    counts["product_group.csv"] = write_vertex_csv(v / "product_group.csv",
+    counts[csv_file_for("vertex", "product_group")] = write_vertex_csv(out_dir / csv_file_for("vertex", "product_group"),
         [{"group_id": g, "group_name": n, "display_order": o} for g, n, _l, o in groups],
         ["group_id", "group_name", "display_order", "data_source"], "product_group")
-    counts["product.csv"] = write_vertex_csv(v / "product.csv",
+    counts[csv_file_for("vertex", "product")] = write_vertex_csv(out_dir / csv_file_for("vertex", "product"),
         [{"product_id": pid, "product_cd": cd, "product_sub_cd": sub, "product_name": name,
           "grid_type": grid} for pid, cd, sub, name, _g, grid in products],
         ["product_id", "product_cd", "product_sub_cd", "product_name", "grid_type", "data_source"],
         "product")
-    counts["account.csv"] = write_vertex_csv(v / "account.csv", accounts,
+    counts[csv_file_for("vertex", "account")] = write_vertex_csv(out_dir / csv_file_for("vertex", "account"), accounts,
         ["account_no", "account_typ", "wrap_flg", "data_source"], "account")
-    counts["driver_cause.csv"] = write_vertex_csv(v / "driver_cause.csv",
+    counts[csv_file_for("vertex", "driver_cause")] = write_vertex_csv(out_dir / csv_file_for("vertex", "driver_cause"),
         [dict(r) for r in _driver_cause_rows()],
         ["cause_id", "cause_name", "cause_description", "default_data_source", "display_order",
          "data_source"], "driver_cause")
-    counts["reason_code.csv"] = write_vertex_csv(v / "reason_code.csv", elig.seed_rows(),
+    counts[csv_file_for("vertex", "reason_code")] = write_vertex_csv(out_dir / csv_file_for("vertex", "reason_code"), elig.seed_rows(),
         ["reason_code", "description", "ui_mapping", "owned_by", "eligibility",
          "include_in_credited", "incentive_eligible", "display_order", "data_source"],
         "reason_code")
-    counts["revenue_transaction.csv"] = write_vertex_csv(
-        v / "revenue_transaction.csv", txns, TXN_COLUMNS, "revenue_transaction")
-    counts["monthly_product_revenue.csv"] = write_vertex_csv(v / "monthly_product_revenue.csv", mpr,
+    counts[csv_file_for("vertex", "revenue_transaction")] = write_vertex_csv(
+        out_dir / csv_file_for("vertex", "revenue_transaction"), txns, TXN_COLUMNS, "revenue_transaction")
+    counts[csv_file_for("vertex", "monthly_product_revenue")] = write_vertex_csv(out_dir / csv_file_for("vertex", "monthly_product_revenue"), mpr,
         ["mpr_id", "advisor_sid", "month_id", "group_id", "line_id", "class_id", "revenue",
          "txn_count", "account_count", "avg_rate_bps", "recurring_amt", "one_time_amt",
          "total_revenue", "non_credited_amt", "excluded_amt", "late_excluded_amt", "data_source"],
@@ -228,36 +242,35 @@ def build_dataset(
                  "avg_billable_assets": 0.0, "effective_fee_bps": 0.0,
                  "billable_days": billable_days[m]}
                 for a in account_ids for m in month_ids]
-    counts["account_month_balance.csv"] = write_vertex_csv(v / "account_month_balance.csv", balances,
+    counts[csv_file_for("vertex", "account_month_balance")] = write_vertex_csv(out_dir / csv_file_for("vertex", "account_month_balance"), balances,
         ["balance_id", "account_no", "month_id", "avg_billable_assets", "effective_fee_bps",
          "billable_days", "data_source"], "account_month_balance")
-    counts["revenue_change.csv"] = write_vertex_csv(v / "revenue_change.csv", changes,
+    counts[csv_file_for("vertex", "revenue_change")] = write_vertex_csv(out_dir / csv_file_for("vertex", "revenue_change"), changes,
         ["change_id", "advisor_sid", "from_month_id", "to_month_id", "group_id", "from_revenue",
          "to_revenue", "change_amt", "change_pct", "direction", "data_source"], "revenue_change")
     # revenue_driver rows are stamped per cause by attribution — validate only.
     provenance.require_stamped("revenue_driver", drivers)
-    counts["revenue_driver.csv"] = write_csv(v / "revenue_driver.csv", drivers,
+    counts[csv_file_for("vertex", "revenue_driver")] = write_csv(out_dir / csv_file_for("vertex", "revenue_driver"), drivers,
         ["driver_id", "change_id", "cause_id", "group_id", "contribution_amt", "contribution_pct",
          "direction", "rank", "inputs_json", "data_source"])
     # Workflow-generated vertices: PRESERVED if present (versions are additive);
     # created header-only on a fresh data set. NEVER generated here.
-    counts["commentary_version.csv"] = preserve_or_create(v / "commentary_version.csv",
+    counts[csv_file_for("vertex", "commentary_version")] = preserve_or_create(out_dir / csv_file_for("vertex", "commentary_version"),
         ["version_id", "version_no", "generated_at", "model", "prompt_version", "data_snapshot_dt",
          "status", "advisor_count", "transition_count", "blocked_count", "notes", "data_source"])
-    counts["commentary.csv"] = preserve_or_create(v / "commentary.csv",
+    counts[csv_file_for("vertex", "commentary")] = preserve_or_create(out_dir / csv_file_for("vertex", "commentary"),
         ["commentary_id", "version_id", "advisor_sid", "from_month_id", "to_month_id", "headline",
          "narrative_text", "bullets_json", "status", "blocked_reason", "data_source"])
-    counts["commentary_evaluation.csv"] = preserve_or_create(v / "commentary_evaluation.csv",
+    counts[csv_file_for("vertex", "commentary_evaluation")] = preserve_or_create(out_dir / csv_file_for("vertex", "commentary_evaluation"),
         ["evaluation_id", "commentary_id", "version_id", "judge_model", "faithfulness_score",
          "hallucination_flag", "completeness_score", "clarity_score", "verdict", "reasoning",
          "evaluated_at", "data_source"])
-    counts["evidence.csv"] = preserve_or_create(v / "evidence.csv",
+    counts[csv_file_for("vertex", "evidence")] = preserve_or_create(out_dir / csv_file_for("vertex", "evidence"),
         ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
          "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
          "source_sql", "source_table", "source_row_count", "data_source"])
 
     # ------------------------------------------------ edge CSVs
-    e = out_dir / "edges"
 
     def edge_rows(name: str, pairs: list[tuple[str, str]]) -> int:
         seen, rows = set(), []
@@ -265,67 +278,68 @@ def build_dataset(
             if (f_, t_) not in seen:
                 seen.add((f_, t_))
                 rows.append({"from_id": f_, "to_id": t_})
-        return write_csv(e / f"{name}.csv", rows, ["from_id", "to_id"])
+        return write_csv(out_dir / csv_file_for("edge", name), rows, ["from_id", "to_id"])
 
-    counts["product_in_group.csv"] = edge_rows("product_in_group",
+    counts[csv_file_for("edge", "product_in_group")] = edge_rows("product_in_group",
         [(pid, g) for pid, _cd, _sub, _name, g, _grid in products])
-    counts["group_in_line.csv"] = edge_rows("group_in_line", [(g, l) for g, _n, l, _o in groups])
-    counts["line_in_class.csv"] = edge_rows("line_in_class", [(l, c) for l, _n, c, _o in lines])
-    counts["txn_for_advisor.csv"] = edge_rows("txn_for_advisor", [(t["txn_id"], t["advisor_sid"]) for t in txns])
-    counts["txn_in_month.csv"] = edge_rows("txn_in_month", [(t["txn_id"], t["month_id"]) for t in txns])
-    counts["txn_for_product.csv"] = edge_rows("txn_for_product", [(t["txn_id"], t["product_id"]) for t in txns])
-    counts["txn_for_account.csv"] = edge_rows("txn_for_account", [(t["txn_id"], t["account_no"]) for t in txns])
-    counts["txn_has_reason.csv"] = edge_rows("txn_has_reason", [(t["txn_id"], t["reason_cd"]) for t in txns])
-    counts["mpr_for_advisor.csv"] = edge_rows("mpr_for_advisor", [(r["mpr_id"], r["advisor_sid"]) for r in mpr])
-    counts["mpr_in_month.csv"] = edge_rows("mpr_in_month", [(r["mpr_id"], r["month_id"]) for r in mpr])
-    counts["mpr_for_group.csv"] = edge_rows("mpr_for_group", [(r["mpr_id"], r["group_id"]) for r in mpr])
-    counts["balance_for_account.csv"] = edge_rows("balance_for_account", [(b["balance_id"], b["account_no"]) for b in balances])
-    counts["balance_in_month.csv"] = edge_rows("balance_in_month", [(b["balance_id"], b["month_id"]) for b in balances])
-    counts["change_for_advisor.csv"] = edge_rows("change_for_advisor", [(c["change_id"], c["advisor_sid"]) for c in changes])
-    counts["change_for_group.csv"] = edge_rows("change_for_group",
+    counts[csv_file_for("edge", "group_in_line")] = edge_rows("group_in_line", [(g, l) for g, _n, l, _o in groups])
+    counts[csv_file_for("edge", "line_in_class")] = edge_rows("line_in_class", [(l, c) for l, _n, c, _o in lines])
+    counts[csv_file_for("edge", "txn_for_advisor")] = edge_rows("txn_for_advisor", [(t["txn_id"], t["advisor_sid"]) for t in txns])
+    counts[csv_file_for("edge", "txn_in_month")] = edge_rows("txn_in_month", [(t["txn_id"], t["month_id"]) for t in txns])
+    counts[csv_file_for("edge", "txn_for_product")] = edge_rows("txn_for_product", [(t["txn_id"], t["product_id"]) for t in txns])
+    counts[csv_file_for("edge", "txn_for_account")] = edge_rows("txn_for_account", [(t["txn_id"], t["account_no"]) for t in txns])
+    counts[csv_file_for("edge", "txn_has_reason")] = edge_rows("txn_has_reason", [(t["txn_id"], t["reason_cd"]) for t in txns])
+    counts[csv_file_for("edge", "mpr_for_advisor")] = edge_rows("mpr_for_advisor", [(r["mpr_id"], r["advisor_sid"]) for r in mpr])
+    counts[csv_file_for("edge", "mpr_in_month")] = edge_rows("mpr_in_month", [(r["mpr_id"], r["month_id"]) for r in mpr])
+    counts[csv_file_for("edge", "mpr_for_group")] = edge_rows("mpr_for_group", [(r["mpr_id"], r["group_id"]) for r in mpr])
+    counts[csv_file_for("edge", "balance_for_account")] = edge_rows("balance_for_account", [(b["balance_id"], b["account_no"]) for b in balances])
+    counts[csv_file_for("edge", "balance_in_month")] = edge_rows("balance_in_month", [(b["balance_id"], b["month_id"]) for b in balances])
+    counts[csv_file_for("edge", "change_for_advisor")] = edge_rows("change_for_advisor", [(c["change_id"], c["advisor_sid"]) for c in changes])
+    counts[csv_file_for("edge", "change_for_group")] = edge_rows("change_for_group",
         [(c["change_id"], c["group_id"]) for c in changes if c["group_id"] != TOTAL_GROUP])
-    counts["change_from_month.csv"] = edge_rows("change_from_month", [(c["change_id"], c["from_month_id"]) for c in changes])
-    counts["change_to_month.csv"] = edge_rows("change_to_month", [(c["change_id"], c["to_month_id"]) for c in changes])
-    counts["driver_of_change.csv"] = edge_rows("driver_of_change", [(d["driver_id"], d["change_id"]) for d in drivers])
-    counts["driver_has_cause.csv"] = edge_rows("driver_has_cause", [(d["driver_id"], d["cause_id"]) for d in drivers])
-    counts["driver_for_group.csv"] = edge_rows("driver_for_group",
+    counts[csv_file_for("edge", "change_from_month")] = edge_rows("change_from_month", [(c["change_id"], c["from_month_id"]) for c in changes])
+    counts[csv_file_for("edge", "change_to_month")] = edge_rows("change_to_month", [(c["change_id"], c["to_month_id"]) for c in changes])
+    counts[csv_file_for("edge", "driver_of_change")] = edge_rows("driver_of_change", [(d["driver_id"], d["change_id"]) for d in drivers])
+    counts[csv_file_for("edge", "driver_has_cause")] = edge_rows("driver_has_cause", [(d["driver_id"], d["cause_id"]) for d in drivers])
+    counts[csv_file_for("edge", "driver_for_group")] = edge_rows("driver_for_group",
         [(d["driver_id"], d["group_id"]) for d in drivers if d["group_id"] != TOTAL_GROUP])
     # Workflow-generated edges — preserved if present.
     for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
                  "evaluation_of_commentary"):
-        counts[f"{name}.csv"] = preserve_or_create(e / f"{name}.csv", ["from_id", "to_id"])
+        counts[csv_file_for("edge", name)] = preserve_or_create(
+            out_dir / csv_file_for("edge", name), ["from_id", "to_id"])
 
     # ------------------------------------------------ manifest
     schema = json.load(open(schema_catalog_path))
     files = []
     order = 0
     for name in VERTEX_ORDER:
-        target = f"phx_dm_v2_{name}"
+        target = f"{SCHEMA_PREFIX}{name}"
         spec = schema["vertices"][target]
         cols = list(spec["attributes"].keys())
-        fname = f"{name}.csv"
+        file_rel = csv_file_for("vertex", name)
         order += 1
         files.append({
-            "kind": "vertex", "target": target, "file": f"vertices/{fname}", "order": order,
+            "kind": "vertex", "target": target, "file": file_rel, "order": order,
             "id_column": spec["primary_id"]["name"],
             "columns": {c: c for c in cols},
             "required_columns": [spec["primary_id"]["name"], "data_source"],
-            "expected_rows": None if fname in WORKFLOW_FILES else counts[fname],
-            "workflow_generated": fname in WORKFLOW_FILES,
+            "expected_rows": None if name in WORKFLOW_NAMES else counts[file_rel],
+            "workflow_generated": name in WORKFLOW_NAMES,
         })
     for name in EDGE_ORDER:
-        target = f"phx_dm_v2_{name}"
+        target = f"{SCHEMA_PREFIX}{name}"
         spec = schema["edges"][target]
-        fname = f"{name}.csv"
+        file_rel = csv_file_for("edge", name)
         order += 1
         files.append({
-            "kind": "edge", "target": target, "file": f"edges/{fname}", "order": order,
+            "kind": "edge", "target": target, "file": file_rel, "order": order,
             "from_type": spec["from"], "to_type": spec["to"],
             "from_column": "from_id", "to_column": "to_id",
             "columns": {},
-            "expected_rows": None if fname in WORKFLOW_FILES else counts[fname],
-            "workflow_generated": fname in WORKFLOW_FILES,
+            "expected_rows": None if name in WORKFLOW_NAMES else counts[file_rel],
+            "workflow_generated": name in WORKFLOW_NAMES,
         })
     manifest = {
         "graph": "iperform_v2_revenue",

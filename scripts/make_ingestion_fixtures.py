@@ -58,18 +58,18 @@ def main() -> None:
     shutil.copytree(SAMPLE, FIXTURES)
 
     # overlay: special advisor file replaces the base one
-    _write(FIXTURES / "vertices" / "advisor.csv", ADVISOR_HEADER, ADVISOR_ROWS)
+    _write(FIXTURES / "vertices" / "phx_dm_v2_advisor.csv", ADVISOR_HEADER, ADVISOR_ROWS)
     # BOM-prefixed variant (loaded via the file_name override in the harness)
-    _write(FIXTURES / "vertices" / "advisor_bom.csv", ADVISOR_HEADER, ADVISOR_ROWS, bom=True)
+    _write(FIXTURES / "vertices" / "phx_dm_v2_advisor_bom.csv", ADVISOR_HEADER, ADVISOR_ROWS, bom=True)
     # deliberately wrong column name: advisor_name -> advisor_nm (must fail loudly)
     wrong_header = ["advisor_sid", "advisor_nm", "rep_code", "branch_cd", "standard_id", "data_source"]
     wrong_rows = [{**{k: v for k, v in r.items() if k != "advisor_name"},
                    "advisor_nm": r["advisor_name"]} for r in ADVISOR_ROWS]
-    _write(FIXTURES / "vertices" / "advisor_wrong_column.csv", wrong_header, wrong_rows)
+    _write(FIXTURES / "vertices" / "phx_dm_v2_advisor_wrong_column.csv", wrong_header, wrong_rows)
 
     files = sorted(p.relative_to(FIXTURES) for p in FIXTURES.rglob("*.csv"))
     print(f"wrote {len(files)} fixture CSVs under {FIXTURES}")
-    for special in ["vertices/advisor.csv", "vertices/advisor_bom.csv", "vertices/advisor_wrong_column.csv"]:
+    for special in ["vertices/phx_dm_v2_advisor.csv", "vertices/phx_dm_v2_advisor_bom.csv", "vertices/phx_dm_v2_advisor_wrong_column.csv"]:
         assert (FIXTURES / special).exists(), special
     print("special cases: quoted comma+quote+newline, empty optional, BOM, wrong column — present")
 

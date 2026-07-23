@@ -361,7 +361,7 @@ Everything here is **pure deterministic Python** — `app/v2/revenue/aggregation
 
 ### 6.2 The running worked example: SMPL001, May → June 2026
 
-From `data/sample/vertices/revenue_change.csv` (real stored rows):
+From `data/sample/vertices/phx_dm_v2_revenue_change.csv` (real stored rows):
 
 ```
 Total credited revenue   May 2026:  $65,182.42
@@ -443,7 +443,7 @@ you're not double-counting?".
 ### 6.4 The 13 causes, one by one
 
 Every worked example below is a real stored driver row from
-`data/sample/vertices/revenue_driver.csv`; the inputs shown are its `inputs_json`.
+`data/sample/vertices/phx_dm_v2_revenue_driver.csv`; the inputs shown are its `inputs_json`.
 
 ---
 

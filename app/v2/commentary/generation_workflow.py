@@ -23,6 +23,7 @@ from app.agents.nodes.commentary_agent import PROMPT_VERSION
 from app.agents.nodes.supervisor_agent import SupervisorAgent
 from app.config.settings import get_settings
 from app.graph.client import get_graph_client
+from app.v2.dataset.builder import csv_file_for
 from app.graph.queries.common import COMMENTARY_VERSION
 from app.ingestion.tigergraph_upsert import TigerGraphUpsertClient
 from app.shared.logging import get_logger
@@ -220,20 +221,20 @@ def _run(notes: str = "") -> dict:
                 e_efd.append({"from_id": e["evidence_id"], "to_id": e["driver_id"]})
 
     upsert_client = upsert
-    _persist(upsert_client, "commentary", "vertex", "vertices/commentary.csv",
+    _persist(upsert_client, "commentary", "vertex", csv_file_for("vertex", "commentary"),
              commentary_rows, "commentary_id")
-    _persist(upsert_client, "evidence", "vertex", "vertices/evidence.csv",
+    _persist(upsert_client, "evidence", "vertex", csv_file_for("vertex", "evidence"),
              evidence_rows, "evidence_id")
-    _persist(upsert_client, "commentary_for_advisor", "edge", "edges/commentary_for_advisor.csv", e_cfa)
-    _persist(upsert_client, "commentary_from_month", "edge", "edges/commentary_from_month.csv", e_cfm)
-    _persist(upsert_client, "commentary_to_month", "edge", "edges/commentary_to_month.csv", e_ctm)
-    _persist(upsert_client, "commentary_in_version", "edge", "edges/commentary_in_version.csv", e_civ)
-    _persist(upsert_client, "commentary_cites_driver", "edge", "edges/commentary_cites_driver.csv", e_ccd)
-    _persist(upsert_client, "evidence_for_driver", "edge", "edges/evidence_for_driver.csv", e_efd)
+    _persist(upsert_client, "commentary_for_advisor", "edge", csv_file_for("edge", "commentary_for_advisor"), e_cfa)
+    _persist(upsert_client, "commentary_from_month", "edge", csv_file_for("edge", "commentary_from_month"), e_cfm)
+    _persist(upsert_client, "commentary_to_month", "edge", csv_file_for("edge", "commentary_to_month"), e_ctm)
+    _persist(upsert_client, "commentary_in_version", "edge", csv_file_for("edge", "commentary_in_version"), e_civ)
+    _persist(upsert_client, "commentary_cites_driver", "edge", csv_file_for("edge", "commentary_cites_driver"), e_ccd)
+    _persist(upsert_client, "evidence_for_driver", "edge", csv_file_for("edge", "evidence_for_driver"), e_efd)
     _persist(upsert_client, "commentary_evaluation", "vertex",
-             "vertices/commentary_evaluation.csv", evaluation_rows, "evaluation_id")
+             csv_file_for("vertex", "commentary_evaluation"), evaluation_rows, "evaluation_id")
     _persist(upsert_client, "evaluation_of_commentary", "edge",
-             "edges/evaluation_of_commentary.csv", e_eoc)
+             csv_file_for("edge", "evaluation_of_commentary"), e_eoc)
 
     # Publish this version; supersede prior PUBLISHED versions (never delete).
     version_row.update({"status": "PUBLISHED", "blocked_count": blocked})
@@ -248,7 +249,7 @@ def _run(notes: str = "") -> dict:
                     [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
     # The version CSV is REWRITTEN (not appended): supersede is a status update
     # on existing rows, and append-only would resurrect PUBLISHED on reload.
-    path = settings.resolved_data_set_dir / "vertices" / "commentary_version.csv"
+    path = settings.resolved_data_set_dir / csv_file_for("vertex", "commentary_version")
     header = _csv_header(path)
     with path.open(newline="", encoding="utf-8-sig") as f:
         existing = list(csv.DictReader(f))
