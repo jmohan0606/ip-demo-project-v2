@@ -146,6 +146,8 @@ class GraphClient(Protocol):
 
     def delete_all(self, target: str, kind: str = "vertex") -> dict: ...
 
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict: ...
+
 
 class RealGraphClient:
     """RESTPP-backed client, ported from the TigerGraph Foundation package
@@ -404,6 +406,23 @@ class RealGraphClient:
         deleted = int((data.get("results") or {}).get("deleted_vertices", 0))
         return {"error": False, "deleted": deleted, "mode": "real", "target": target}
 
+    @logged_adapter_call("graph")
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict:
+        """Sample raw vertices of a type straight from the graph (R5 A5 — the
+        attribute-population check must read actual stored rows, never checkpoints)."""
+        self._ensure_auth()
+        with self._client() as client:
+            response = client.get(
+                f"{self.base}/graph/{self.graph_name}/vertices/{vertex_type}",
+                headers=self.headers,
+                params={"limit": str(limit)},
+            )
+            response.raise_for_status()
+            data = response.json()
+        if data.get("error"):
+            raise GraphClientError(data.get("message") or f"fetch_vertices failed for {vertex_type}")
+        return {"error": False, "results": data.get("results", []), "mode": "real"}
+
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         if kind not in {"vertex", "edge"}:
             raise ValueError("kind must be vertex or edge")
@@ -542,6 +561,13 @@ class MockGraphClient:
             deleted = self.store.remove_edge_type(target)
         _record_direct(4, "delete_all", target, start, ok=True)
         return {"error": False, "deleted": deleted, "mode": "mock", "target": target}
+
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict:
+        rows = [
+            {"v_id": vid, "v_type": vertex_type, "attributes": dict(attrs)}
+            for vid, attrs in list(self.store.vertices.get(vertex_type, {}).items())[:limit]
+        ]
+        return {"error": False, "results": rows, "mode": "mock"}
 
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         stats = self.store.statistics()

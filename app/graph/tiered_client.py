@@ -200,6 +200,14 @@ class McpGraphClient:
             accepted += 1
         return {"error": False, "accepted_vertices": 0, "accepted_edges": accepted, "mode": "mcp"}
 
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict:
+        envelope = self._call(
+            "get_nodes", {"graph_name": self.graph_name, "node_type": vertex_type, "limit": limit}
+        )
+        data = envelope.get("data")
+        results = data if isinstance(data, list) else ([data] if data else [])
+        return {"error": False, "results": results, "mode": "mcp"}
+
     def statistics(self, kind: str = "vertex", target_type: str = "*") -> dict:
         tool = "get_vertex_count" if kind == "vertex" else "get_edge_count"
         args: dict[str, Any] = {"graph_name": self.graph_name}
@@ -374,6 +382,13 @@ class PyTigerGraphClient:
             )
         return {"error": False, "accepted_vertices": 0, "accepted_edges": accepted, "mode": "pytigergraph"}
 
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict:
+        """Sample stored vertices (R5 A5 validation proof) via pyTigerGraph getVertices."""
+        rows = self._connection().getVertices(vertex_type, limit=str(limit))
+        if not isinstance(rows, list):
+            rows = [rows] if rows else []
+        return {"error": False, "results": rows, "mode": "pytigergraph"}
+
     def delete_vertices(self, vertex_type: str, ids: list[str]) -> dict:
         conn = self._connection()
         deleted = conn.delVerticesById(vertex_type, [str(v) for v in ids])
@@ -515,6 +530,9 @@ class TieredGraphClient:
 
     def delete_all(self, target: str, kind: str = "vertex") -> dict:
         return self._dispatch("delete_all", target, lambda c: c.delete_all(target, kind))
+
+    def fetch_vertices(self, vertex_type: str, limit: int = 5) -> dict:
+        return self._dispatch("fetch_vertices", vertex_type, lambda c: c.fetch_vertices(vertex_type, limit))
 
     def health(self) -> dict:
         # probe each tier (cached 30s — the MCP probe spawns a subprocess)

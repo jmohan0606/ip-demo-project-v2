@@ -41,6 +41,18 @@ def run_all_status():
     return ok(data=get_run_all_manager().status().model_dump())
 
 
+@router.get("/validation")
+def validation():
+    """Graph-truth validation per entity (R5 A5/B6): expected CSV count vs LIVE graph
+    count plus a sampled non-key-attribute population check. This — not the
+    checkpoint table — answers 'did it really load?'. States: VALIDATED / MISMATCH /
+    EMPTY_ATTRS / NOT_LOADED / UNVERIFIABLE, with any checkpoint-vs-graph conflict
+    spelled out."""
+    from app.ingestion.graph_validation import validate_all_entities
+
+    return ok(data=validate_all_entities())
+
+
 @router.get("/delete-plan")
 def delete_plan():
     """The dependency-ordered delete sequence (edges, then vertices, both in
