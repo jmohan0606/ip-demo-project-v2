@@ -48,7 +48,8 @@ def reconfigure(**env: str):
 
 
 def fresh_service(db_name: str):
-    """New IngestionService bound to a fresh checkpoint DB."""
+    """New IngestionService bound to a genuinely fresh checkpoint DB."""
+    (FIXTURES / db_name).unlink(missing_ok=True)
     reconfigure(SQLITE_DB_PATH=str(FIXTURES / db_name))
     from app.ingestion.ingestion_service import IngestionService
 
@@ -127,6 +128,7 @@ def main() -> int:
 
     # ---- 5. checkpoint honesty --------------------------------------------------
     print("\n[5] Checkpoint honesty (A4) — real mode, engine unreachable")
+    (FIXTURES / "_ck_5.db").unlink(missing_ok=True)
     reconfigure(GRAPH_CLIENT_MODE="real", SQLITE_DB_PATH=str(FIXTURES / "_ck_5.db"))
     from app.ingestion.ingestion_service import IngestionService
 

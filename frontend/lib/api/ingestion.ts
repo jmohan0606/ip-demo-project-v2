@@ -97,6 +97,7 @@ export interface RunAllEntityResult {
   updated_records: number;
   skipped_records: number;
   failed_records: number;
+  batch_size: number;
   message: string | null;
 }
 
@@ -113,12 +114,15 @@ export interface RunAllStatus {
   failed_entities: number;
   total_rows_processed: number;
   current_entity: string | null;
+  current_entity_index: number | null;
+  batch_size_override: number | null;
   message: string | null;
   entities: RunAllEntityResult[];
 }
 
-export async function startRunAll(): Promise<RunAllStatus> {
-  return apiClient.post<RunAllStatus>("/ingestion/run-all", {});
+export async function startRunAll(batchSize?: number): Promise<RunAllStatus> {
+  const qs = batchSize ? `?batch_size=${batchSize}` : "";
+  return apiClient.post<RunAllStatus>(`/ingestion/run-all${qs}`, {});
 }
 
 export async function fetchRunAllStatus(): Promise<RunAllStatus> {
@@ -155,6 +159,8 @@ export async function deleteEntity(entityName: string): Promise<DeleteEntityResu
 
 export interface DeleteAllResult {
   deleted_entities: number;
+  failed_entities?: number;
+  failed?: { entity_name: string; reason: string | null }[];
   total_rows_deleted: number;
   order: string[];
   results: DeleteEntityResult[];
@@ -162,4 +168,58 @@ export interface DeleteAllResult {
 
 export async function deleteAllEntities(): Promise<DeleteAllResult> {
   return apiClient.post<DeleteAllResult>("/ingestion/delete-all");
+}
+
+// ------------------------------------------------------- validation (R5 A5/B6)
+
+/** Per-entity graph-truth validation from GET /ingestion/validation.
+ * state: VALIDATED | EMPTY_ATTRS | MISMATCH | NOT_LOADED | UNVERIFIABLE. */
+export interface EntityValidation {
+  entity_name: string;
+  kind: string;
+  target: string;
+  expected_count: number | null;
+  graph_count: number | null;
+  checkpoint: { status: string | null; created: number; updated: number; skipped: number };
+  attr_check: "populated" | "empty" | "n/a" | "unavailable" | null;
+  attr_sample_size: number;
+  state: "VALIDATED" | "EMPTY_ATTRS" | "MISMATCH" | "NOT_LOADED" | "UNVERIFIABLE" | string;
+  conflict: string | null;
+  checked_at: string;
+}
+
+export interface ValidationReport {
+  generated_at: string;
+  data_set: string;
+  summary: Record<string, number>;
+  entities: EntityValidation[];
+}
+
+export async function fetchValidation(): Promise<ValidationReport> {
+  return apiClient.get<ValidationReport>("/ingestion/validation");
+}
+
+// ------------------------------------------------------------ errors (R5 B4)
+
+/** Persisted ingestion error from GET /ingestion/errors — survives page refresh. */
+export interface IngestionErrorRow {
+  error_id: string;
+  batch_id: string;
+  entity_name: string;
+  row_number: number | null;
+  primary_key: string | null;
+  error_message: string;
+  raw_record_json: string | null;
+  created_at: string;
+  remediation: string;
+}
+
+export async function fetchIngestionErrors(entityName?: string): Promise<IngestionErrorRow[]> {
+  const qs = entityName ? `?entity_name=${encodeURIComponent(entityName)}` : "";
+  return apiClient.get<IngestionErrorRow[]>(`/ingestion/errors${qs}`);
+}
+
+export async function clearCheckpoints(entityName?: string): Promise<{ cleared_entities: number }> {
+  const qs = entityName ? `?entity_name=${encodeURIComponent(entityName)}` : "";
+  return apiClient.post<{ cleared_entities: number }>(`/ingestion/clear-checkpoints${qs}`);
 }

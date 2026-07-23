@@ -222,11 +222,22 @@ class IngestionService:
 
         with file_path.open(newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
-            header_errors = self.validator.validate_header(config, reader.fieldnames or [])
+            header_errors = self.validator.validate_header(
+                config, reader.fieldnames or [], file_name=file_name
+            )
             if header_errors:
                 status.status = IngestionStatus.FAILED
                 status.message = "; ".join(header_errors)
                 _save_status()
+                self.checkpoints.save_error(
+                    error_id=timestamp_id("err"),
+                    batch_id=status.batch_id,
+                    entity_name=config.entity_name,
+                    row_number=0,
+                    primary_key=None,
+                    error_message=status.message,
+                    raw_record={"header": reader.fieldnames or []},
+                )
                 return IngestionRunResponse(batch_status=status, records=[])
 
             for row_number, record in enumerate(reader, start=1):

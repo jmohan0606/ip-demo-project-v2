@@ -4,12 +4,12 @@ from app.graph.client import validate_entry_header
 from app.models.ingestion import IngestionEntityConfig
 
 
-def _config_entry(config: IngestionEntityConfig) -> dict:
+def _config_entry(config: IngestionEntityConfig, file_name: str | None = None) -> dict:
     """Shape an entity config as a manifest-style entry for the shared header check."""
     return {
         "kind": config.kind,
         "target": config.tigergraph_vertex,
-        "file": config.csv_file_name,
+        "file": file_name or config.csv_file_name,
         "columns": config.columns,
         "id_column": config.primary_key,
         "from_column": config.from_column,
@@ -18,11 +18,13 @@ def _config_entry(config: IngestionEntityConfig) -> dict:
 
 
 class ValidationEngine:
-    def validate_header(self, config: IngestionEntityConfig, headers: list[str]) -> list[str]:
+    def validate_header(
+        self, config: IngestionEntityConfig, headers: list[str], file_name: str | None = None
+    ) -> list[str]:
         """Round 5 A1 pre-flight: the CSV header must match the manifest mapping
         EXACTLY (no missing, no extra, no duplicate columns). A partial mapping
         would silently drop attributes, so it fails the entity before any write."""
-        errors = validate_entry_header(_config_entry(config), headers)
+        errors = validate_entry_header(_config_entry(config, file_name), headers)
         missing_required = [
             col for col in config.required_columns if col not in (headers or [])
         ]
