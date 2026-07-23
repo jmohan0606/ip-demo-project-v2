@@ -266,8 +266,11 @@ function TransitionViews({
 
   // S-A4 — keys are slot-scoped so an accidental duplicate selection can
   // never produce two children with the same key.
-  // R5 D2 — the transition OUT of the earliest loaded month is baseline-limited.
+  // R5 D2 / R6 A3 — transitions at EITHER edge of the loaded range cannot fully
+  // apply the account-presence persistence test (not enough loaded months
+  // before the first / after the last), so they may carry BASELINE_LIMITED.
   const baselineFrom = sorted.length ? sorted[0].from_month_id : null;
+  const lastFrom = sorted.length ? sorted[sorted.length - 1].from_month_id : null;
   const card = (row: CommentaryRow, slotKey: string | number = "s") => (
     <TransitionCard
       key={`${slotKey}-${row.commentary_id}`}
@@ -277,7 +280,7 @@ function TransitionViews({
       versionMeta={versionMeta}
       evaluation={evaluationFor(row)}
       onOpenEvidence={onOpenEvidence}
-      isBaselineTransition={row.from_month_id === baselineFrom}
+      isBaselineTransition={row.from_month_id === baselineFrom || row.from_month_id === lastFrom}
     />
   );
 
@@ -438,12 +441,14 @@ function TransitionCard({
               Source · Driver
             </span>
           </div>
-          {/* R5 D2 — the transition out of the baseline (earliest loaded) month
-              cannot attribute account-level drivers: say so explicitly. */}
+          {/* R5 D2 / R6 A3 — at the edges of the loaded range the account-
+              presence persistence test cannot be fully applied: say so. */}
           {(isBaselineTransition || bullets.some((b) => b.cause_id === "BASELINE_LIMITED")) && (
             <div className="mt-2 rounded-[3px] bg-v2-header-bg px-3 py-2 text-[10.5px] text-v2-muted">
-              {monthFull(row.from_month_id)} is the first month in the loaded data; account-level
-              drivers (accounts opened / closed) are unavailable for this transition.
+              This transition sits at the edge of the loaded data range, so account openings /
+              closures cannot be confirmed on one side of it (the test needs consecutive quiet
+              months beyond the transition). Unconfirmed account movement in recurring product
+              lines is reported as “Baseline period limit”, never as accounts opened or closed.
             </div>
           )}
           <div className="divide-y divide-v2-border-subtle">

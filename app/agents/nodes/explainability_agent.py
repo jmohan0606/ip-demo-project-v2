@@ -35,21 +35,24 @@ _CAUSE_FINDING = {
     "DISCOUNT": "discounting changed between the months",
     "BILLABLE_DAYS": "the months have a different number of billable days",
     "MIX": "residual movement from shifts between products at different rates",
-    "NEW_ACCOUNT": "accounts contributed this month that did not contribute last month",
-    "LOST_ACCOUNT": "accounts that contributed last month did not contribute this month",
+    "NEW_ACCOUNT": "accounts in recurring product lines began billing after at least "
+                   "ACCOUNT_ABSENCE_MONTHS consecutive months of no activity",
+    "LOST_ACCOUNT": "accounts in recurring product lines had no billing activity for "
+                    "ACCOUNT_ABSENCE_MONTHS consecutive months after contributing",
     "CLAWBACK": "reversal (negative) amounts changed between the months",
     "MARKET": "market performance effect — placeholder, no index-return source",
     "NET_FLOW": "net client flow effect — placeholder, flows feed unavailable",
-    "BASELINE_LIMITED": "first period in the loaded data — account-level attribution "
-                        "requires a prior period, so this amount cannot be split into "
-                        "account openings and closures",
+    "BASELINE_LIMITED": "recurring-line account movement the loaded data cannot classify — "
+                        "too few loaded months before/after this transition to apply the "
+                        "account-presence persistence test",
 }
 
 # ---------------------------------------------------------------- R4-2 order
 # The attribution order (app/v2/drivers/attribution.py). NEW_ACCOUNT and
 # LOST_ACCOUNT share step 1 (one presence test, two signs).
 ATTRIBUTION_ORDER = [
-    "NEW_ACCOUNT/LOST_ACCOUNT (BASELINE_LIMITED out of the baseline month)",
+    "NEW_ACCOUNT/LOST_ACCOUNT (recurring-class groups only; BASELINE_LIMITED where "
+    "the loaded range is too short to apply the persistence test)",
     "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK", "TIMING",
     "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "MARKET", "NET_FLOW", "MIX",
@@ -83,50 +86,63 @@ _REV_NATURE_RULE = (
 # and `{to_m}` are substituted with the transition's month ids at build time.
 _CAUSE_WHY: dict[str, dict] = {
     "NEW_ACCOUNT": {
-        "rule": "Accounts trading in {to_m} that did not trade in {from_m}. Evaluated at "
-                "advisor level, not product level, so an account merely switching products "
-                "is not miscounted as a new account.",
-        "inputs_tested": ["account_no presence per month (advisor level, credited + non-credited)",
+        "rule": "Accounts in RECURRING product lines (Managed, Trails) that began billing in "
+                "{to_m} after at least ACCOUNT_ABSENCE_MONTHS consecutive loaded months of no "
+                "activity. Evaluated at advisor level, not product level, so an account merely "
+                "switching products is not miscounted as a new account. Transactional product "
+                "lines are excluded — trading intermittency there is routine, not an account "
+                "opening.",
+        "inputs_tested": ["account_no activity per loaded month (advisor level, credited + "
+                         "non-credited + late)",
+                          "ACCOUNT_ABSENCE_MONTHS consecutive quiet months before {to_m}",
+                          "product line's revenue class (RECURRING only)",
                           "credited_amt of the new accounts' to-month rows"],
         "rejected": [
             {"cause": "ONE_TIME", "reason": "new-account revenue is claimed at step 1, before "
              "rev_nature is tested, so it is not double-counted as a one-time item"},
-            {"cause": "VOLUME", "reason": "count growth caused by accounts present in only one "
-             "month is an account opening, not organic volume — those rows are removed first"},
+            {"cause": "VOLUME", "reason": "count growth caused by confirmed-new accounts is an "
+             "account opening, not organic volume — those rows are removed first"},
             {"cause": "MIX", "reason": "a genuinely new account is an explicit revenue driver and is "
              "claimed before anything falls to the residual"},
         ],
     },
     "LOST_ACCOUNT": {
-        "rule": "Accounts that traded in {from_m} but not in {to_m}. Evaluated at advisor "
-                "level, not product level, so an account merely switching products is not "
-                "miscounted as a lost account. An account whose rows only became "
-                "non-credited is still trading — that is ELIGIBILITY, not a lost account.",
-        "inputs_tested": ["account_no presence per month (advisor level, credited + non-credited)",
+        "rule": "Accounts in RECURRING product lines (Managed, Trails) with billing activity "
+                "in {from_m} and then no activity for ACCOUNT_ABSENCE_MONTHS consecutive "
+                "loaded months. Evaluated at advisor level, not product level. An account "
+                "whose rows only became non-credited is still trading — that is ELIGIBILITY, "
+                "not a lost account. A single quiet month is ordinary intermittency and does "
+                "not count; transactional product lines never emit this driver.",
+        "inputs_tested": ["account_no activity per loaded month (advisor level, credited + "
+                         "non-credited + late)",
+                          "ACCOUNT_ABSENCE_MONTHS consecutive quiet months after {from_m}",
+                          "product line's revenue class (RECURRING only)",
                           "credited_amt of the lost accounts' from-month rows"],
         "rejected": [
             {"cause": "ELIGIBILITY", "reason": "presence counts credited AND non-credited "
              "activity, so a household crossing an eligibility threshold is not read as lost"},
-            {"cause": "VOLUME", "reason": "count decline caused by accounts absent in {to_m} is "
+            {"cause": "VOLUME", "reason": "count decline caused by confirmed-lost accounts is "
              "an account closure, not organic volume — those rows are removed first"},
             {"cause": "MIX", "reason": "a genuinely lost account is an explicit revenue driver and is "
              "claimed before anything falls to the residual"},
         ],
     },
     "BASELINE_LIMITED": {
-        "rule": "{from_m} is the FIRST month in the loaded data, so no prior period exists "
-                "to tell account openings and closures apart. The revenue of accounts present "
-                "in only one of the two months is attributed here honestly instead of being "
-                "narrated as account activity (or silently absorbed by MIX). "
-                "NEW_ACCOUNT/LOST_ACCOUNT are not computed for this transition.",
-        "inputs_tested": ["earliest month_id present in the loaded transaction data",
-                          "account_no presence per month (advisor level)",
-                          "credited_amt of accounts present in only one month"],
+        "rule": "The loaded data does not span ACCOUNT_ABSENCE_MONTHS months beyond one side "
+                "of {from_m}->{to_m}, so the account-presence persistence test cannot be "
+                "applied there. The movement of RECURRING-line accounts present in only one "
+                "of the two months is attributed here honestly instead of being narrated as "
+                "account activity (or silently absorbed by MIX). NEW_ACCOUNT/LOST_ACCOUNT "
+                "are not emitted for the unevaluable side of this transition.",
+        "inputs_tested": ["loaded month range vs ACCOUNT_ABSENCE_MONTHS on each side of the transition",
+                          "account_no activity per loaded month (advisor level)",
+                          "product line's revenue class (RECURRING only)",
+                          "credited_amt of unevaluable accounts present in only one month"],
         "rejected": [
-            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "with no prior period, every account "
-             "would look newly opened — computing them out of the baseline month would fabricate "
+            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "without enough loaded months to "
+             "confirm persistence, calling these accounts opened/closed would fabricate "
              "business events"},
-            {"cause": "MIX", "reason": "the amount is explained by the baseline limitation and is "
+            {"cause": "MIX", "reason": "the amount is explained by the data-range limitation and is "
              "named as such rather than left in the residual"},
         ],
     },

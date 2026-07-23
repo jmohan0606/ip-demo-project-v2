@@ -29,7 +29,8 @@ You will be given ALREADY-COMPUTED revenue drivers as JSON. Your job is language
 - Negative amounts are written in parentheses, never with a minus sign.
 - Use the client's product vocabulary exactly as given in the input.
 - A driver flagged data_source DUMMY or ASSUMED must be described as unavailable/placeholder, never as an established fact.
-- A driver with cause BASELINE_LIMITED reflects the FIRST period in the loaded data: say that account-level attribution is unavailable for this transition because no prior period exists. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.
+- A driver with cause BASELINE_LIMITED reflects a limit of the loaded data range: too few months are loaded on one side of this transition to confirm whether accounts were genuinely opened or closed. Say that account-level attribution is unavailable for this transition for that reason. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.
+- NEW_ACCOUNT / LOST_ACCOUNT refer to accounts in recurring product lines with confirmed billing absence/appearance over consecutive months; describe them as accounts that stopped/started billing in recurring product lines — never as clients leaving or joining the practice.
 Respond with ONLY a JSON object:
 {"narrative_text": "<one flowing paragraph for the transition>",
  "bullet_texts": {"<driver_id>": "<one plain-business-language sentence explaining that driver>"}}"""
@@ -45,14 +46,14 @@ _CAUSE_FALLBACK = {
     "DISCOUNT": "Discounting changed between the months.",
     "BILLABLE_DAYS": "The months have a different number of billable days.",
     "MIX": "The remaining movement reflects shifts between products at different rates.",
-    "NEW_ACCOUNT": "Accounts contributed this month that did not contribute last month.",
-    "LOST_ACCOUNT": "Accounts that contributed last month did not contribute this month.",
+    "NEW_ACCOUNT": "Accounts in recurring product lines began billing after consecutive months of no activity.",
+    "LOST_ACCOUNT": "Accounts in recurring product lines stopped billing for consecutive months.",
     "CLAWBACK": "Reversal (negative) amounts changed between the months.",
     "MARKET": "Market performance effect is a placeholder — no index-return source is available.",
     "NET_FLOW": "Net client flow effect is a placeholder — the flows feed stops before this period.",
-    "BASELINE_LIMITED": "This is the first period in the loaded data, so account-level "
-                        "attribution is unavailable for this transition — a prior period "
-                        "would be needed to tell account openings and closures apart.",
+    "BASELINE_LIMITED": "Too few months are loaded on one side of this transition to "
+                        "confirm account openings or closures, so account-level "
+                        "attribution is unavailable for this transition.",
 }
 
 

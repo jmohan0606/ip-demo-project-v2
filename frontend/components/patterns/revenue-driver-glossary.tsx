@@ -21,22 +21,24 @@ interface GlossaryRow {
 export const REVENUE_DRIVER_GLOSSARY: GlossaryRow[] = [
   {
     name: "New Account",
-    meaning: "Revenue from accounts active this month that were not active last month",
+    meaning:
+      "Revenue from accounts in recurring product lines (Managed, Trails) that began billing after a confirmed quiet period",
     computed:
-      "Accounts with credited transactions in the current month but none in the prior month, evaluated at advisor level so a mere product switch is not miscounted as a new account. Contribution = Σ credited revenue of those accounts.",
+      "Accounts in recurring product lines with no activity for ACCOUNT_ABSENCE_MONTHS consecutive loaded months (default 2) that then appear, evaluated at advisor level so a mere product switch is not miscounted. Transactional product lines never emit this driver — intermittent trading there is routine. Contribution = Σ credited revenue of those accounts.",
   },
   {
     name: "Lost Account",
-    meaning: "Revenue lost from accounts active last month but not this month",
+    meaning:
+      "Revenue lost from accounts in recurring product lines with no billing activity for consecutive months",
     computed:
-      "Mirror of New Account: accounts credited last month, none this month. Contribution = −(their prior-month credited revenue).",
+      "Mirror of New Account: accounts in recurring product lines billing in the from-month and then quiet for ACCOUNT_ABSENCE_MONTHS consecutive loaded months (default 2). A single quiet month is ordinary intermittency, not a lost account. Contribution = −(their prior-month credited revenue).",
   },
   {
     name: "Baseline Period Limit",
     meaning:
-      "First period in the loaded data — account-level attribution requires a prior period, so this amount cannot be split into account openings and closures",
+      "Recurring-line account movement the loaded data cannot classify — too few loaded months before or after this transition to apply the account-presence test",
     computed:
-      "On the transition out of the earliest loaded month only: New/Lost Account are not computed (every account would look new without a prior period). Contribution = Σ credited revenue of accounts present in only one of the two months, signed. Derived, never narrated as a business event.",
+      "At the edges of the loaded range (not enough months before the first transition / after the last), New/Lost Account cannot be confirmed. Contribution = Σ credited revenue of unconfirmable recurring-line accounts present in only one of the two months, signed. Bounded: it may never exceed the transition's total change (asserted at build time). Derived, never narrated as a business event.",
   },
   {
     name: "One-Time",
