@@ -301,4 +301,90 @@ export const v2Api = {
   adapterStatus: () =>
     apiClient.get<{ modes: { graph_client_mode: string; llm_client_mode: string; data_set: string; commentary_mode: string } }>(
       "/adapters/status"),
+
+  // ---- Ask iPerform (R7 Z) ------------------------------------------------
+  assistantAsk: (body: AskRequest) =>
+    apiClient.post<AskResponse>("/api/v2/assistant/ask", body),
+  assistantConversations: (advisorId = "", days = -1) =>
+    apiClient.get<{ conversations: ConversationRow[]; served_by_tier: number }>(
+      `/api/v2/assistant/conversations?advisor_id=${encodeURIComponent(advisorId)}&days=${days}`),
+  assistantConversation: (conversationId: string) =>
+    apiClient.get<{ messages: MessageRow[]; conversation: ConversationRow; served_by_tier: number }>(
+      `/api/v2/assistant/conversations/${encodeURIComponent(conversationId)}`),
+  assistantConfig: () =>
+    apiClient.get<AssistantConfig>("/api/v2/assistant/config"),
 };
+
+// ---- Ask iPerform types (R7 Z) --------------------------------------------
+
+export interface ScreenContext {
+  advisor_sid?: string;
+  from_month?: string;
+  to_month?: string;
+  group_id?: string;
+}
+
+export interface AskRequest {
+  text: string;
+  conversation_id?: string;
+  screen?: ScreenContext | null;
+  pinned?: ScreenContext | null;
+}
+
+export interface ConversationRow {
+  conversation_id: string;
+  title: string;
+  created_at: string;
+  last_message_at: string;
+  message_count: number;
+  scope_json?: string;
+  data_source: Provenance;
+}
+
+export type MessageStatus = "OK" | "NO_DATA" | "OUT_OF_SCOPE" | "BLOCKED";
+
+export interface MessageRow {
+  message_id: string;
+  conversation_id: string;
+  seq: number;
+  role: "USER" | "ASSISTANT";
+  text: string;
+  resolved_context_json?: string;
+  queries_run_json?: string;
+  figures_json?: string;
+  llm_provider?: string;
+  status: MessageStatus;
+  guardrail_status?: "PASS" | "REDACTED" | "BLOCKED";
+  guardrail_json?: string;
+  created_at: string;
+}
+
+export interface AssistantFigure {
+  label: string;
+  value: number;
+  formatted: string;
+  source_query: string;
+  provenance: Provenance;
+}
+
+export interface AskResponse {
+  conversation: ConversationRow;
+  user_message: MessageRow;
+  assistant_message: MessageRow;
+  ai_generated: boolean;
+  suggestions: string[];
+  links: { label: string; href: string }[];
+  evidence_driver_id: string;
+  served_by_tier: number | null;
+  redaction_note: string;
+  provider_chain: string[];
+}
+
+export interface AssistantConfig {
+  history_days: number;
+  provider_chain: string[];
+  month_ids: string[];
+  month_names: Record<string, string>;
+  advisor_count: number;
+  loaded_range: string;
+}

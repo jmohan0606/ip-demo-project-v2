@@ -12,6 +12,8 @@ import {
   ReactNode, createContext, useContext, useEffect, useMemo, useState,
 } from "react";
 import { Settings } from "lucide-react";
+import { AssistantProvider } from "@/components/assistant/assistant-context";
+import { AssistantOverlay } from "@/components/assistant/assistant-overlay";
 import { type Advisor, type MonthRow, v2Api } from "@/lib/api/v2";
 import { fmtDate } from "@/lib/v2/format";
 
@@ -42,6 +44,7 @@ const RESULTS_TABS = [
   { label: "Transactions", href: "/transactions" },
   { label: "Trends", href: "/trends" },
   { label: "AI Insights", href: "/ai-insights" },
+  { label: "Ask iPerform", href: "/ask" },
   { label: "Anomalies", href: "/anomalies" },
 ];
 
@@ -103,20 +106,25 @@ export function V2Shell({ children }: { children: ReactNode }) {
 
   return (
     <V2Context.Provider value={value}>
-      <div className="min-h-screen bg-v2-page font-v2 text-v2-text print:bg-white">
-        {/* T6-2 — chrome is hidden in print; the page content prints clean. */}
-        <div className="print:hidden">
-          <TopNav pathname={pathname ?? ""} />
-          <SubNav pathname={pathname ?? ""} />
-          {modes?.data_set === "sample" && (
-            <div className="border-b border-v2-border bg-v2-warn-bg px-6 py-1.5 text-[11px] font-semibold text-v2-warn">
-              Sample data — not client figures.
-            </div>
-          )}
-          {isResults && <AdvisorContextBar />}
+      <AssistantProvider advisorId={value.advisorId} fromMonth={value.fromMonth} toMonth={value.toMonth}>
+        <div className="min-h-screen bg-v2-page font-v2 text-v2-text print:bg-white">
+          {/* T6-2 — chrome is hidden in print; the page content prints clean. */}
+          <div className="print:hidden">
+            <TopNav pathname={pathname ?? ""} />
+            <SubNav pathname={pathname ?? ""} />
+            {modes?.data_set === "sample" && (
+              <div className="border-b border-v2-border bg-v2-warn-bg px-6 py-1.5 text-[11px] font-semibold text-v2-warn">
+                Sample data — not client figures.
+              </div>
+            )}
+            {isResults && pathname !== "/ask" && <AdvisorContextBar />}
+          </div>
+          <main className="px-6 py-4 print:px-0 print:py-0">{children}</main>
+          {/* R7 Z-B1 — overlay assistant: persists across navigation, collapses
+              to a floating button; /ask renders the same component full-page. */}
+          <AssistantOverlay />
         </div>
-        <main className="px-6 py-4 print:px-0 print:py-0">{children}</main>
-      </div>
+      </AssistantProvider>
     </V2Context.Provider>
   );
 }
