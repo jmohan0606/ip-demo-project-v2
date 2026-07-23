@@ -34,7 +34,11 @@ from pathlib import Path
 
 from app.v2.calendar import month_rows
 from app.v2.dataset import provenance
-from app.v2.drivers.attribution import attribute_transition, reconcile
+from app.v2.drivers.attribution import (
+    DEFAULT_ACCOUNT_ABSENCE_MONTHS,
+    attribute_transition,
+    reconcile,
+)
 from app.v2.revenue import eligibility as elig
 from app.v2.revenue.aggregation import (
     TOTAL_GROUP,
@@ -146,6 +150,7 @@ def build_dataset(
     accounts: list[dict],  # account vertex rows
     ctx: EligibilityContext,
     schema_catalog_path: Path = SCHEMA_CATALOG,
+    absence_months: int = DEFAULT_ACCOUNT_ABSENCE_MONTHS,
 ) -> dict:
     """Compute the derived vertices with the app's own transform functions and
     write the full vertex/edge CSV set + manifest. Returns a summary dict:
@@ -177,11 +182,11 @@ def build_dataset(
     by_transition: dict[tuple, list[dict]] = defaultdict(list)
     for c in changes:
         by_transition[(c["advisor_sid"], c["from_month_id"], c["to_month_id"])].append(c)
-    # R5 D1: the baseline month is the EARLIEST month present in the loaded
-    # transaction data (W11 — determined from data, never hardcoded). The
-    # transition OUT of it has no valid prior period for account-presence
-    # drivers; those amounts go to BASELINE_LIMITED, not NEW/LOST or MIX.
-    baseline_month = min({t["month_id"] for t in txns}) if txns else None
+    # R6 A1/A2: attribution receives the FULL loaded month range so the
+    # account-presence persistence test (ACCOUNT_ABSENCE_MONTHS consecutive
+    # quiet months, recurring-class groups only) can look beyond the two
+    # transition months. Where the range is too short to apply the test, the
+    # honest BASELINE_LIMITED driver carries the movement (R6 A3).
     for (advisor, from_m, to_m), rows in sorted(by_transition.items()):
         drivers.extend(attribute_transition(
             rows, buckets_by_advisor[elig.CREDITED][advisor], recurring_class_groups,
@@ -190,7 +195,8 @@ def build_dataset(
             late_txns_by_group_month=buckets_by_advisor[elig.LATE][advisor],
             excl_txns_by_group_month=buckets_by_advisor[elig.EXCLUDED][advisor],
             max_processing_days=ctx.max_processing_days,
-            is_baseline_transition=(from_m == baseline_month),
+            loaded_month_ids=month_ids,
+            absence_months=absence_months,
         ))
 
     report = reconcile(changes, drivers)
@@ -358,6 +364,8 @@ def build_dataset(
         "report": report,
         "split_sizes": {k: len(rows) for k, rows in split.items()},
         "mix_share": _mix_share(changes, drivers),
+        "account_presence": _presence_summary(drivers),
+        "absence_months": absence_months,
         "out_of_grid_count": len(split[elig.OUT_OF_GRID]),
         "late_count": len(split[elig.LATE]),
         "txns": txns, "mpr": mpr, "changes": changes, "drivers": drivers,
@@ -388,6 +396,27 @@ def _mix_share(changes: list[dict], drivers: list[dict]) -> dict[str, dict]:
     return out
 
 
+def _presence_summary(drivers: list[dict]) -> dict[str, dict]:
+    """Per transition: how many accounts the attribution classified new/lost
+    and what BASELINE_LIMITED carries — printed in the build summary (R6 A4.5)
+    so the operator can see the account drivers are plausible."""
+    out: dict[str, dict] = defaultdict(lambda: {
+        "new_accounts": 0, "lost_accounts": 0, "baseline_limited_amt": 0.0})
+    for d in drivers:
+        if d["cause_id"] not in ("NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED"):
+            continue
+        key = "|".join(d["driver_id"].split("|")[:3])
+        inputs = json.loads(d["inputs_json"])
+        if d["cause_id"] == "NEW_ACCOUNT":
+            out[key]["new_accounts"] += len(inputs.get("accounts", []))
+        elif d["cause_id"] == "LOST_ACCOUNT":
+            out[key]["lost_accounts"] += len(inputs.get("accounts", []))
+        else:
+            out[key]["baseline_limited_amt"] = round(
+                out[key]["baseline_limited_amt"] + float(d["contribution_amt"]), 2)
+    return dict(sorted(out.items()))
+
+
 def _driver_cause_rows() -> list[dict]:
     """The driver_cause seed — single source shared by sample and real
     (previously inlined in generate_sample_data.py)."""
@@ -402,13 +431,13 @@ def _driver_cause_rows() -> list[dict]:
         ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 8),
         ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 9),
         ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 10),
-        ("NEW_ACCOUNT", "Accounts opened", "Accounts contributing this month but not last", "REAL", 11),
-        ("LOST_ACCOUNT", "Accounts closed", "Accounts contributing last month but not this", "REAL", 12),
+        ("NEW_ACCOUNT", "Accounts opened", "Accounts in recurring product lines with billing activity after ACCOUNT_ABSENCE_MONTHS consecutive months of none", "REAL", 11),
+        ("LOST_ACCOUNT", "Accounts closed", "Accounts in recurring product lines with no billing activity for ACCOUNT_ABSENCE_MONTHS consecutive months", "REAL", 12),
         ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 13),
         ("MARKET", "Market performance", "Asset value movement", "DUMMY", 14),
         ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 15),
         ("BASELINE_LIMITED", "Baseline period limit",
-         "First period in the loaded data — account-level attribution requires a prior period",
+         "Recurring-line account movement the loaded data cannot classify — too few months before/after the transition to apply the account-presence test",
          "DERIVED", 16),
     ]
     return [{"cause_id": c, "cause_name": n, "cause_description": d, "default_data_source": s,

@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # phx_dm_v2_reason_code vertex, never from code.
     credited_grid_types: str = Field(default="PRODUCT_TYPE", alias="CREDITED_GRID_TYPES")
     max_processing_days: int = Field(default=90, alias="MAX_PROCESSING_DAYS")
+    # R6 A2 — account-presence persistence: an account counts as LOST only after
+    # this many consecutive months of no activity (symmetric for NEW). Applies
+    # to recurring-class product groups only; reported in the build summary.
+    account_absence_months: int = Field(default=2, alias="ACCOUNT_ABSENCE_MONTHS")
 
     @property
     def credited_grid_type_set(self) -> set[str]:

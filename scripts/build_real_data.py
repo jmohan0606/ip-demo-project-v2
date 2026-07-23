@@ -52,6 +52,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config.settings import get_settings
 from app.v2.dataset.builder import ReconciliationError, build_dataset
+from app.v2.drivers.attribution import AttributionError
 from app.v2.calendar import month_rows
 from app.v2.revenue import eligibility as elig
 from app.v2.revenue.aggregation import EligibilityContext, derive_rev_nature
@@ -297,10 +298,15 @@ def main(argv: list[str] | None = None) -> int:
             txns=txns, advisors=dims["advisors"], classes=dims["classes"],
             lines=dims["lines"], groups=dims["groups"], products=dims["products"],
             accounts=accounts, ctx=ctx,
+            absence_months=int(settings.account_absence_months),
         )
     except ReconciliationError as exc:
         # A real-data reconciliation failure is a STOP condition (B2.4): do not
         # load, do not generate commentary — investigate the discrepancy first.
+        fail(str(exc))
+    except AttributionError as exc:
+        # R6 A3: BASELINE_LIMITED claimed more than the total change — the
+        # account-presence sets are wrong. STOP; never publish an over-claim.
         fail(str(exc))
 
     # ------------------------------------------------ summary (B2.7)
@@ -315,10 +321,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f">{settings.max_processing_days}-day processing rows (LATE, in Total not Credited):",
           summary["late_count"])
     print("\nReconciliation: $0.00 on every transition ✓  (asserted — a failure aborts the build)")
-    print("MIX share per transition (a large value means a named driver is missing):")
+    print(f"Account-presence rule (R6): recurring-class groups only; "
+          f"ACCOUNT_ABSENCE_MONTHS={summary['absence_months']} consecutive quiet months")
+    print("Per transition — total change, MIX residual, accounts classified new/lost, "
+          "BASELINE_LIMITED (a large MIX means a named driver is missing):")
+    presence = summary["account_presence"]
     for key, m in summary["mix_share"].items():
+        p = presence.get(key, {"new_accounts": 0, "lost_accounts": 0, "baseline_limited_amt": 0.0})
         print(f"  {key:28s} total change {m['total_change']:>14,.2f}   "
-              f"MIX {m['mix_total']:>12,.2f}  ({m['mix_pct_of_change']:.2f}%)")
+              f"MIX {m['mix_total']:>12,.2f}  ({m['mix_pct_of_change']:.2f}%)   "
+              f"new {p['new_accounts']:>3}  lost {p['lost_accounts']:>3}  "
+              f"BL {p['baseline_limited_amt']:>12,.2f}")
     print("\nNext steps: load via the ingestion screen with DATA_SET=real, then run the "
           "Regenerate workflow to create commentary + evidence (never generated here).")
     return 0

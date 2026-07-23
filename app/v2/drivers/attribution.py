@@ -33,16 +33,29 @@ RECONCILE_TOLERANCE = 1.0  # dollars
 # driver is missing or mis-specified. Self-check only; never blocks.
 MIX_WARNING_FRACTION = 0.15
 
+# R6 A2 — an account only counts as LOST after this many consecutive months of
+# no activity following the from-month (and symmetrically NEW requires this
+# many quiet months before appearing). A single quiet month is ordinary trading
+# intermittency, not attrition. Config: settings.account_absence_months
+# (ACCOUNT_ABSENCE_MONTHS); this is only the shared default.
+DEFAULT_ACCOUNT_ABSENCE_MONTHS = 2
+
 CAUSE_DATA_SOURCE = {
     "VOLUME": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL",
     "LATE_PROCESSING": "REAL", "EXCLUDED_CHANGE": "REAL", "TIMING": "REAL",
     "FEE_RATE": "REAL", "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
     "NEW_ACCOUNT": "REAL", "LOST_ACCOUNT": "REAL", "CLAWBACK": "REAL",
     "MARKET": "DUMMY", "NET_FLOW": "DUMMY",
-    # R5 D1 — transition out of the baseline (earliest loaded) month: no valid
-    # prior period exists, so account-presence attribution is honest-limited.
+    # R5 D1 / R6 A3 — the account-presence (new/lost) test cannot be evaluated
+    # because the loaded data does not span enough months on one side of the
+    # transition; the amount those accounts moved is honest-limited, not claimed.
     "BASELINE_LIMITED": "DERIVED",
 }
+
+
+class AttributionError(RuntimeError):
+    """A driver claimed more than the data can support (R6 A3 sanity rule) —
+    fail the build loudly rather than publish an over-claiming attribution."""
 
 
 def _sum(txns: Iterable[dict]) -> float:
@@ -68,6 +81,10 @@ def attribute_group(
     to_billable_days: int,
     advisor_new_accounts: set[str] | None = None,
     advisor_lost_accounts: set[str] | None = None,
+    bl_new_accounts: set[str] | None = None,
+    bl_lost_accounts: set[str] | None = None,
+    presence_rule: dict | None = None,
+    gate_to_recurring: bool = True,
     from_nc_txns: list[dict] | None = None,
     to_nc_txns: list[dict] | None = None,
     from_late_txns: list[dict] | None = None,
@@ -75,7 +92,6 @@ def attribute_group(
     from_excl_txns: list[dict] | None = None,
     to_excl_txns: list[dict] | None = None,
     max_processing_days: int = 90,
-    baseline_limited: bool = False,
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
     change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8),
@@ -118,47 +134,71 @@ def attribute_group(
     # trading elsewhere is product behaviour (ONE_TIME/TIMING/MIX), not an
     # account opening/closure — judging presence per group would swallow those
     # causes into NEW/LOST_ACCOUNT.
-    from_accounts = {str(t.get("account_no")) for t in from_txns}
-    to_accounts = {str(t.get("account_no")) for t in to_txns}
-    adv_new = advisor_new_accounts if advisor_new_accounts is not None else (to_accounts - from_accounts)
-    adv_lost = advisor_lost_accounts if advisor_lost_accounts is not None else (from_accounts - to_accounts)
-    new_accounts = sorted((to_accounts - from_accounts) & adv_new)
-    lost_accounts = sorted((from_accounts - to_accounts) & adv_lost)
-    if baseline_limited:
-        # R5 D1 — the from-month is the FIRST month in the loaded data: every
-        # account looks "new" only because there is no prior period to compare.
-        # NEW/LOST_ACCOUNT are not computed; the amount they would have claimed
-        # goes to the honest BASELINE_LIMITED driver so MIX does not absorb it.
-        new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
-        lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
-        if new_accounts or lost_accounts:
-            emit("BASELINE_LIMITED", _sum(new_txns) - _sum(lost_txns), {
-                "accounts_present_only_in_to_month": new_accounts,
-                "accounts_present_only_in_from_month": lost_accounts,
-                "to_month_revenue_of_those_accounts": round(_sum(new_txns), 2),
-                "from_month_revenue_of_those_accounts": round(_sum(lost_txns), 2),
-                "reason": "first period in the loaded data — account-level attribution "
-                          "requires a prior period",
-                "formula": "sum(credited_amt of accounts present only in to-month) - "
-                           "sum(credited_amt of accounts present only in from-month); "
-                           "NEW_ACCOUNT/LOST_ACCOUNT are not computed out of the baseline month",
-            })
-    elif new_accounts or lost_accounts:
+    #
+    # R6 A1 — the step runs ONLY for recurring-class groups (Managed, Trails),
+    # where an account genuinely should bill every month and absence is a real
+    # event. In transactional groups absence is ordinary trading intermittency;
+    # VOLUME/ONE_TIME/TIMING already explain the change there, so no account
+    # driver (and no BASELINE_LIMITED) is emitted for them.
+    #
+    # R6 A2 — the advisor_new/advisor_lost sets passed in are PERSISTENCE
+    # FILTERED by attribute_transition: an account counts as lost only after
+    # ACCOUNT_ABSENCE_MONTHS consecutive quiet months (symmetric for new).
+    # bl_new/bl_lost hold the accounts whose presence test CANNOT be evaluated
+    # because the loaded data does not span enough months on that side of the
+    # transition — their movement goes to the honest BASELINE_LIMITED driver
+    # (R6 A3), never to NEW/LOST and never silently to MIX.
+    claimed_accounts: set[str] = set()
+    rule = presence_rule or {}
+    if is_recurring_class or not gate_to_recurring:
+        from_accounts = {str(t.get("account_no")) for t in from_txns}
+        to_accounts = {str(t.get("account_no")) for t in to_txns}
+        adv_new = advisor_new_accounts if advisor_new_accounts is not None else (to_accounts - from_accounts)
+        adv_lost = advisor_lost_accounts if advisor_lost_accounts is not None else (from_accounts - to_accounts)
+        new_accounts = sorted((to_accounts - from_accounts) & adv_new)
+        lost_accounts = sorted((from_accounts - to_accounts) & adv_lost)
+        bl_new = sorted((to_accounts - from_accounts) & (bl_new_accounts or set()))
+        bl_lost = sorted((from_accounts - to_accounts) & (bl_lost_accounts or set()))
         if new_accounts:
             new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
             emit("NEW_ACCOUNT", _sum(new_txns), {
                 "accounts": new_accounts, "txn_count": len(new_txns),
                 "to_month_revenue_of_new_accounts": round(_sum(new_txns), 2),
-                "formula": "sum(credited_amt of accounts contributing this month but not last)",
+                "account_absence_months": rule.get("absence_months"),
+                "months_confirmed_quiet_before": rule.get("new_months_checked"),
+                "formula": "sum(credited_amt of accounts appearing this month after "
+                           "ACCOUNT_ABSENCE_MONTHS consecutive months of no activity); "
+                           "recurring-class groups only",
             })
         if lost_accounts:
             lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
             emit("LOST_ACCOUNT", -_sum(lost_txns), {
                 "accounts": lost_accounts, "txn_count": len(lost_txns),
                 "from_month_revenue_of_lost_accounts": round(_sum(lost_txns), 2),
-                "formula": "-(sum(credited_amt of accounts contributing last month but not this))",
+                "account_absence_months": rule.get("absence_months"),
+                "months_confirmed_quiet_after": rule.get("lost_months_checked"),
+                "formula": "-(sum(credited_amt of accounts with no activity for "
+                           "ACCOUNT_ABSENCE_MONTHS consecutive months after the from-month)); "
+                           "recurring-class groups only",
             })
-    claimed_accounts = set(new_accounts) | set(lost_accounts)
+        if bl_new or bl_lost:
+            new_txns = [t for t in to_txns if str(t.get("account_no")) in bl_new]
+            lost_txns = [t for t in from_txns if str(t.get("account_no")) in bl_lost]
+            emit("BASELINE_LIMITED", _sum(new_txns) - _sum(lost_txns), {
+                "accounts_present_only_in_to_month": bl_new,
+                "accounts_present_only_in_from_month": bl_lost,
+                "to_month_revenue_of_those_accounts": round(_sum(new_txns), 2),
+                "from_month_revenue_of_those_accounts": round(_sum(lost_txns), 2),
+                "account_absence_months": rule.get("absence_months"),
+                "reason": rule.get("bl_reason") or (
+                    "the loaded data does not span enough months to apply the "
+                    "account-presence persistence test on this side of the transition"),
+                "formula": "sum(credited_amt of unevaluable accounts present only in to-month) - "
+                           "sum(credited_amt of unevaluable accounts present only in from-month); "
+                           "recurring-class groups only — NEW/LOST_ACCOUNT need "
+                           "ACCOUNT_ABSENCE_MONTHS loaded months beyond the transition",
+            })
+        claimed_accounts = set(new_accounts) | set(lost_accounts) | set(bl_new) | set(bl_lost)
     rem_from = [t for t in from_txns if str(t.get("account_no")) not in claimed_accounts]
     rem_to = [t for t in to_txns if str(t.get("account_no")) not in claimed_accounts]
 
@@ -320,7 +360,9 @@ def attribute_transition(
     excl_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
     mix_warning_fraction: float = MIX_WARNING_FRACTION,
     max_processing_days: int = 90,
-    is_baseline_transition: bool = False,
+    loaded_month_ids: list[str] | None = None,
+    absence_months: int = DEFAULT_ACCOUNT_ABSENCE_MONTHS,
+    legacy_two_month_presence: bool = False,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
@@ -342,21 +384,77 @@ def attribute_transition(
     from_month, to_month = total_row["from_month_id"], total_row["to_month_id"]
     raw: list[tuple[dict, dict]] = []  # (change_row, driver)
 
-    # Advisor-level account presence for the NEW/LOST_ACCOUNT test. Presence
-    # counts credited, non-credited AND late activity: an account whose rows
-    # merely became non-credited (e.g. 9E) or processed late is still trading —
-    # an ELIGIBILITY / LATE_PROCESSING move, not a lost account. EXCLUDED rows
+    # Advisor-level account ACTIVITY over every loaded month, for the
+    # NEW/LOST_ACCOUNT persistence test (R6 A2). Activity counts credited,
+    # non-credited AND late rows: an account whose rows merely became
+    # non-credited (e.g. 9E) or processed late is still trading — an
+    # ELIGIBILITY / LATE_PROCESSING move, not a lost account. EXCLUDED rows
     # (deleted bookings) are not evidence of trading and do not count.
-    from_all: set[str] = set()
-    to_all: set[str] = set()
+    activity: dict[str, set[str]] = defaultdict(set)
     for source in (txns_by_group_month, nc_txns_by_group_month, late_txns_by_group_month):
         for (_g, month), txns in source.items():
-            if month == from_month:
-                from_all.update(str(t.get("account_no")) for t in txns)
-            elif month == to_month:
-                to_all.update(str(t.get("account_no")) for t in txns)
-    advisor_new = to_all - from_all
-    advisor_lost = from_all - to_all
+            for t in txns:
+                activity[str(t.get("account_no"))].add(month)
+    months = sorted(loaded_month_ids) if loaded_month_ids else sorted(
+        {m for ms in activity.values() for m in ms} | {from_month, to_month})
+    from_all = {a for a, ms in activity.items() if from_month in ms}
+    to_all = {a for a, ms in activity.items() if to_month in ms}
+    naive_new = to_all - from_all    # traded this month, not last (two-month test)
+    naive_lost = from_all - to_all   # traded last month, not this
+
+    presence_rule: dict = {"absence_months": absence_months}
+    if legacy_two_month_presence:
+        # TEST-ONLY compatibility path (scripts/verify_attribution.py uses it to
+        # PROVE the round-6 bug on a fixture): the pre-R6 two-month presence
+        # test, applied to every group, with the pre-R6 baseline-month routing.
+        # Never use in production builds — it over-claims on real data.
+        if from_month == months[0]:
+            advisor_new, advisor_lost = set(), set()
+            bl_new, bl_lost = naive_new, naive_lost
+        else:
+            advisor_new, advisor_lost = naive_new, naive_lost
+            bl_new, bl_lost = set(), set()
+        presence_rule["legacy_two_month_presence"] = True
+    else:
+        # R6 A2 — persistence: NEW requires `absence_months` loaded months of no
+        # activity immediately BEFORE the to-month; LOST requires the same
+        # immediately AFTER the from-month. Where the loaded range is too short
+        # to check (first/last transitions), the test is UNEVALUABLE and the
+        # naive-presence accounts route to BASELINE_LIMITED (R6 A3) instead —
+        # only ever for recurring-class groups (gated in attribute_group).
+        i, j = months.index(from_month), months.index(to_month)
+        preceding = months[max(0, j - absence_months):j]
+        following = months[i + 1:i + 1 + absence_months]
+        new_evaluable = j >= absence_months
+        lost_evaluable = i + absence_months <= len(months) - 1
+        if new_evaluable:
+            advisor_new = {a for a in naive_new if not (activity[a] & set(preceding))}
+            bl_new = set()
+        else:
+            advisor_new = set()
+            bl_new = naive_new
+        if lost_evaluable:
+            advisor_lost = {a for a in naive_lost if not (activity[a] & set(following))}
+            bl_lost = set()
+        else:
+            advisor_lost = set()
+            bl_lost = naive_lost
+        presence_rule.update({
+            "new_months_checked": preceding, "lost_months_checked": following,
+            "new_evaluable": new_evaluable, "lost_evaluable": lost_evaluable,
+        })
+        if not new_evaluable and not lost_evaluable:
+            presence_rule["bl_reason"] = (
+                f"fewer than {absence_months} loaded months exist on either side of "
+                f"{from_month}->{to_month} — the account-presence test cannot be applied")
+        elif not new_evaluable:
+            presence_rule["bl_reason"] = (
+                f"fewer than {absence_months} loaded months precede {to_month} — an account "
+                "appearing here cannot be confirmed as genuinely new")
+        elif not lost_evaluable:
+            presence_rule["bl_reason"] = (
+                f"fewer than {absence_months} loaded months follow {from_month} — an account "
+                "going quiet here cannot be confirmed as genuinely lost")
 
     for change in changes:
         if change["group_id"] == TOTAL_GROUP:
@@ -371,6 +469,10 @@ def attribute_transition(
             to_billable_days=to_billable_days,
             advisor_new_accounts=advisor_new,
             advisor_lost_accounts=advisor_lost,
+            bl_new_accounts=bl_new,
+            bl_lost_accounts=bl_lost,
+            presence_rule=presence_rule,
+            gate_to_recurring=not legacy_two_month_presence,
             from_nc_txns=nc_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_nc_txns=nc_txns_by_group_month.get((group_id, change["to_month_id"]), []),
             from_late_txns=late_txns_by_group_month.get((group_id, change["from_month_id"]), []),
@@ -378,9 +480,24 @@ def attribute_transition(
             from_excl_txns=excl_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_excl_txns=excl_txns_by_group_month.get((group_id, change["to_month_id"]), []),
             max_processing_days=max_processing_days,
-            baseline_limited=is_baseline_transition,
         ):
             raw.append((change, d))
+
+    # R6 A3 sanity rule: BASELINE_LIMITED may only carry what genuinely cannot
+    # be determined; a magnitude beyond the transition's total change means the
+    # account sets are still wrong. Fail the build loudly — never publish an
+    # over-claiming attribution. (Skipped on the test-only legacy path, whose
+    # whole purpose is to demonstrate this failure on a fixture.)
+    if not legacy_two_month_presence:
+        bl_total = sum(_num(d["contribution_amt"]) for _c, d in raw
+                       if d["cause_id"] == "BASELINE_LIMITED")
+        if abs(bl_total) > abs(total_change) + RECONCILE_TOLERANCE:
+            raise AttributionError(
+                f"BASELINE_LIMITED over-claims on {total_row['advisor_sid']} "
+                f"{from_month}->{to_month}: |{bl_total:,.2f}| > |total change "
+                f"{total_change:,.2f}| — the account-presence sets are wrong; "
+                "refusing to publish this attribution (FIX_SPEC_R6 A3)."
+            )
 
     # T1-3 self-check: MIX is a residual of last resort. A large MIX relative to
     # the transition's total change means a named driver is missing or
