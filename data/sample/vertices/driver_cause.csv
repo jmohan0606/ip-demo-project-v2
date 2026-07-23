@@ -14,3 +14,4 @@ LOST_ACCOUNT,Accounts closed,Accounts contributing last month but not this,REAL,
 CLAWBACK,Reversals,Negative credited amounts (chargebacks),REAL,13,REAL
 MARKET,Market performance,Asset value movement,DUMMY,14,REAL
 NET_FLOW,Net client flows,Inflows less outflows,DUMMY,15,REAL
+BASELINE_LIMITED,Baseline period limit,First period in the loaded data — account-level attribution requires a prior period,DERIVED,16,REAL

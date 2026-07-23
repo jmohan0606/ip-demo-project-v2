@@ -29,6 +29,7 @@ You will be given ALREADY-COMPUTED revenue drivers as JSON. Your job is language
 - Negative amounts are written in parentheses, never with a minus sign.
 - Use the client's product vocabulary exactly as given in the input.
 - A driver flagged data_source DUMMY or ASSUMED must be described as unavailable/placeholder, never as an established fact.
+- A driver with cause BASELINE_LIMITED reflects the FIRST period in the loaded data: say that account-level attribution is unavailable for this transition because no prior period exists. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.
 Respond with ONLY a JSON object:
 {"narrative_text": "<one flowing paragraph for the transition>",
  "bullet_texts": {"<driver_id>": "<one plain-business-language sentence explaining that driver>"}}"""
@@ -49,6 +50,9 @@ _CAUSE_FALLBACK = {
     "CLAWBACK": "Reversal (negative) amounts changed between the months.",
     "MARKET": "Market performance effect is a placeholder — no index-return source is available.",
     "NET_FLOW": "Net client flow effect is a placeholder — the flows feed stops before this period.",
+    "BASELINE_LIMITED": "This is the first period in the loaded data, so account-level "
+                        "attribution is unavailable for this transition — a prior period "
+                        "would be needed to tell account openings and closures apart.",
 }
 
 

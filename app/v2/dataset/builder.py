@@ -162,6 +162,11 @@ def build_dataset(
     by_transition: dict[tuple, list[dict]] = defaultdict(list)
     for c in changes:
         by_transition[(c["advisor_sid"], c["from_month_id"], c["to_month_id"])].append(c)
+    # R5 D1: the baseline month is the EARLIEST month present in the loaded
+    # transaction data (W11 — determined from data, never hardcoded). The
+    # transition OUT of it has no valid prior period for account-presence
+    # drivers; those amounts go to BASELINE_LIMITED, not NEW/LOST or MIX.
+    baseline_month = min({t["month_id"] for t in txns}) if txns else None
     for (advisor, from_m, to_m), rows in sorted(by_transition.items()):
         drivers.extend(attribute_transition(
             rows, buckets_by_advisor[elig.CREDITED][advisor], recurring_class_groups,
@@ -170,6 +175,7 @@ def build_dataset(
             late_txns_by_group_month=buckets_by_advisor[elig.LATE][advisor],
             excl_txns_by_group_month=buckets_by_advisor[elig.EXCLUDED][advisor],
             max_processing_days=ctx.max_processing_days,
+            is_baseline_transition=(from_m == baseline_month),
         ))
 
     report = reconcile(changes, drivers)
@@ -387,6 +393,9 @@ def _driver_cause_rows() -> list[dict]:
         ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 13),
         ("MARKET", "Market performance", "Asset value movement", "DUMMY", 14),
         ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 15),
+        ("BASELINE_LIMITED", "Baseline period limit",
+         "First period in the loaded data — account-level attribution requires a prior period",
+         "DERIVED", 16),
     ]
     return [{"cause_id": c, "cause_name": n, "cause_description": d, "default_data_source": s,
              "display_order": o} for c, n, d, s, o in causes]

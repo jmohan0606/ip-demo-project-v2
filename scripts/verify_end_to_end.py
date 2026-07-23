@@ -79,8 +79,8 @@ def main() -> int:
           f"{sum(len(r) for r in c.store.vertices.values())} vertices")
 
     causes = {a["cause_id"] for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values()}
-    check("all 15 causes exercised (incl. LATE_PROCESSING/EXCLUDED_CHANGE)",
-          len(causes) == 15, str(sorted(causes)))
+    check("all 16 causes exercised (incl. BASELINE_LIMITED on the baseline transition)",
+          len(causes) == 16, str(sorted(causes)))
 
     # T1-4: MIX magnitude per transition. Reconciliation at $0.00 proves
     # COMPLETENESS only — MIX absorbs whatever named drivers don't claim, so it

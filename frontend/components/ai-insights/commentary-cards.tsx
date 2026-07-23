@@ -266,6 +266,8 @@ function TransitionViews({
 
   // S-A4 — keys are slot-scoped so an accidental duplicate selection can
   // never produce two children with the same key.
+  // R5 D2 — the transition OUT of the earliest loaded month is baseline-limited.
+  const baselineFrom = sorted.length ? sorted[0].from_month_id : null;
   const card = (row: CommentaryRow, slotKey: string | number = "s") => (
     <TransitionCard
       key={`${slotKey}-${row.commentary_id}`}
@@ -275,6 +277,7 @@ function TransitionViews({
       versionMeta={versionMeta}
       evaluation={evaluationFor(row)}
       onOpenEvidence={onOpenEvidence}
+      isBaselineTransition={row.from_month_id === baselineFrom}
     />
   );
 
@@ -371,6 +374,7 @@ function TransitionCard({
   versionMeta,
   evaluation,
   onOpenEvidence,
+  isBaselineTransition = false,
 }: {
   row: CommentaryRow;
   totals: MonthlyTotals | null;
@@ -378,6 +382,7 @@ function TransitionCard({
   versionMeta: CommentaryVersion | null;
   evaluation: CommentaryEvaluation | null;
   onOpenEvidence: (req: EvidenceRequest) => void;
+  isBaselineTransition?: boolean;
 }) {
   const up = row.headline.trim().startsWith("▲");
   const bullets = parseBullets(row);
@@ -433,6 +438,14 @@ function TransitionCard({
               Source · Driver
             </span>
           </div>
+          {/* R5 D2 — the transition out of the baseline (earliest loaded) month
+              cannot attribute account-level drivers: say so explicitly. */}
+          {(isBaselineTransition || bullets.some((b) => b.cause_id === "BASELINE_LIMITED")) && (
+            <div className="mt-2 rounded-[3px] bg-v2-header-bg px-3 py-2 text-[10.5px] text-v2-muted">
+              {monthFull(row.from_month_id)} is the first month in the loaded data; account-level
+              drivers (accounts opened / closed) are unavailable for this transition.
+            </div>
+          )}
           <div className="divide-y divide-v2-border-subtle">
           {bullets.map((b, i) => (
             <div key={b.driver_id || i} className="flex items-start gap-2.5 py-2.5">

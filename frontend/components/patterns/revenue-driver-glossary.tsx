@@ -32,6 +32,13 @@ export const REVENUE_DRIVER_GLOSSARY: GlossaryRow[] = [
       "Mirror of New Account: accounts credited last month, none this month. Contribution = −(their prior-month credited revenue).",
   },
   {
+    name: "Baseline Period Limit",
+    meaning:
+      "First period in the loaded data — account-level attribution requires a prior period, so this amount cannot be split into account openings and closures",
+    computed:
+      "On the transition out of the earliest loaded month only: New/Lost Account are not computed (every account would look new without a prior period). Contribution = Σ credited revenue of accounts present in only one of the two months, signed. Derived, never narrated as a business event.",
+  },
+  {
     name: "One-Time",
     meaning: "Non-recurring items such as syndicate allocations, new issues, referrals",
     computed:

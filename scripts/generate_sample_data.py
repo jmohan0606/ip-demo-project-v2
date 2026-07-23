@@ -7,7 +7,7 @@ SMPL001..003, months Apr/May/Jun 2026.
 
 The transaction set is engineered so every driver cause is exercised:
   NEW_ACCOUNT   SMPL001 account SMPLACCT-1109 first contributes in Jun
-  LOST_ACCOUNT  SMPL001 account SMPLACCT-1104 stops after Apr
+  LOST_ACCOUNT  SMPL001 account SMPLACCT-1104 stops after May (Apr->May is baseline-limited)
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
   ELIGIBILITY   SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
                 household) in Jun — revenue moves credited -> non-credited
@@ -188,7 +188,8 @@ def build_transactions() -> list[dict]:
     for ai, adv in enumerate(("SMPL001", "SMPL002", "SMPL003"), start=1):
         base = ai * 1000
         accounts = [f"SMPLACCT-{base + i}" for i in range(101, 109)]
-        lost = f"SMPLACCT-{base + 104}"       # contributes Apr only
+        lost = f"SMPLACCT-{base + 104}"       # stops after May (R5 D1: Apr->May is
+        # baseline-limited, so the LOST_ACCOUNT story must fire on May->Jun)
         new = f"SMPLACCT-{base + 109}"        # first contributes Jun
         small_household = f"SMPLACCT-{base + 103}"  # SMPL001: goes 9E in Jun
         for m in MONTHS:
@@ -197,7 +198,7 @@ def build_transactions() -> list[dict]:
             # SMPL002 rate steps 82 -> 88 bps in Jun (FEE_RATE).
             rate = 88.0 if (adv == "SMPL002" and m == "202606") else 82.0
             for acct in accounts[:4]:
-                if acct == lost and m != "202604":
+                if acct == lost and m == "202606":
                     continue
                 fee = round((5200 + ai * 700 + int(acct[-1]) * 130) * days / 22 * rate / 82.0, 2)
                 disc = 0.0
@@ -218,6 +219,13 @@ def build_transactions() -> list[dict]:
             if new and m == "202606":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", new, 28,
                                     round(4100 + ai * 350, 2), rate_bps=rate, file_key="ace"))
+            # R5 D1 — BASELINE_LIMITED story: an account contributing ONLY in
+            # April (the baseline month). With no prior period, its Apr->May
+            # disappearance cannot honestly be called a lost account; the
+            # attribution routes it to BASELINE_LIMITED on that transition.
+            if m == "202604":
+                txns.append(_mk_txn(adv, m, "UMA|FEE", f"SMPLACCT-{base + 110}", 15,
+                                    round(1200 + ai * 400, 2), rate_bps=82.0, file_key="ace"))
             # 90-day rule (LATE_PROCESSING driver, FIX_SPEC_R3 T1-1): SMPL003
             # carries a 900 UMA fee all three months. April's instance processed
             # 100 days late (in Total, excluded from Credited); May and June

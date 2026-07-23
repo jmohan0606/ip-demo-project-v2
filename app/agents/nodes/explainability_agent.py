@@ -40,25 +40,29 @@ _CAUSE_FINDING = {
     "CLAWBACK": "reversal (negative) amounts changed between the months",
     "MARKET": "market performance effect — placeholder, no index-return source",
     "NET_FLOW": "net client flow effect — placeholder, flows feed unavailable",
+    "BASELINE_LIMITED": "first period in the loaded data — account-level attribution "
+                        "requires a prior period, so this amount cannot be split into "
+                        "account openings and closures",
 }
 
 # ---------------------------------------------------------------- R4-2 order
 # The attribution order (app/v2/drivers/attribution.py). NEW_ACCOUNT and
 # LOST_ACCOUNT share step 1 (one presence test, two signs).
 ATTRIBUTION_ORDER = [
-    "NEW_ACCOUNT/LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "NEW_ACCOUNT/LOST_ACCOUNT (BASELINE_LIMITED out of the baseline month)",
+    "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK", "TIMING",
     "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "MARKET", "NET_FLOW", "MIX",
 ]
 _CAUSE_STEP = {
-    "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
+    "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "BASELINE_LIMITED": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
     "LATE_PROCESSING": 4, "EXCLUDED_CHANGE": 5,
     "CLAWBACK": 6, "TIMING": 7, "FEE_RATE": 8, "DISCOUNT": 9,
     "BILLABLE_DAYS": 10, "VOLUME": 11, "MARKET": 12, "NET_FLOW": 13, "MIX": 14,
 }
 # Deterministic per-cause ordering for the waterfall (step order, split pairs).
 _WATERFALL_CAUSE_ORDER = [
-    "NEW_ACCOUNT", "LOST_ACCOUNT", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK",
     "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
     "MARKET", "NET_FLOW", "MIX",
@@ -107,6 +111,23 @@ _CAUSE_WHY: dict[str, dict] = {
              "an account closure, not organic volume — those rows are removed first"},
             {"cause": "MIX", "reason": "a genuinely lost account is an explicit revenue driver and is "
              "claimed before anything falls to the residual"},
+        ],
+    },
+    "BASELINE_LIMITED": {
+        "rule": "{from_m} is the FIRST month in the loaded data, so no prior period exists "
+                "to tell account openings and closures apart. The revenue of accounts present "
+                "in only one of the two months is attributed here honestly instead of being "
+                "narrated as account activity (or silently absorbed by MIX). "
+                "NEW_ACCOUNT/LOST_ACCOUNT are not computed for this transition.",
+        "inputs_tested": ["earliest month_id present in the loaded transaction data",
+                          "account_no presence per month (advisor level)",
+                          "credited_amt of accounts present in only one month"],
+        "rejected": [
+            {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "with no prior period, every account "
+             "would look newly opened — computing them out of the baseline month would fabricate "
+             "business events"},
+            {"cause": "MIX", "reason": "the amount is explained by the baseline limitation and is "
+             "named as such rather than left in the residual"},
         ],
     },
     "ONE_TIME": {

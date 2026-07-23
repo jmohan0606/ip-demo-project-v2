@@ -39,6 +39,9 @@ CAUSE_DATA_SOURCE = {
     "FEE_RATE": "REAL", "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
     "NEW_ACCOUNT": "REAL", "LOST_ACCOUNT": "REAL", "CLAWBACK": "REAL",
     "MARKET": "DUMMY", "NET_FLOW": "DUMMY",
+    # R5 D1 — transition out of the baseline (earliest loaded) month: no valid
+    # prior period exists, so account-presence attribution is honest-limited.
+    "BASELINE_LIMITED": "DERIVED",
 }
 
 
@@ -72,6 +75,7 @@ def attribute_group(
     from_excl_txns: list[dict] | None = None,
     to_excl_txns: list[dict] | None = None,
     max_processing_days: int = 90,
+    baseline_limited: bool = False,
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
     change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8),
@@ -120,20 +124,40 @@ def attribute_group(
     adv_lost = advisor_lost_accounts if advisor_lost_accounts is not None else (from_accounts - to_accounts)
     new_accounts = sorted((to_accounts - from_accounts) & adv_new)
     lost_accounts = sorted((from_accounts - to_accounts) & adv_lost)
-    if new_accounts:
+    if baseline_limited:
+        # R5 D1 — the from-month is the FIRST month in the loaded data: every
+        # account looks "new" only because there is no prior period to compare.
+        # NEW/LOST_ACCOUNT are not computed; the amount they would have claimed
+        # goes to the honest BASELINE_LIMITED driver so MIX does not absorb it.
         new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
-        emit("NEW_ACCOUNT", _sum(new_txns), {
-            "accounts": new_accounts, "txn_count": len(new_txns),
-            "to_month_revenue_of_new_accounts": round(_sum(new_txns), 2),
-            "formula": "sum(credited_amt of accounts contributing this month but not last)",
-        })
-    if lost_accounts:
         lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
-        emit("LOST_ACCOUNT", -_sum(lost_txns), {
-            "accounts": lost_accounts, "txn_count": len(lost_txns),
-            "from_month_revenue_of_lost_accounts": round(_sum(lost_txns), 2),
-            "formula": "-(sum(credited_amt of accounts contributing last month but not this))",
-        })
+        if new_accounts or lost_accounts:
+            emit("BASELINE_LIMITED", _sum(new_txns) - _sum(lost_txns), {
+                "accounts_present_only_in_to_month": new_accounts,
+                "accounts_present_only_in_from_month": lost_accounts,
+                "to_month_revenue_of_those_accounts": round(_sum(new_txns), 2),
+                "from_month_revenue_of_those_accounts": round(_sum(lost_txns), 2),
+                "reason": "first period in the loaded data — account-level attribution "
+                          "requires a prior period",
+                "formula": "sum(credited_amt of accounts present only in to-month) - "
+                           "sum(credited_amt of accounts present only in from-month); "
+                           "NEW_ACCOUNT/LOST_ACCOUNT are not computed out of the baseline month",
+            })
+    elif new_accounts or lost_accounts:
+        if new_accounts:
+            new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
+            emit("NEW_ACCOUNT", _sum(new_txns), {
+                "accounts": new_accounts, "txn_count": len(new_txns),
+                "to_month_revenue_of_new_accounts": round(_sum(new_txns), 2),
+                "formula": "sum(credited_amt of accounts contributing this month but not last)",
+            })
+        if lost_accounts:
+            lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
+            emit("LOST_ACCOUNT", -_sum(lost_txns), {
+                "accounts": lost_accounts, "txn_count": len(lost_txns),
+                "from_month_revenue_of_lost_accounts": round(_sum(lost_txns), 2),
+                "formula": "-(sum(credited_amt of accounts contributing last month but not this))",
+            })
     claimed_accounts = set(new_accounts) | set(lost_accounts)
     rem_from = [t for t in from_txns if str(t.get("account_no")) not in claimed_accounts]
     rem_to = [t for t in to_txns if str(t.get("account_no")) not in claimed_accounts]
@@ -296,6 +320,7 @@ def attribute_transition(
     excl_txns_by_group_month: dict[tuple[str, str], list[dict]] | None = None,
     mix_warning_fraction: float = MIX_WARNING_FRACTION,
     max_processing_days: int = 90,
+    is_baseline_transition: bool = False,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
@@ -353,6 +378,7 @@ def attribute_transition(
             from_excl_txns=excl_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_excl_txns=excl_txns_by_group_month.get((group_id, change["to_month_id"]), []),
             max_processing_days=max_processing_days,
+            baseline_limited=is_baseline_transition,
         ):
             raw.append((change, d))
 
