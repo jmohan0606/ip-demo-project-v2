@@ -1,0 +1,110 @@
+// iPerform V2 — FULL SCHEMA DROP (corrected)
+// Order matters: queries -> graph -> edges (incl. reverse) -> vertices.
+// TigerGraph refuses to drop a graph whose queries still exist, and reverse
+// edges are separate schema objects that do NOT drop with their parent.
+//
+// Run:  gsql 90_drop_all.gsql
+
+USE GRAPH iperform_v2_revenue
+
+// --- 1. queries first (a graph cannot be dropped while queries reference it) ---
+DROP QUERY get_advisor_month_summary
+DROP QUERY get_advisors
+DROP QUERY get_change_drivers
+DROP QUERY get_commentary
+DROP QUERY get_commentary_evaluations
+DROP QUERY get_commentary_versions
+DROP QUERY get_driver_causes
+DROP QUERY get_evidence
+DROP QUERY get_ingestion_counts
+DROP QUERY get_monthly_revenue_by_product
+DROP QUERY get_monthly_revenue_totals
+DROP QUERY get_months
+DROP QUERY get_product_hierarchy
+DROP QUERY get_product_revenue_change
+DROP QUERY get_reason_codes
+DROP QUERY get_revenue_changes
+DROP QUERY get_transactions
+
+// --- 2. the graph ---
+DROP GRAPH iperform_v2_revenue
+
+USE GLOBAL
+
+// --- 3. reverse edges (separate objects; drop before their parent edge) ---
+DROP EDGE reverse_phx_dm_v2_product_in_group
+DROP EDGE reverse_phx_dm_v2_group_in_line
+DROP EDGE reverse_phx_dm_v2_line_in_class
+DROP EDGE reverse_phx_dm_v2_txn_for_advisor
+DROP EDGE reverse_phx_dm_v2_txn_in_month
+DROP EDGE reverse_phx_dm_v2_txn_for_product
+DROP EDGE reverse_phx_dm_v2_txn_for_account
+DROP EDGE reverse_phx_dm_v2_txn_has_reason
+DROP EDGE reverse_phx_dm_v2_mpr_for_advisor
+DROP EDGE reverse_phx_dm_v2_mpr_in_month
+DROP EDGE reverse_phx_dm_v2_mpr_for_group
+DROP EDGE reverse_phx_dm_v2_balance_for_account
+DROP EDGE reverse_phx_dm_v2_balance_in_month
+DROP EDGE reverse_phx_dm_v2_change_for_advisor
+DROP EDGE reverse_phx_dm_v2_change_for_group
+DROP EDGE reverse_phx_dm_v2_change_from_month
+DROP EDGE reverse_phx_dm_v2_change_to_month
+DROP EDGE reverse_phx_dm_v2_driver_of_change
+DROP EDGE reverse_phx_dm_v2_driver_has_cause
+DROP EDGE reverse_phx_dm_v2_driver_for_group
+DROP EDGE reverse_phx_dm_v2_commentary_for_advisor
+DROP EDGE reverse_phx_dm_v2_commentary_from_month
+DROP EDGE reverse_phx_dm_v2_commentary_to_month
+DROP EDGE reverse_phx_dm_v2_commentary_in_version
+DROP EDGE reverse_phx_dm_v2_commentary_cites_driver
+DROP EDGE reverse_phx_dm_v2_evidence_for_driver
+DROP EDGE reverse_phx_dm_v2_evaluation_of_commentary
+
+// --- 4. forward edges ---
+DROP EDGE phx_dm_v2_evaluation_of_commentary
+DROP EDGE phx_dm_v2_evidence_for_driver
+DROP EDGE phx_dm_v2_commentary_cites_driver
+DROP EDGE phx_dm_v2_commentary_in_version
+DROP EDGE phx_dm_v2_commentary_to_month
+DROP EDGE phx_dm_v2_commentary_from_month
+DROP EDGE phx_dm_v2_commentary_for_advisor
+DROP EDGE phx_dm_v2_driver_for_group
+DROP EDGE phx_dm_v2_driver_has_cause
+DROP EDGE phx_dm_v2_driver_of_change
+DROP EDGE phx_dm_v2_change_to_month
+DROP EDGE phx_dm_v2_change_from_month
+DROP EDGE phx_dm_v2_change_for_group
+DROP EDGE phx_dm_v2_change_for_advisor
+DROP EDGE phx_dm_v2_balance_in_month
+DROP EDGE phx_dm_v2_balance_for_account
+DROP EDGE phx_dm_v2_mpr_for_group
+DROP EDGE phx_dm_v2_mpr_in_month
+DROP EDGE phx_dm_v2_mpr_for_advisor
+DROP EDGE phx_dm_v2_txn_has_reason
+DROP EDGE phx_dm_v2_txn_for_account
+DROP EDGE phx_dm_v2_txn_for_product
+DROP EDGE phx_dm_v2_txn_in_month
+DROP EDGE phx_dm_v2_txn_for_advisor
+DROP EDGE phx_dm_v2_line_in_class
+DROP EDGE phx_dm_v2_group_in_line
+DROP EDGE phx_dm_v2_product_in_group
+
+// --- 5. vertices last ---
+DROP VERTEX phx_dm_v2_evidence
+DROP VERTEX phx_dm_v2_commentary_evaluation
+DROP VERTEX phx_dm_v2_commentary
+DROP VERTEX phx_dm_v2_commentary_version
+DROP VERTEX phx_dm_v2_revenue_driver
+DROP VERTEX phx_dm_v2_revenue_change
+DROP VERTEX phx_dm_v2_account_month_balance
+DROP VERTEX phx_dm_v2_monthly_product_revenue
+DROP VERTEX phx_dm_v2_revenue_transaction
+DROP VERTEX phx_dm_v2_reason_code
+DROP VERTEX phx_dm_v2_driver_cause
+DROP VERTEX phx_dm_v2_account
+DROP VERTEX phx_dm_v2_product
+DROP VERTEX phx_dm_v2_product_group
+DROP VERTEX phx_dm_v2_product_line
+DROP VERTEX phx_dm_v2_revenue_class
+DROP VERTEX phx_dm_v2_month
+DROP VERTEX phx_dm_v2_advisor
