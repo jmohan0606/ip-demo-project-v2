@@ -82,6 +82,48 @@ def _matches(value: float, allowed: set[float], is_k: bool) -> bool:
     return any(abs(abs(value) - a) <= tolerance for a in allowed)
 
 
+def validate_anomaly_text(metrics: dict, thresholds: dict, texts: list[str]) -> dict:
+    """R6 Y6 — the anomaly-narration guardrail: every figure in the AI-worded
+    title/detail must exist in metrics_json (or be one of the thresholds in
+    force), and negatives must be parenthesised. Same no-invented-figures
+    boundary as commentary; a failure means the caller falls back to the
+    deterministic template — unverified wording is never published."""
+    allowed: set[float] = set()
+
+    def walk(obj: Any) -> None:
+        if isinstance(obj, dict):
+            for v in obj.values():
+                walk(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                walk(v)
+        else:
+            f = _num(obj)
+            if f is not None:
+                allowed.add(abs(f))
+            elif isinstance(obj, str):
+                # display-formatted figures inside metric strings ("$12,345.00")
+                for value, is_k in _extract_numbers(obj):
+                    allowed.add(abs(value))
+
+    walk(metrics)
+    walk(thresholds)
+    orphans, minus_hits = [], []
+    for text in texts:
+        for value, is_k in _extract_numbers(text or ""):
+            if not _matches(value, allowed, is_k):
+                orphans.append(f"{value:g}{'k-form' if is_k else ''}")
+        if _MINUS_FIGURE_RE.search(text or ""):
+            minus_hits.append((text or "")[:40])
+    return {
+        "passed": not orphans and not minus_hits,
+        "blocked_reason": "; ".join(filter(None, [
+            f"figures not present in metrics_json: {sorted(set(orphans))[:8]}" if orphans else "",
+            f"minus sign used on a figure: {minus_hits[:3]}" if minus_hits else "",
+        ])) or None,
+    }
+
+
 def validate_commentary(
     revenue_output: dict,
     commentary: dict,

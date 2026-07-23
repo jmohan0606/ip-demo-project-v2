@@ -67,6 +67,22 @@ class Settings(BaseSettings):
     # to recurring-class product groups only; reported in the build summary.
     account_absence_months: int = Field(default=2, alias="ACCOUNT_ABSENCE_MONTHS")
 
+    # --- R6 Y — anomaly detection thresholds (FIX_SPEC_R6 Y2). ALL config, no
+    # literals in the rules; surfaced in the UI and in every scan summary.
+    # UNEXPLAINED_RESIDUAL: |MIX| / |total change| above this fraction (HIGH)
+    anomaly_unexplained_residual_pct: float = Field(default=0.15, alias="ANOMALY_UNEXPLAINED_RESIDUAL_PCT")
+    # CLAWBACK_CONCENTRATION: month clawback total over N x the advisor's
+    # trailing mean, with an absolute floor (HIGH)
+    anomaly_clawback_multiple: float = Field(default=5.0, alias="ANOMALY_CLAWBACK_MULTIPLE")
+    anomaly_clawback_min_usd: float = Field(default=10000.0, alias="ANOMALY_CLAWBACK_MIN_USD")
+    # LARGE_SWING: |change_pct| above this AND |change_amt| above the floor (MEDIUM)
+    anomaly_large_swing_pct: float = Field(default=25.0, alias="ANOMALY_LARGE_SWING_PCT")
+    anomaly_large_swing_min_usd: float = Field(default=50000.0, alias="ANOMALY_LARGE_SWING_MIN_USD")
+    # FEE_RATE_SHIFT: effective rate moves more than N bps on a recurring group (MEDIUM)
+    anomaly_fee_rate_shift_bps: float = Field(default=10.0, alias="ANOMALY_FEE_RATE_SHIFT_BPS")
+    # SINGLE_DRIVER_DOMINANCE: one named driver above N% of the change (LOW)
+    anomaly_single_driver_dominance_pct: float = Field(default=70.0, alias="ANOMALY_SINGLE_DRIVER_DOMINANCE_PCT")
+
     @property
     def credited_grid_type_set(self) -> set[str]:
         return {g.strip() for g in self.credited_grid_types.split(",") if g.strip()}

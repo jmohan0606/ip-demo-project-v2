@@ -155,3 +155,35 @@ def ops_advisor_summary(advisor_id: str):
 @router.get("/ops/reconciliation")
 def ops_reconciliation(advisor_id: str, from_month: str, to_month: str):
     return ok(data=V2DriverService().reconciliation(advisor_id, from_month, to_month))
+
+
+# ---------------------------------------------------------------- anomalies (R6 Y)
+# The screen RETRIEVES stored anomalies — detection is batch-only (Y5): the
+# POST below (or the CLI: python -m app.v2.anomalies.detection) runs a scan;
+# page loads never detect.
+
+@router.get("/anomalies")
+def anomalies(advisor_id: str = "", scan_id: str = "", severity: str = "",
+              result_limit: int = Query(default=500, le=2000)):
+    from app.v2.anomalies.service import V2AnomalyService
+    return ok(data=V2AnomalyService().anomalies(advisor_id, scan_id, severity, result_limit))
+
+
+@router.get("/anomalies/scans")
+def anomaly_scans():
+    from app.v2.anomalies.service import V2AnomalyService
+    return ok(data=V2AnomalyService().scans())
+
+
+@router.post("/anomalies/scan")
+def anomaly_scan(notes: str = ""):
+    """Trigger a batch scan — a NEW scan_id every run; prior scans remain
+    queryable (additive, like commentary versions)."""
+    from app.v2.anomalies.detection import run_scan
+    return ok(data=run_scan(notes))
+
+
+@router.get("/anomalies/scan/status")
+def anomaly_scan_status():
+    from app.v2.anomalies.detection import get_status
+    return ok(data=get_status())

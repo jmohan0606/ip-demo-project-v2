@@ -146,6 +146,90 @@ def narrate(revenue_output: dict, llm) -> dict:
     }
 
 
+# ---------------------------------------------------------------- anomaly mode (R6 Y6)
+# The same boundary as commentary: rules are computed in Python; the model only
+# PHRASES the finding. Every figure it may mention is already in the metrics /
+# thresholds payload, pre-formatted by code.
+
+_ANOMALY_SYSTEM_PROMPT = """You phrase already-computed anomaly findings for a financial advisor's revenue dashboard.
+You will be given the rule that fired, the computed metrics that triggered it, and the thresholds in force, as JSON. Your job is language only:
+- Use ONLY figures that appear in the input JSON, copied VERBATIM in their given format (e.g. "($44.1k)", "17.7%").
+- NEVER introduce, adjust, round, re-round, sum or infer a number.
+- Negative amounts are written in parentheses, never with a minus sign.
+- State what was observed and why it crossed the threshold, in plain business language. Never speculate about causes the metrics do not show; never give advice.
+Respond with ONLY a JSON object: {"title": "<short finding, max 12 words>", "detail_text": "<2-3 sentences>"}"""
+
+# Deterministic fallback templates per rule — used when the model's wording
+# fails the no-invented-figures guardrail or cannot be parsed. `m` is the
+# display-formatted metrics dict built by the detection service.
+_ANOMALY_FALLBACK = {
+    "UNEXPLAINED_RESIDUAL": lambda m: (
+        "Unexplained residual above threshold",
+        f"The MIX residual of {m['mix_total']} is {m['mix_pct_of_change']} of the total "
+        f"change {m['total_change']}, above the configured threshold. A residual this "
+        "large means part of the movement is not explained by any named driver."),
+    "CLAWBACK_CONCENTRATION": lambda m: (
+        "Clawbacks concentrated well above trailing average",
+        f"Clawbacks of {m['clawback_total']} in {m['month']} compare with a trailing "
+        f"monthly average of {m['trailing_mean']}. This concentration exceeds the "
+        "configured multiple of the advisor's normal reversal level."),
+    "LARGE_SWING": lambda m: (
+        "Large month-over-month revenue swing",
+        f"Credited revenue moved {m['change_amt']} ({m['change_pct']}) between the two "
+        "months, exceeding both the percentage and dollar thresholds for a normal swing."),
+    "FEE_RATE_SHIFT": lambda m: (
+        "Effective fee rate shifted on a recurring group",
+        f"The effective rate on {m['group_name']} moved from {m['from_rate_bps']} bps to "
+        f"{m['to_rate_bps']} bps ({m['shift_bps']} bps), above the configured threshold "
+        "for a recurring product group."),
+    "SINGLE_DRIVER_DOMINANCE": lambda m: (
+        "One driver dominates the change",
+        f"The {m['cause_name']} driver contributes {m['contribution']} — "
+        f"{m['share_of_change']} of the total change {m['total_change']}, above the "
+        "configured dominance threshold. The movement rests on a single explanation."),
+    "BASELINE_LIMITED_PRESENT": lambda m: (
+        "Part of this change cannot be classified",
+        f"A Baseline period limit driver of {m['baseline_limited_amt']} is present: too "
+        "few months are loaded on one side of this transition to confirm account "
+        "openings or closures, so that portion is reported as unclassifiable rather "
+        "than attributed."),
+}
+
+
+def narrate_anomaly(rule_id: str, metrics: dict, thresholds: dict, llm) -> dict:
+    """Title + detail_text for one fired rule. AI wording is validated by the
+    no-invented-figures guardrail (app/guardrails/numeric_validation
+    .validate_anomaly_text); on any failure the deterministic template is used
+    instead — unverified wording is never published. Returns
+    {title, detail_text, model, ai_generated, guardrail}."""
+    from app.guardrails.numeric_validation import validate_anomaly_text
+
+    payload = {"rule": rule_id, "metrics": metrics, "thresholds": thresholds}
+    title, detail, llm_model = "", "", "unavailable"
+    try:
+        raw = llm.generate(json.dumps(payload, indent=2), {"system_prompt": _ANOMALY_SYSTEM_PROMPT})
+        llm_model = llm.describe().get("model", llm.describe().get("mode", "unknown"))
+        match = re.search(r"\{.*\}", raw or "", re.S)
+        if match:
+            parsed = json.loads(match.group(0))
+            title = str(parsed.get("title") or "").strip()
+            detail = str(parsed.get("detail_text") or "").strip()
+    except Exception:  # noqa: BLE001 — deterministic fallback below; never fabricates figures
+        pass
+
+    guardrail = {"passed": False, "blocked_reason": "no model output"}
+    if title and detail:
+        guardrail = validate_anomaly_text(metrics, thresholds, [title, detail])
+    if not (title and detail and guardrail["passed"]):
+        fallback = _ANOMALY_FALLBACK[rule_id]
+        title, detail = fallback(metrics)
+        return {"title": title, "detail_text": detail,
+                "model": f"{llm_model} (deterministic fallback)",
+                "ai_generated": False, "guardrail": guardrail}
+    return {"title": title, "detail_text": detail, "model": llm_model,
+            "ai_generated": True, "guardrail": guardrail}
+
+
 class CommentaryAgent(BaseAgent):
     name = "commentary_agent"
     description = "Narrates already-computed drivers into commentary. Language only — never computes."
