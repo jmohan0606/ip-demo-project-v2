@@ -1,5 +1,5 @@
 # Round 5 — Changed Files
-Generated: 2026-07-23T10:35:00Z   Base commit: ea57f3c (before round 5)   Head: 4bdc43d (work-stream A)
+Generated: 2026-07-23T10:35:00Z   Base commit: ea57f3c (before round 5)   Head: (work-stream B) — see git log
 
 Derived from `git diff --name-status ea57f3c..HEAD` — updated after each
 work-stream's commit. The operator copies files from this list literally into the
@@ -20,7 +20,10 @@ client environment; nothing outside it changed.
 | app/ingestion/entity_registry.py | MODIFIED | A1 config carries manifest column mapping; A7 manifest path |
 | app/ingestion/graph_validation.py | **NEW** | A5 graph-truth validation (VALIDATED/EMPTY_ATTRS/MISMATCH/NOT_LOADED/UNVERIFIABLE) |
 | app/models/ingestion.py | MODIFIED | A1 columns field on IngestionEntityConfig |
-| app/api/routers/ingestion.py | MODIFIED | A5 GET /ingestion/validation; A8 POST /ingestion/clear-checkpoints |
+| app/api/routers/ingestion.py | MODIFIED | A5 GET /ingestion/validation; A8 POST /ingestion/clear-checkpoints; B3 run-all batch_size; B4 GET /ingestion/errors |
+| app/ingestion/run_all.py | MODIFIED | B1 current_entity_index + per-entity batch_size; B3 override; B5 end message |
+| app/ingestion/remediation.py | **NEW** | B4 remediation hints for persisted errors |
+| app/ingestion/checkpoint_repository.py | MODIFIED | B4 list_errors() |
 | app/api/middleware/error_handlers.py | MODIFIED | A6 CORS-safe catch-all (500s now carry CORS headers + real message) |
 | app/api/main.py | MODIFIED | A7 startup logging of resolved absolute paths |
 | app/config/settings.py | MODIFIED | A7 APP_ROOT anchoring, resolved_* properties, .env at repo root |
@@ -30,10 +33,11 @@ client environment; nothing outside it changed.
 | app/v2/dataset/builder.py | MODIFIED | A3 LF lineterminator; csv-aware count in preserve_or_create |
 | app/v2/commentary/generation_workflow.py | MODIFIED | A3 LF + BOM-tolerant CSV IO; A7 data dir resolution |
 
-### Frontend
+### Frontend (work-stream B)
 | File | Change | Why |
 |---|---|---|
-| (none yet — work-stream B pending) | | |
+| frontend/components/ingestion/data-ingestion-workspace.tsx | MODIFIED | B rebuild: validation column, run-all live progress, error expansion, remediation summary, batch override, clear-checkpoints, delete report |
+| frontend/lib/api/ingestion.ts | MODIFIED | validation/errors/clear-checkpoints APIs; batch_size + current_entity_index types |
 
 ### Scripts / schema / docs
 | File | Change | Why |

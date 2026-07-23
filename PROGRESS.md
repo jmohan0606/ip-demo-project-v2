@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-23T10:40:00Z
 Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
-Resume from: W-B1
+Resume from: W-D1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -130,13 +130,13 @@ Resume from: W-B1
 | W-A7 | R5-A | absolute path resolution + startup logging of resolved paths | DONE | 971235f | APP_ROOT anchoring; startup log + env-health resolved_paths |
 | W-A8 | R5-A | 90_drop_all.gsql + clear-checkpoints endpoint + runbook procedure | DONE | 6d8a6ef | 90_drop_all.gsql; clear-checkpoints endpoint; RUNBOOK Step 10 |
 | W-A9 | R5-A | A9a fixture verification gate passed; A9b operator acceptance doc written | DONE | 4bdc43d | A9a 25/25 PASS (local tier + fixtures); A9b ROUND5_ACCEPTANCE.md written — pending operator acceptance |
-| W-B1 | R5-B | screen: live per-entity progress during Run All | TODO | | |
-| W-B2 | R5-B | screen: async status refresh without blocking/restarting the run | TODO | | |
-| W-B3 | R5-B | screen: batch size visible + configurable | TODO | | |
-| W-B4 | R5-B | screen: per-entity error details persisted + remediation | TODO | | |
-| W-B5 | R5-B | screen: skip-and-continue + end-of-run remediation summary | TODO | | |
-| W-B6 | R5-B | screen: validation proof column (graph count, attr check, state, timestamp) | TODO | | |
-| W-B7 | R5-B | scale: chunked processing, resumable checkpoints, no full-file materialisation | TODO | | |
+| W-B1 | R5-B | screen: live per-entity progress during Run All | DONE | (this) | current entity n/45 + per-entity rows + running tallies |
+| W-B2 | R5-B | screen: async status refresh without blocking/restarting the run | DONE | (this) | 2s GET-only polling; run survives tab close (daemon thread) |
+| W-B3 | R5-B | screen: batch size visible + configurable | DONE | (this) | batch column + per-run override ?batch_size= |
+| W-B4 | R5-B | screen: per-entity error details persisted + remediation | DONE | (this) | GET /ingestion/errors persisted w/ remediation; header failures persisted; expandable rows |
+| W-B5 | R5-B | screen: skip-and-continue + end-of-run remediation summary | DONE | (this) | run continues past failures; end-of-run remediation summary panel |
+| W-B6 | R5-B | screen: validation proof column (graph count, attr check, state, timestamp) | DONE | (this) | validation proof column from GET /ingestion/validation |
+| W-B7 | R5-B | scale: chunked processing, resumable checkpoints, no full-file materialisation | DONE | (this) | chunked batches + resumable checkpoints + streaming DictReader; streaming-at-scale recorded for SOLUTION_GUIDE next steps (E) |
 | W-C1 | R5-C | real CSVs named after vertex/edge type | TODO | | |
 | W-C2 | R5-C | single catalog for target↔file↔columns; all consumers updated | TODO | | |
 | W-D1 | R5-D | baseline-month concept + BASELINE_LIMITED driver | TODO | | |
