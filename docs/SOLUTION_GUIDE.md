@@ -396,7 +396,9 @@ Per group, steps run in this fixed order (`attribute_group()`); each step **clai
 part of the change and **removes its transactions from all later steps**:
 
 ```
- 1. NEW_ACCOUNT / LOST_ACCOUNT      (advisor-level account presence)
+ 1. NEW_ACCOUNT / LOST_ACCOUNT      (recurring-class groups only; persistence-
+                                     confirmed; BASELINE_LIMITED where the loaded
+                                     range is too short to confirm)      [Round 6]
  2. ONE_TIME                        (rev_nature ONE_TIME delta)
  3. ELIGIBILITY                     (credited <-> non-credited movement)   [Round 2]
  4. LATE_PROCESSING                 (90-day-rule movement, -(Δ late-excluded)) [Round 3]
@@ -447,32 +449,43 @@ Every worked example below is a real stored driver row from
 
 ---
 
-**1. NEW_ACCOUNT** — REAL — *"Accounts contributed this month that did not contribute
-last month."*
+**1. NEW_ACCOUNT** — REAL — *"Accounts in recurring product lines with billing
+activity after ACCOUNT_ABSENCE_MONTHS consecutive months of none."* [rule tightened
+in Round 6]
 
-- **Rule:** account presence is judged **at the advisor level**, not per product group,
-  and counts credited **and** non-credited activity. An account that merely switches
-  products, or whose rows became non-credited, is still trading — that is product
-  behaviour or an eligibility move, not a new/lost account.
-- **Formula:** `Σ credited_amt (this month) of accounts new to the advisor`.
+- **Rule (precise):** fires **only for recurring-class groups** (product lines
+  Managed and Trails — where an account genuinely should bill every month), and only
+  after **persistence**: the account had no activity of any kind (credited,
+  non-credited or late) for `ACCOUNT_ABSENCE_MONTHS` consecutive loaded months
+  (config, default 2) and then appears. Presence is judged **at the advisor level**,
+  not per product group. Transactional groups (Equities, Structured Products, …)
+  never emit this driver — trading intermittency there is routine and is already
+  explained by VOLUME / ONE_TIME / TIMING.
+- **Formula:** `Σ credited_amt (this month) of confirmed-new accounts`.
 - **Worked example** (SMPL001 May→Jun, unified_managed_account): account
-  `SMPLACCT-1109` first contributes in June — 1 transaction, $4,450.00 →
-  contribution **$4,450.00**.
+  `SMPLACCT-1109` first bills in June, with April and May both loaded and quiet —
+  1 transaction, $4,450.00 → contribution **$4,450.00**.
 - **Why competing causes are rejected:** these rows are removed before ONE_TIME,
   FEE_RATE, VOLUME etc. run, so a new account's revenue cannot be re-explained as a
   volume or rate effect. Evaluating presence at advisor level stops a mere
   product-switch from being miscounted as an account opening.
 
-**2. LOST_ACCOUNT** — REAL — *"Accounts that contributed last month did not contribute
-this month."*
+**2. LOST_ACCOUNT** — REAL — *"Accounts in recurring product lines with no billing
+activity for ACCOUNT_ABSENCE_MONTHS consecutive months."* [rule tightened in Round 6]
 
-- **Rule:** mirror of NEW_ACCOUNT, advisor-level presence including non-credited rows.
-- **Formula:** `−(Σ credited_amt (last month) of accounts gone from the advisor)`.
+- **Rule (precise):** mirror of NEW_ACCOUNT — recurring-class groups only; the
+  account billed in the from-month and then had **no activity for
+  `ACCOUNT_ABSENCE_MONTHS` consecutive loaded months** (default 2). A single quiet
+  month is ordinary intermittency, not attrition, and does not fire. Where too few
+  months are loaded to check (the last loaded transition), the movement goes to
+  BASELINE_LIMITED instead — it is never asserted as a closure.
+- **Formula:** `−(Σ credited_amt (last month) of confirmed-lost accounts)`.
 - **Worked example** (SMPL001 Apr→May, unified_managed_account): account
-  `SMPLACCT-1104` stops after April — $6,420.00 of April revenue → contribution
-  **($6,420.00)**. For SMPL003 Apr→May the same account (`SMPLACCT-3104`) produces two
-  LOST_ACCOUNT drivers, ($7,820.00) in UMA and ($7,400.00) in annuities — the account
-  is judged once at advisor level, then its revenue is attributed per group.
+  `SMPLACCT-1110` bills only in April; May **and** June are loaded and both quiet, so
+  the loss is confirmed — $1,600.00 of April revenue → contribution **($1,600.00)**.
+  By contrast `SMPLACCT-1104`, which stops after May, is **not** called lost: only
+  one loaded month follows, so its movement lands in BASELINE_LIMITED (see the
+  glossary) on May→Jun.
 - **Rejection of competitors:** because presence counts non-credited activity, a
   household whose rows went 9E is **not** a lost account — it flows to ELIGIBILITY
   (see below), which is the true business story.
@@ -574,9 +587,9 @@ days."*
 - **Formula:** `from_revenue × (to_days − from_days) / from_days` on the remaining
   rows.
 - **Worked example** (SMPL001 Apr→May, unified_managed_account):
-  `18,480.00 × (21 − 22) / 22` = **($840.00)** — one fewer billing day in May. (The
-  $18,480.00 base is April UMA revenue after the lost account `SMPLACCT-1104`'s
-  $6,420.00 was consumed by step 1: 24,900.00 − 6,420.00.)
+  `25,380.00 × (21 − 22) / 22` = **($1,153.64)** — one fewer billing day in May. (The
+  $25,380.00 base is April UMA revenue after the lost account `SMPLACCT-1110`'s
+  $1,600.00 was consumed by step 1.)
 - **Rejection of competitors:** flagged DERIVED because it is a pro-rata model, not a
   sourced fact; it applies only to fee-accruing (recurring) groups — transaction
   groups get VOLUME instead.

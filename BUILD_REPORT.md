@@ -759,3 +759,84 @@ DONE **pending operator acceptance** of exactly those steps.
 
 `docs/ROUND5_CHANGED_FILES.md` — git-derived per work-stream, with operator-local
 exclusions, conflict-risk flags, and the full C1 rename list.
+
+---
+
+## 12. Round 6 (FIX_SPEC_R6.md, 2026-07-23) — ATTRIBUTION CORRECTNESS + ANOMALY DETECTION
+
+### Work-stream A — the account-presence fix
+
+**The bug (from the first real-data build):** `attribution.py` judged account presence
+with a two-month test (`traded this month XOR last month`) over 19,694 accounts. On real
+data most accounts do not trade every month, so NEW/LOST_ACCOUNT — and BASELINE_LIMITED,
+which inherited the same sets — massively over-claimed (BL −$267,500 against a −$154,812
+total change; LOST −$291,801 / NEW +$150,001 large and symmetric every month) and MIX
+absorbed the error (92.6% … 2197.5% on first transitions). Reconciliation stayed $0.00
+throughout — completeness holds no matter how wrong a named driver is, which is exactly
+why the MIX self-check exists.
+
+**The fix (X-A1..A3):**
+- **A1 — recurring gate:** NEW/LOST_ACCOUNT (and BASELINE_LIMITED) are computed **only
+  for recurring-class groups** (product lines Managed, Trails). Transactional groups
+  leave their change to VOLUME/ONE_TIME/TIMING as before — the amount is NOT routed to
+  MIX.
+- **A2 — persistence:** an account is lost only after `ACCOUNT_ABSENCE_MONTHS`
+  (config, **default 2**; settings + .env.example) consecutive loaded months with no
+  activity (credited + non-credited + late all count); symmetric for new. Activity is
+  now evaluated over the FULL loaded month range, not just the two transition months.
+- **A3 — bounded BASELINE_LIMITED:** BL only carries recurring-group account movement
+  whose presence test **cannot be evaluated** (too few loaded months on that side of
+  the transition — first transitions for NEW, last transitions for LOST), and
+  `|BL| ≤ |total change|` is asserted per transition: violation raises
+  `AttributionError` and **fails the build loudly** (build_real_data STOPs).
+- The build summary now prints, per transition: total change, MIX %, accounts
+  classified new/lost, and the BL amount (A4.5).
+
+**The precise client-facing rule (A5, everywhere):** *"accounts in recurring product
+lines with no billing activity for ACCOUNT_ABSENCE_MONTHS (default 2) consecutive
+months"* — stated in the Revenue-Driver glossary, the evidence modal's why-this-cause
+panels, the commentary prompt + fallbacks, the driver_cause seed, and SOLUTION_GUIDE
+§6.3/§6.4. Never "accounts leaving the advisor".
+
+**Verified HERE (fixtures + sample only — no real data in this environment):**
+- `scripts/verify_attribution.py` (12/12 PASS): a real-shaped fixture (equities accounts
+  trading intermittently with month-to-month composition shift; Managed billing
+  consistently) REPRODUCES the bug under the pre-R6 rules kept as a test-only
+  `legacy_two_month_presence` path — MIX 465.1% of the first transition, BL −$24,300
+  vs total −$4,300, symmetric NEW/LOST ±$40–55k on the transactional group — and under
+  the R6 rules the SAME fixture gives MIX 7.0% / 9.4%, reconciliation $0.00, account
+  drivers on recurring groups only, the one-month-quiet account claimed by NO account
+  driver, and `AttributionError` proven to raise on a crafted over-claim.
+- Sample set regenerated: MIX ≤ 8.1% on all 6 transitions, all 16 causes exercised,
+  commentary v14 published 6/6 (judge 6× PASS, 92 evidence records),
+  `verify_end_to_end.py` OVERALL PASS.
+
+**Pending OPERATOR acceptance (real data, client machine):** run
+`scripts/build_real_data.py` and confirm from its summary: MIX < 15% on EVERY
+transition, reconciliation $0.00, plausible new/lost counts, and no
+`AttributionError`. A fixture check is not a real-data verification; this round's
+acceptance test is A4.1 on the client's own extract.
+
+**Known limitation (recorded deliberately):** the A3 assertion `|BL| ≤ |total change|`
+can in principle fire on a legitimately-small total change offset by large opposing
+drivers (BL is signed and bounded by the transition's NET change, not by gross
+movement). Per spec this fails the build loudly for investigation rather than
+publishing — an honest stop, not a silent pass. If the operator hits it on data where
+BL is genuinely legitimate, raise it back to us before touching the assertion.
+
+### Work-stream B — carry-overs
+
+- **B1 — `90_drop_all.gsql` corrected and generated:** the previous script dropped the
+  graph before the queries (TigerGraph refuses) and assumed reverse edges drop with
+  their parent (they do not — `reverse_phx_dm_v2_*` are separate schema objects).
+  Now generated from the schema files by `scripts/generate_schema_artifacts.py` in the
+  correct order **queries → graph → reverse edges → forward edges → vertices**, with a
+  header explaining that "does not exist" errors are expected and safe while "still in
+  use" is a real failure.
+- **B2 — lesson recorded:** GSQL authored in this environment is **parse-reasoned, not
+  executed** — there is no TigerGraph here to run it against. Every generated `.gsql`
+  artifact (schema DDL, loading jobs, queries, and especially `90_drop_all.gsql`) is
+  flagged **NEEDS-LIVE-VERIFICATION** until the operator has run it on the live box,
+  and running `90_drop_all.gsql` end-to-end is part of the operator acceptance
+  checklist. Round 5 shipped a drop script that had never been executable-tested; that
+  class of gap is now labelled instead of implied-verified.
