@@ -56,31 +56,49 @@ class IngestionService:
     def delete_entity(self, entity_name: str) -> dict:
         """Delete one entity's rows from the graph and clear its checkpoints.
 
+        NEVER raises (Round 5 A6): every failure is caught, recorded with its reason,
+        and returned as outcome='failed' so the endpoint answers 200 with a report
+        instead of a 500 (whose missing CORS headers masked the real error).
+
         Edge types: bulk-deletable on the local tier; on a real TigerGraph edges
         can only disappear with their endpoint vertices, and that limitation is
         REPORTED, never silently swallowed."""
         config = get_entity_config(entity_name)
         graph = self.upsert.graph
-        if config.kind == "vertex":
-            result = graph.delete_all(config.tigergraph_vertex, kind="vertex")
-        else:
-            try:
-                result = graph.delete_all(config.tigergraph_vertex, kind="edge")
-            except Exception as exc:  # noqa: BLE001 — surfaced, not hidden
+        try:
+            result = graph.delete_all(config.tigergraph_vertex, kind=config.kind)
+            outcome = "deleted"
+        except Exception as exc:  # noqa: BLE001 — surfaced, not hidden
+            if config.kind == "edge":
                 result = {
                     "error": False, "deleted": 0, "target": config.tigergraph_vertex,
                     "note": f"edge type not bulk-deletable on this tier ({exc}); "
                             "its edges are removed when their endpoint vertices are deleted",
                 }
-        self.checkpoints.clear_entity(config.entity_name)
-        return {"entity_name": config.entity_name, "kind": config.kind, **result}
+                outcome = "deleted"
+            else:
+                result = {
+                    "error": True, "deleted": 0, "target": config.tigergraph_vertex,
+                    "reason": f"{type(exc).__name__}: {exc}",
+                }
+                outcome = "failed"
+        if outcome == "deleted":
+            # only a confirmed delete clears checkpoints — a failed delete keeps
+            # them so screen state and graph state stay consistent
+            self.checkpoints.clear_entity(config.entity_name)
+        return {"entity_name": config.entity_name, "kind": config.kind, "outcome": outcome, **result}
 
     def delete_all_entities(self) -> dict:
-        """Ordered full delete: every entity per delete_plan(). Checkpoints are
-        cleared so the next load re-writes everything."""
+        """Ordered full delete: every entity per delete_plan(). One failing entity
+        never aborts the rest (A6) — each outcome is collected and the full
+        per-entity report returned. Checkpoints are cleared per confirmed entity so
+        the next load re-writes everything."""
         results = [self.delete_entity(step["entity_name"]) for step in self.delete_plan()]
+        failed = [r for r in results if r.get("outcome") == "failed"]
         return {
-            "deleted_entities": len(results),
+            "deleted_entities": len(results) - len(failed),
+            "failed_entities": len(failed),
+            "failed": [{"entity_name": r["entity_name"], "reason": r.get("reason")} for r in failed],
             "total_rows_deleted": sum(int(r.get("deleted") or 0) for r in results),
             "order": [r["entity_name"] for r in results],
             "results": results,

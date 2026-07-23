@@ -30,6 +30,30 @@ def _error_body(message: str, error_type: str) -> dict:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    # Round 5 A6 — CORS-safe errors. Starlette handles the generic Exception handler
+    # in ServerErrorMiddleware, OUTSIDE CORSMiddleware, so those 500s carried no CORS
+    # headers and browsers reported a misleading "CORS error" instead of the real
+    # message. This catch-all runs INSIDE the middleware stack (it is registered
+    # before CORSMiddleware is added, so CORS wraps it) and converts any unhandled
+    # exception into a JSON 500 that passes back through CORSMiddleware.
+    @app.middleware("http")
+    async def cors_safe_error_catchall(request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception as exc:  # noqa: BLE001 — full trace to logs, clean JSON out
+            logger.error(
+                "Unhandled error at %s: %s",
+                request.url.path,
+                exc,
+                exc_info=True,
+                extra={"path": request.url.path, "method": request.method,
+                       "error_type": type(exc).__name__},
+            )
+            return JSONResponse(
+                status_code=500,
+                content=_error_body(f"{type(exc).__name__}: {exc}", "internal_error"),
+            )
+
     @app.exception_handler(ConfigurationError)
     async def configuration_error_handler(request: Request, exc: ConfigurationError):
         logger.warning("Configuration error at %s: %s", request.url.path, exc)
