@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from app.config.settings import get_settings
+from app.config.settings import get_settings, resolve_app_path
 
 
 class SQLiteManager:
@@ -12,7 +12,8 @@ class SQLiteManager:
     tier-2 local store. One file DB (SQLITE_DB_PATH), dict rows."""
 
     def __init__(self, db_path: str | None = None) -> None:
-        self.db_path = db_path or get_settings().sqlite_db_path
+        # A7: anchored at the repo root so the live DB never depends on launch dir
+        self.db_path = str(resolve_app_path(db_path or get_settings().sqlite_db_path))
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
     def connect(self) -> sqlite3.Connection:

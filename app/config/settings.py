@@ -5,9 +5,23 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Round 5 A7 — every relative data path resolves against the REPO ROOT, never the
+# process working directory (a backend launched from a different directory used to
+# read/write a different SQLite DB and data set — hours lost to a phantom DB).
+APP_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_app_path(path: str | Path) -> Path:
+    """Absolute path for a possibly-relative configured path, anchored at APP_ROOT."""
+    p = Path(path)
+    return p if p.is_absolute() else (APP_ROOT / p)
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        # .env anchored at the repo root too — not the launch directory
+        env_file=str(APP_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore"
+    )
 
     app_name: str = Field(default="iPerform V2 — Revenue Trends & AI Commentary", alias="APP_NAME")
     app_env: str = Field(default="local", alias="APP_ENV")
@@ -233,6 +247,35 @@ class Settings(BaseSettings):
     enable_tigergraph_rest_fallback: bool = Field(default=True, alias="ENABLE_TIGERGRAPH_REST_FALLBACK")
     enable_local_mock_fallback: bool = Field(default=True, alias="ENABLE_LOCAL_MOCK_FALLBACK")
 
+    # --- Round 5 A7: resolved absolute paths (single source of truth) ---
+    @property
+    def resolved_sqlite_db_path(self) -> Path:
+        return resolve_app_path(self.sqlite_db_path)
+
+    @property
+    def resolved_data_set_dir(self) -> Path:
+        return resolve_app_path(Path("data") / self.data_set)
+
+    @property
+    def resolved_foundation_dir(self) -> Path:
+        return resolve_app_path(self.foundation_dir)
+
+    @property
+    def resolved_manifest_path(self) -> Path:
+        return self.resolved_foundation_dir / "data" / "manifest.json"
+
+    def resolved_paths_report(self) -> dict[str, str]:
+        """The operator-facing view: where the app is ACTUALLY reading/writing.
+        Logged at startup and displayed on the env-health screen."""
+        return {
+            "app_root": str(APP_ROOT),
+            "sqlite_db": str(self.resolved_sqlite_db_path),
+            "data_set_dir": str(self.resolved_data_set_dir),
+            "ingestion_manifest": str(self.resolved_manifest_path),
+            "env_file": str(APP_ROOT / ".env"),
+            "log_dir": str(resolve_app_path(self.log_dir)),
+        }
+
     def ensure_local_directories(self) -> None:
         for path in [
             self.sqlite_db_path,
@@ -245,7 +288,7 @@ class Settings(BaseSettings):
             # writing the first log line to a missing folder (LOG_SINK=file default).
             self.log_dir,
         ]:
-            candidate = Path(path)
+            candidate = resolve_app_path(path)
             if candidate.suffix:
                 candidate.parent.mkdir(parents=True, exist_ok=True)
             else:

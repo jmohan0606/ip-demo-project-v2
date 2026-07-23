@@ -125,7 +125,8 @@ def _build_handler(settings) -> logging.Handler:
     elif sink == "cloudwatch":
         handler = _build_cloudwatch_handler(settings)
     else:  # "file" (default)
-        log_dir = Path(settings.log_dir)
+        from app.config.settings import resolve_app_path
+        log_dir = resolve_app_path(settings.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
         handler = logging.handlers.RotatingFileHandler(
             log_dir / settings.log_file_name,

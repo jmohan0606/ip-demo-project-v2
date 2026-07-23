@@ -21,6 +21,12 @@ from app.api.routers.tigergraph_foundation import router as tigergraph_foundatio
 from app.api.routers.v2 import router as v2_router
 configure_logging(); settings=get_settings()
 
+# Round 5 A7 — log the resolved absolute data paths at startup so an operator can
+# see at a glance WHICH SQLite DB / data set / manifest this process is using.
+from app.shared.logging import get_logger as _get_logger
+_startup_log = _get_logger("app.startup")
+_startup_log.info("Resolved paths: %s", get_settings().resolved_paths_report())
+
 
 app=FastAPI(title=settings.app_name, version=settings.app_version, description='iPerform V2 — Revenue Trends & AI Commentary API')
 register_exception_handlers(app)

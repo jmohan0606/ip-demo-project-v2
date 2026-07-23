@@ -37,7 +37,7 @@ def _csv_append(file_rel: str, rows: list[dict]) -> None:
     """Append rows to a data-set CSV (header written by the generator)."""
     if not rows:
         return
-    path = Path("data") / get_settings().data_set / file_rel
+    path = get_settings().resolved_data_set_dir / file_rel
     header = _csv_header(path)  # header written by the sample generator
     with path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore", lineterminator="\n")
@@ -248,7 +248,7 @@ def _run(notes: str = "") -> dict:
                     [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
     # The version CSV is REWRITTEN (not appended): supersede is a status update
     # on existing rows, and append-only would resurrect PUBLISHED on reload.
-    path = Path("data") / settings.data_set / "vertices" / "commentary_version.csv"
+    path = settings.resolved_data_set_dir / "vertices" / "commentary_version.csv"
     header = _csv_header(path)
     with path.open(newline="", encoding="utf-8-sig") as f:
         existing = list(csv.DictReader(f))

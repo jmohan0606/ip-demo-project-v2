@@ -22,7 +22,7 @@ def _manifest_index() -> tuple[dict[str, dict], dict[str, dict]]:
     path, just a JSON body keyed by the real schema.
     """
     settings = get_settings()
-    manifest_path = Path(settings.foundation_dir) / "data" / "manifest.json"
+    manifest_path = settings.resolved_manifest_path
     vertices: dict[str, dict] = {}
     edges: dict[str, dict] = {}
     try:

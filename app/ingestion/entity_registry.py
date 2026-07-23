@@ -41,7 +41,7 @@ def _entity_name(target: str) -> str:
 
 @lru_cache(maxsize=1)
 def _configs() -> dict[str, IngestionEntityConfig]:
-    manifest_path = Path(get_settings().foundation_dir) / "data" / "manifest.json"
+    manifest_path = get_settings().resolved_manifest_path
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     default_batch = int(manifest.get("batch_size", 500))
 

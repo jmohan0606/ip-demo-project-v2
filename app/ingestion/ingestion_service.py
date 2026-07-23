@@ -35,7 +35,7 @@ class IngestionService:
         # CSV set selected by DATA_SET (manifest file paths are relative to it:
         # vertices/*.csv and edges/*.csv). data/sample ships with the repo;
         # data/real is gitignored client data.
-        self.sample_data_dir = Path("data") / self.settings.data_set
+        self.sample_data_dir = self.settings.resolved_data_set_dir
 
     def list_entities(self) -> list[dict]:
         return [config.model_dump() for config in list_entity_configs()]

@@ -44,6 +44,8 @@ class EnvironmentHealthService:
                 "guardrail_client_mode": getattr(settings, "guardrail_client_mode", "local"),
             },
             "checks": checks,
+            # A7: where the app is ACTUALLY reading/writing — absolute, launch-dir independent
+            "resolved_paths": settings.resolved_paths_report(),
         }
 
     # --- TigerGraph: reachable, auth/SSL, graph name, schema installed, per-type row counts ------

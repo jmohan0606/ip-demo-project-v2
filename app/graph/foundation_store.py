@@ -19,12 +19,12 @@ class FoundationGraphStore:
 
     def __init__(self, foundation_dir: str | Path | None = None) -> None:
         settings = get_settings()
-        base = Path(foundation_dir or settings.foundation_dir)
+        base = resolve_app_path(foundation_dir or settings.foundation_dir)
         self.base_dir = base
         self.manifest_path = base / "data" / "manifest.json"
         # CSV set selected by DATA_SET (CLAUDE.md §5): data/sample ships with the
         # repo; data/real is gitignored client data.
-        self.sample_dir = Path("data") / settings.data_set
+        self.sample_dir = settings.resolved_data_set_dir
         self.query_catalog_path = base / "tigergraph" / "queries" / "query_catalog.json"
         # Typed attribute map — CSV values are cast to their DDL types so e.g.
         # month_id stays the STRING "202604" (SCHEMA_SPEC rule 2), exactly as
