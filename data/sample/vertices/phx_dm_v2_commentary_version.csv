@@ -11,4 +11,5 @@ v9,9,2026-07-22 10:15:30,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:15:30,SUPE
 v10,10,2026-07-22 10:26:31,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:26:31,SUPERSEDED,3,6,0,Round 3 T4: revenue-driver terminology in evidence wording,DERIVED
 v11,11,2026-07-23 10:45:42,mock,v1.0,2026-07-23 10:45:42,SUPERSEDED,3,6,0,R5 D1: baseline-month BASELINE_LIMITED attribution,DERIVED
 v12,12,2026-07-23 10:46:36,mock,v1.0,2026-07-23 10:46:36,SUPERSEDED,3,6,0,R5 D: sample lost-account story moved to May->Jun; v12,DERIVED
-v13,13,2026-07-23 10:47:07,mock,v1.0,2026-07-23 10:47:07,PUBLISHED,3,6,0,R5 D: BASELINE_LIMITED + LOST_ACCOUNT both exercised; v13,DERIVED
+v13,13,2026-07-23 10:47:07,mock,v1.0,2026-07-23 10:47:07,SUPERSEDED,3,6,0,R5 D: BASELINE_LIMITED + LOST_ACCOUNT both exercised; v13,DERIVED
+v14,14,2026-07-23 17:07:41,claude-haiku-4-5-20251001,v1.0,2026-07-23 17:07:41,PUBLISHED,3,6,0,Round 6: regenerated after attribution correctness fix (recurring-gated account drivers + persistence rule),DERIVED
