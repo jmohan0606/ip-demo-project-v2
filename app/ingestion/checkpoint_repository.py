@@ -217,6 +217,20 @@ class CheckpointRepository:
             )
             conn.commit()
 
+    def list_errors(self, entity_name: str | None = None, limit: int = 50) -> list[dict]:
+        """Persisted per-row/per-batch errors, newest first (R5 B4 — errors must
+        survive a page refresh)."""
+        if entity_name:
+            return self.db.query(
+                "SELECT * FROM phx_dm_ingestion_error WHERE entity_name = ? "
+                "ORDER BY created_at DESC LIMIT ?",
+                (entity_name, limit),
+            )
+        return self.db.query(
+            "SELECT * FROM phx_dm_ingestion_error ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+
     def clear_entity(self, entity_name: str) -> None:
         """Drop the row hashes and batch checkpoints for an entity after its data
         is deleted — a stale checkpoint must never suppress a real re-load."""

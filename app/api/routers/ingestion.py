@@ -26,12 +26,13 @@ def run_ingestion(request: IngestionRunRequest):
 
 
 @router.post("/run-all")
-def run_all(dry_run: bool = False):
+def run_all(dry_run: bool = False, batch_size: int | None = None):
     """Start a full-dataset ingestion: every vertex type first, then every edge type,
-    in manifest dependency order, in a background worker. Poll /run-all/status."""
+    in manifest dependency order, in a background worker. Poll /run-all/status.
+    batch_size overrides every entity's configured write-batch size for this run."""
     from app.ingestion.run_all import get_run_all_manager
 
-    return ok(data=get_run_all_manager().start(dry_run=dry_run).model_dump())
+    return ok(data=get_run_all_manager().start(dry_run=dry_run, batch_size=batch_size).model_dump())
 
 
 @router.get("/run-all/status")
@@ -39,6 +40,19 @@ def run_all_status():
     from app.ingestion.run_all import get_run_all_manager
 
     return ok(data=get_run_all_manager().status().model_dump())
+
+
+@router.get("/errors")
+def errors(entity_name: str | None = None, limit: int = 50):
+    """Persisted ingestion errors (newest first), each with a remediation hint —
+    they survive page refreshes and backend restarts (R5 B4)."""
+    from app.ingestion.checkpoint_repository import CheckpointRepository
+    from app.ingestion.remediation import remediation_for
+
+    rows = CheckpointRepository().list_errors(entity_name, limit)
+    for row in rows:
+        row["remediation"] = remediation_for(row.get("error_message") or "")
+    return ok(data=rows)
 
 
 @router.get("/validation")

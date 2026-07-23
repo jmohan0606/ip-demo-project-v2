@@ -39,7 +39,7 @@ class RunAllManager:
         with self._lock:
             return self._status.model_copy(deep=True)
 
-    def start(self, dry_run: bool = False) -> RunAllStatus:
+    def start(self, dry_run: bool = False, batch_size: int | None = None) -> RunAllStatus:
         with self._lock:
             if self._thread is not None and self._thread.is_alive():
                 return self._status.model_copy(deep=True)
@@ -50,6 +50,7 @@ class RunAllManager:
                 dry_run=dry_run,
                 started_at=datetime.utcnow(),
                 total_entities=len(configs),
+                batch_size_override=batch_size,
                 message="Started",
                 entities=[
                     RunAllEntityResult(
@@ -57,12 +58,13 @@ class RunAllManager:
                         kind=c.kind,
                         file_name=c.csv_file_name,
                         total_records=c.expected_rows or 0,
+                        batch_size=batch_size or c.batch_size,
                     )
                     for c in configs
                 ],
             )
             self._thread = threading.Thread(
-                target=self._run, args=(dry_run,), name="ingestion-run-all", daemon=True
+                target=self._run, args=(dry_run, batch_size), name="ingestion-run-all", daemon=True
             )
             self._thread.start()
             return self._status.model_copy(deep=True)
@@ -80,7 +82,7 @@ class RunAllManager:
             for k, v in kwargs.items():
                 setattr(entity, k, v)
 
-    def _run(self, dry_run: bool) -> None:
+    def _run(self, dry_run: bool, batch_size: int | None = None) -> None:
         service = IngestionService()
         configs = list_entity_configs()
         completed = 0
@@ -88,7 +90,7 @@ class RunAllManager:
         total_rows = 0
 
         for index, config in enumerate(configs):
-            self._update(current_entity=config.entity_name)
+            self._update(current_entity=config.entity_name, current_entity_index=index + 1)
             self._update_entity(index, status=IngestionStatus.RUNNING)
             try:
                 calls = 0
@@ -103,6 +105,7 @@ class RunAllManager:
                             entity_name=config.entity_name,
                             resume=calls > 1,  # fresh start on first call, resume within this run
                             dry_run=dry_run,
+                            batch_size=batch_size,
                         )
                     )
                     batch = response.batch_status
@@ -144,10 +147,12 @@ class RunAllManager:
         self._update(
             status=IngestionStatus.FAILED if failed else IngestionStatus.COMPLETED,
             current_entity=None,
+            current_entity_index=None,
             finished_at=datetime.utcnow(),
             message=(
                 f"{completed}/{len(configs)} entities completed"
-                + (f", {failed} failed" if failed else "")
+                + (f", {failed} failed — expand the failed rows for the error and fix, "
+                   f"then Reload just those entities" if failed else "")
             ),
         )
         _log.info("run-all finished: %s", self.status().message)

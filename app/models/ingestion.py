@@ -94,6 +94,7 @@ class RunAllEntityResult(BaseModel):
     updated_records: int = 0
     skipped_records: int = 0
     failed_records: int = 0
+    batch_size: int = 0  # effective write-batch size for this entity (B3)
     message: str | None = None
 
 
@@ -108,5 +109,7 @@ class RunAllStatus(BaseModel):
     failed_entities: int = 0
     total_rows_processed: int = 0
     current_entity: str | None = None
+    current_entity_index: int | None = None  # 1-based position of the entity now processing (B1)
+    batch_size_override: int | None = None   # per-run override, else per-entity config (B3)
     message: str | None = None
     entities: list[RunAllEntityResult] = Field(default_factory=list)
