@@ -77,13 +77,17 @@ WORKFLOW_NAMES = {
     # R6 Y — anomaly scans are additive workflow artifacts, like commentary.
     "anomaly_scan", "anomaly",
     "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver",
+    # R7 Z — Ask-iPerform conversations are runtime artifacts, like commentary.
+    "conversation", "message",
+    "message_in_conversation", "conversation_for_advisor",
 }
 
 VERTEX_ORDER = ["advisor", "month", "revenue_class", "product_line", "product_group", "product",
                 "account", "driver_cause", "reason_code", "revenue_transaction",
                 "monthly_product_revenue", "account_month_balance", "revenue_change",
                 "revenue_driver", "commentary_version", "commentary",
-                "commentary_evaluation", "evidence", "anomaly_scan", "anomaly"]
+                "commentary_evaluation", "evidence", "anomaly_scan", "anomaly",
+                "conversation", "message"]
 
 EDGE_ORDER = ["product_in_group", "group_in_line", "line_in_class",
               "txn_for_advisor", "txn_in_month", "txn_for_product", "txn_for_account",
@@ -95,7 +99,8 @@ EDGE_ORDER = ["product_in_group", "group_in_line", "line_in_class",
               "commentary_for_advisor", "commentary_from_month", "commentary_to_month",
               "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
               "evaluation_of_commentary",
-              "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver"]
+              "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver",
+              "message_in_conversation", "conversation_for_advisor"]
 
 TXN_COLUMNS = ["txn_id", "trade_ref_no", "split_seq_no", "advisor_sid", "month_id", "product_id",
                "account_no", "trade_dt", "proc_dt", "credited_amt", "pre_split_amt", "split_pct",
@@ -286,6 +291,13 @@ def build_dataset(
         ["anomaly_id", "advisor_sid", "from_month_id", "to_month_id", "rule_id", "severity",
          "title", "detail_text", "metrics_json", "threshold_json", "impact_amt", "group_id",
          "scan_id", "detected_at", "data_source"])
+    counts[csv_file_for("vertex", "conversation")] = preserve_or_create(out_dir / csv_file_for("vertex", "conversation"),
+        ["conversation_id", "title", "created_at", "last_message_at", "message_count",
+         "scope_json", "data_source"])
+    counts[csv_file_for("vertex", "message")] = preserve_or_create(out_dir / csv_file_for("vertex", "message"),
+        ["message_id", "conversation_id", "seq", "role", "text", "resolved_context_json",
+         "queries_run_json", "figures_json", "llm_provider", "status",
+         "guardrail_status", "guardrail_json", "created_at", "data_source"])
 
     # ------------------------------------------------ edge CSVs
 
@@ -324,7 +336,8 @@ def build_dataset(
     for name in ("commentary_for_advisor", "commentary_from_month", "commentary_to_month",
                  "commentary_in_version", "commentary_cites_driver", "evidence_for_driver",
                  "evaluation_of_commentary",
-                 "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver"):
+                 "anomaly_for_advisor", "anomaly_in_scan", "anomaly_cites_driver",
+                 "message_in_conversation", "conversation_for_advisor"):
         counts[csv_file_for("edge", name)] = preserve_or_create(
             out_dir / csv_file_for("edge", name), ["from_id", "to_id"])
 

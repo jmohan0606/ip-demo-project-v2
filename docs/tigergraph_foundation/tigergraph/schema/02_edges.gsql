@@ -1,4 +1,4 @@
-// iPerform V2 — edge types (27)
+// iPerform V2 — edge types (32)
 // All directed, all with REVERSE_EDGE.
 // NOTE: SCHEMA_SPEC.md's header says 23 edge types, but its edge tables (the
 // detailed authority) enumerate 25 — all 25 are created here.
@@ -46,3 +46,7 @@ CREATE DIRECTED EDGE phx_dm_v2_evaluation_of_commentary (FROM phx_dm_v2_commenta
 CREATE DIRECTED EDGE phx_dm_v2_anomaly_for_advisor (FROM phx_dm_v2_anomaly, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_anomaly_for_advisor"
 CREATE DIRECTED EDGE phx_dm_v2_anomaly_in_scan (FROM phx_dm_v2_anomaly, TO phx_dm_v2_anomaly_scan) WITH REVERSE_EDGE="reverse_phx_dm_v2_anomaly_in_scan"
 CREATE DIRECTED EDGE phx_dm_v2_anomaly_cites_driver (FROM phx_dm_v2_anomaly, TO phx_dm_v2_revenue_driver) WITH REVERSE_EDGE="reverse_phx_dm_v2_anomaly_cites_driver"
+
+// ------------------------------------------------------- CONVERSATIONAL ASSISTANT (Round 7 Z)
+CREATE DIRECTED EDGE phx_dm_v2_message_in_conversation (FROM phx_dm_v2_message, TO phx_dm_v2_conversation) WITH REVERSE_EDGE="reverse_phx_dm_v2_message_in_conversation"
+CREATE DIRECTED EDGE phx_dm_v2_conversation_for_advisor (FROM phx_dm_v2_conversation, TO phx_dm_v2_advisor) WITH REVERSE_EDGE="reverse_phx_dm_v2_conversation_for_advisor"

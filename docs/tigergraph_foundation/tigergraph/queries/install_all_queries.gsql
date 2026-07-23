@@ -21,3 +21,5 @@ USE GRAPH iperform_v2_revenue
 @GQ-017_get_commentary_evaluations.gsql
 @GQ-018_get_anomalies.gsql
 @GQ-019_get_anomaly_scans.gsql
+@GQ-020_get_conversations.gsql
+@GQ-021_get_conversation_messages.gsql

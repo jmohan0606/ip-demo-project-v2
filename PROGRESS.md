@@ -161,18 +161,18 @@ Resume from: Z-A1
 | Y-5 | R6-Y | anomaly narration via commentary_agent + guardrail | DONE | 02e03d9/ca8a911 | narrate_anomaly + rule meanings; validate_anomaly_text; deterministic fallback, no chip |
 | Y-6 | R6-Y | /anomalies screen per mockup, empty state, thresholds visible | DONE | ca8a911 | Results sub-nav + sidebar; 0 console errors incl. empty state |
 | Y-7 | R6-Y | per-rule fixtures; no-invented-figure assertion; additive re-scan verified | DONE | 1e1a7ae | verify_anomalies --rescan 14/14 PASS |
-| Z-A1 | R7 | conversation + message vertices/edges, tiered persistence | TODO | | |
+| Z-A1 | R7 | conversation + message vertices/edges, tiered persistence | DONE | (next) | 22 vertices/32 edges; artifacts + manifest regenerated; AssistantStore via TigerGraphUpsertClient + CSV append |
 | Z-A2 | R7 | provider selection (cdao primary in client env, claude on build box), logged fallback | TODO | | |
 | Z-A3 | R7 | deterministic intent router covering all A3 intents | TODO | | |
 | Z-A4 | R7 | constrained LLM fallback returning a validated {query, params} selection | TODO | | |
 | Z-A5 | R7 | multi-turn context resolution + screen-seeded context + Pin | TODO | | |
-| Z-A6 | R7 | GQ queries for conversations/messages + catalog + local-tier impls | TODO | | |
+| Z-A6 | R7 | GQ queries for conversations/messages + catalog + local-tier impls | DONE | (next) | GQ-020/021 + catalog + install_all + cases; validator ALL CHECKS PASS |
 | Z-A7 | R7 | facts-only behaviour incl. the advice response pattern | TODO | | |
 | Z-A8 | R7 | NO_DATA / OUT_OF_SCOPE / BLOCKED statuses | TODO | | |
 | Z-A9 | R7 | numeric guardrail on every answer | TODO | | |
 | Z-A10 | R7 | input guardrails wired BEFORE routing (injection/jailbreak/PII/toxicity/oversize) | TODO | | |
 | Z-A11 | R7 | blocked turns visible in transcript with GUARDRAIL chip; category+severity only | TODO | | |
-| Z-A12 | R7 | message vertex extended: guardrail_status, guardrail_json | TODO | | |
+| Z-A12 | R7 | message vertex extended: guardrail_status, guardrail_json | DONE | (next) | in DDL from the start; guardrail_json carries category/severity/action only |
 | Z-A13 | R7 | adversarial fixture set (~15) incl. false-positive checks | TODO | | |
 | Z-B1 | R7 | overlay panel, persists across navigation, collapses to button | TODO | | |
 | Z-B2 | R7 | full-page view sharing the same component | TODO | | |

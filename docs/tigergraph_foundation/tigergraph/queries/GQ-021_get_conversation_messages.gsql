@@ -1,0 +1,25 @@
+/*
+ * GQ-021 — get_conversation_messages
+ * Purpose: Full transcript of one Ask-iPerform conversation, in turn order
+ *          (FIX_SPEC_R7 A5). Opening a conversation restores the transcript
+ *          AND its last resolved context (resolved_context_json on the last
+ *          assistant message). Message text is PII-redacted BEFORE persistence
+ *          (A9), so this query never returns raw PII; guardrail_json carries
+ *          category+severity only, never matched text (A12).
+ * Outputs: messages vertex set (ordered by seq ASC).
+ * Created: V2 round 7 2026-07-23. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_conversation_messages(STRING conversation_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_messages = {phx_dm_v2_message.*};
+    messages = SELECT m
+        FROM all_messages:m
+        WHERE m.conversation_id == conversation_id
+        ORDER BY m.seq ASC;
+
+    PRINT messages;
+}
+
+INSTALL QUERY get_conversation_messages

@@ -1,4 +1,4 @@
-"""Local-tier (tier 2) implementations of GQ-001..GQ-019.
+"""Local-tier (tier 2) implementations of GQ-001..GQ-021.
 
 Each function mirrors its GSQL counterpart's traversal semantics and returns the
 IDENTICAL RESTPP result shape (one dict per PRINT statement; vertex rows as
@@ -18,6 +18,8 @@ from app.graph.queries.common import (
     ANOMALY,
     ANOMALY_SCAN,
     ADVISOR,
+    CONVERSATION,
+    MESSAGE,
     COMMENTARY,
     COMMENTARY_EVALUATION,
     COMMENTARY_VERSION,
@@ -386,3 +388,43 @@ def get_anomaly_scans(store: FoundationGraphStore, params: dict) -> list[dict]:
     rows = vrows(store, ANOMALY_SCAN)
     rows.sort(key=lambda r: (str(_attr(r, "started_at") or ""), r["v_id"]), reverse=True)
     return [{"scans": rows}]
+
+
+# ---------------------------------------------------------------- assistant (R7 Z)
+
+@mock_query("get_conversations")
+def get_conversations(store: FoundationGraphStore, params: dict) -> list[dict]:
+    """Mirrors GQ-020: rehydration list. advisor_id "" = all (incl. cross-
+    advisor conversations); days <= 0 = no window; newest first."""
+    from datetime import datetime, timedelta, timezone
+
+    advisor_id = str(params.get("advisor_id") or "")
+    days = _int(params.get("days"))
+    limit = _int(params.get("result_limit")) or 200
+    cutoff = ""
+    if days > 0:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
+    advisor_conversations: set[str] | None = None
+    if advisor_id:
+        advisor_conversations = set(store.in_ids("phx_dm_v2_conversation_for_advisor", advisor_id))
+    rows = vrows(
+        store, CONVERSATION,
+        lambda a: str(a.get("last_message_at") or "") >= cutoff,
+    )
+    if advisor_conversations is not None:
+        rows = [r for r in rows if r["v_id"] in advisor_conversations]
+    rows.sort(key=lambda r: (str(_attr(r, "last_message_at") or ""), r["v_id"]), reverse=True)
+    return [{"conversations": rows[:limit]}]
+
+
+@mock_query("get_conversation_messages")
+def get_conversation_messages(store: FoundationGraphStore, params: dict) -> list[dict]:
+    """Mirrors GQ-021: one conversation's transcript in turn order. Text is
+    PII-redacted before persistence, so this never returns raw PII."""
+    conversation_id = str(params.get("conversation_id") or "")
+    rows = vrows(
+        store, MESSAGE,
+        lambda a: str(a.get("conversation_id")) == conversation_id,
+    )
+    rows.sort(key=lambda r: _int(_attr(r, "seq")))
+    return [{"messages": rows}]

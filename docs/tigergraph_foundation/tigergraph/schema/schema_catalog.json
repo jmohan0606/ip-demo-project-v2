@@ -1,8 +1,8 @@
 {
   "graph": "iperform_v2_revenue",
   "prefix": "phx_dm_v2_",
-  "vertex_count": 20,
-  "edge_count": 30,
+  "vertex_count": 22,
+  "edge_count": 32,
   "vertices": {
     "phx_dm_v2_advisor": {
       "primary_id": {
@@ -365,6 +365,43 @@
         "status": "STRING",
         "data_source": "STRING"
       }
+    },
+    "phx_dm_v2_conversation": {
+      "primary_id": {
+        "name": "conversation_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "conversation_id": "STRING",
+        "title": "STRING",
+        "created_at": "DATETIME",
+        "last_message_at": "DATETIME",
+        "message_count": "INT",
+        "scope_json": "STRING",
+        "data_source": "STRING"
+      }
+    },
+    "phx_dm_v2_message": {
+      "primary_id": {
+        "name": "message_id",
+        "type": "STRING"
+      },
+      "attributes": {
+        "message_id": "STRING",
+        "conversation_id": "STRING",
+        "seq": "INT",
+        "role": "STRING",
+        "text": "STRING",
+        "resolved_context_json": "STRING",
+        "queries_run_json": "STRING",
+        "figures_json": "STRING",
+        "llm_provider": "STRING",
+        "status": "STRING",
+        "guardrail_status": "STRING",
+        "guardrail_json": "STRING",
+        "created_at": "DATETIME",
+        "data_source": "STRING"
+      }
     }
   },
   "edges": {
@@ -517,6 +554,16 @@
       "from": "phx_dm_v2_anomaly",
       "to": "phx_dm_v2_revenue_driver",
       "reverse_edge": "reverse_phx_dm_v2_anomaly_cites_driver"
+    },
+    "phx_dm_v2_message_in_conversation": {
+      "from": "phx_dm_v2_message",
+      "to": "phx_dm_v2_conversation",
+      "reverse_edge": "reverse_phx_dm_v2_message_in_conversation"
+    },
+    "phx_dm_v2_conversation_for_advisor": {
+      "from": "phx_dm_v2_conversation",
+      "to": "phx_dm_v2_advisor",
+      "reverse_edge": "reverse_phx_dm_v2_conversation_for_advisor"
     }
   }
 }

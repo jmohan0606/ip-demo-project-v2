@@ -1,0 +1,35 @@
+/*
+ * GQ-020 — get_conversations
+ * Purpose: Ask-iPerform conversation list for rehydration (FIX_SPEC_R7 A5).
+ *          advisor_id = "" means all conversations (incl. cross-advisor ones,
+ *          which have no advisor edge); days <= 0 means no time window,
+ *          otherwise only conversations whose last_message_at falls within the
+ *          last `days` days (ASSISTANT_HISTORY_DAYS, default 10). Newest first.
+ * Outputs: conversations vertex set (ordered by last_message_at DESC).
+ * Created: V2 round 7 2026-07-23. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_conversations(STRING advisor_id, INT days, INT result_limit) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    DATETIME cutoff;
+    cutoff = datetime_add(now(), INTERVAL -days DAY);
+
+    all_conversations = {phx_dm_v2_conversation.*};
+    IF advisor_id != "" THEN
+        advisor_set = {phx_dm_v2_advisor.*};
+        seed = SELECT a FROM advisor_set:a WHERE a.advisor_sid == advisor_id;
+        all_conversations = SELECT c
+            FROM seed:a -(reverse_phx_dm_v2_conversation_for_advisor:e)- phx_dm_v2_conversation:c;
+    END;
+
+    conversations = SELECT c
+        FROM all_conversations:c
+        WHERE days <= 0 OR c.last_message_at >= cutoff
+        ORDER BY c.last_message_at DESC, c.conversation_id DESC
+        LIMIT result_limit;
+
+    PRINT conversations;
+}
+
+INSTALL QUERY get_conversations

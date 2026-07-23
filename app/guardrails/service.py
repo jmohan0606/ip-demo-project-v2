@@ -33,6 +33,19 @@ class GuardrailService:
         return self.client.describe()
 
     @staticmethod
+    def neutral_refusal(result: GuardrailResult | None = None) -> str:
+        """Assistant-facing refusal (FIX_SPEC_R7 A9): neutral and brief. Never
+        names the matched pattern (that teaches bypass), never lectures, and is
+        not styled as an application error. Oversize input gets its own
+        actionable wording."""
+        if result is not None and any(
+            f.category.value == "INPUT_VALIDATION" and f.action == GuardrailAction.BLOCK
+            for f in result.findings
+        ):
+            return "That message is too long — try a shorter question."
+        return "I can't help with that. I answer questions about your loaded revenue data."
+
+    @staticmethod
     def safe_refusal(result: GuardrailResult) -> str:
         """The user-facing message when input is BLOCKED (injection/jailbreak/oversize)."""
         cats = sorted({f.category.value for f in result.findings if f.action == GuardrailAction.BLOCK})

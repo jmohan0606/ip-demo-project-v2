@@ -52,5 +52,9 @@ CREATE GRAPH iperform_v2_revenue (
     phx_dm_v2_evaluation_of_commentary,
     phx_dm_v2_anomaly_for_advisor,
     phx_dm_v2_anomaly_in_scan,
-    phx_dm_v2_anomaly_cites_driver
+    phx_dm_v2_anomaly_cites_driver,
+    phx_dm_v2_conversation,
+    phx_dm_v2_message,
+    phx_dm_v2_message_in_conversation,
+    phx_dm_v2_conversation_for_advisor
 )

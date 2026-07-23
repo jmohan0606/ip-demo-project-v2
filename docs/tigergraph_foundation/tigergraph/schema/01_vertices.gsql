@@ -316,3 +316,39 @@ CREATE VERTEX phx_dm_v2_anomaly_scan (
     status STRING,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// ------------------------------------------------------- CONVERSATIONAL ASSISTANT (Round 7 Z)
+// One per Ask-iPerform conversation. title derives from the first question;
+// scope_json holds the pinned scope, if any. DERIVED (runtime artifact).
+CREATE VERTEX phx_dm_v2_conversation (
+    PRIMARY_ID conversation_id STRING,
+    title STRING,
+    created_at DATETIME,
+    last_message_at DATETIME,
+    message_count INT,
+    scope_json STRING,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
+
+// One per turn ("<conversation_id>|<seq>"). figures_json carries EVERY figure
+// shown with its source query (the no-invented-figures guardrail checks the
+// narrative against it); queries_run_json is the audit trail. PII is redacted
+// BEFORE this vertex is written — raw PII never reaches the graph.
+// guardrail_json holds [{category, severity, action}] only — never matched
+// text (A12). DERIVED (runtime artifact).
+CREATE VERTEX phx_dm_v2_message (
+    PRIMARY_ID message_id STRING,
+    conversation_id STRING,
+    seq INT,
+    role STRING,
+    text STRING,
+    resolved_context_json STRING,
+    queries_run_json STRING,
+    figures_json STRING,
+    llm_provider STRING,
+    status STRING,
+    guardrail_status STRING,
+    guardrail_json STRING,
+    created_at DATETIME,
+    data_source STRING
+) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"

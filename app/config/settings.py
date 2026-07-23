@@ -83,6 +83,18 @@ class Settings(BaseSettings):
     # SINGLE_DRIVER_DOMINANCE: one named driver above N% of the change (LOW)
     anomaly_single_driver_dominance_pct: float = Field(default=70.0, alias="ANOMALY_SINGLE_DRIVER_DOMINANCE_PCT")
 
+    # --- R7 Z — Ask iPerform conversational assistant (FIX_SPEC_R7).
+    # ASSISTANT_LLM_MODE lets the assistant run on a different model than the
+    # commentary writer; "" = follow LLM_CLIENT_MODE (A2).
+    assistant_llm_mode: str = Field(default="", alias="ASSISTANT_LLM_MODE")
+    # Sequential fallback chain after the primary provider, comma-separated
+    # modes; "" = the built-in default for the primary (cdao_openai -> azure ->
+    # mock in the client env; claude/mock stand alone on the build box).
+    # A fallback that answers is LOGGED and recorded on the message (A2).
+    assistant_llm_fallback_modes: str = Field(default="", alias="ASSISTANT_LLM_FALLBACK_MODES")
+    # Conversation-list rehydration window in days (A5).
+    assistant_history_days: int = Field(default=10, alias="ASSISTANT_HISTORY_DAYS")
+
     @property
     def credited_grid_type_set(self) -> set[str]:
         return {g.strip() for g in self.credited_grid_types.split(",") if g.strip()}

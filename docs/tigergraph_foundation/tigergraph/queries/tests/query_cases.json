@@ -59,5 +59,13 @@
     "severity": "",
     "result_limit": 100
   },
-  "get_anomaly_scans": {}
+  "get_anomaly_scans": {},
+  "get_conversations": {
+    "advisor_id": "",
+    "days": 10,
+    "result_limit": 50
+  },
+  "get_conversation_messages": {
+    "conversation_id": "conv-verify-001"
+  }
 }
