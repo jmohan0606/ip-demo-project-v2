@@ -39,6 +39,20 @@ client environment; nothing outside it changed.
 | frontend/components/ingestion/data-ingestion-workspace.tsx | MODIFIED | B rebuild: validation column, run-all live progress, error expansion, remediation summary, batch override, clear-checkpoints, delete report |
 | frontend/lib/api/ingestion.ts | MODIFIED | validation/errors/clear-checkpoints APIs; batch_size + current_entity_index types |
 
+### Backend / frontend (work-stream D)
+| File | Change | Why |
+|---|---|---|
+| app/v2/drivers/attribution.py | MODIFIED | D1 BASELINE_LIMITED driver; NEW/LOST skipped on baseline transition |
+| app/v2/dataset/builder.py | MODIFIED | D1 baseline month from data; BASELINE_LIMITED cause seed row |
+| app/agents/nodes/commentary_agent.py | MODIFIED | D2 prompt + fallback guard (never narrate as business events) |
+| app/agents/nodes/explainability_agent.py | MODIFIED | D2 evidence panels (meaning/step/waterfall/why) for BASELINE_LIMITED |
+| frontend/components/ai-insights/commentary-cards.tsx | MODIFIED | D2 first-transition baseline note |
+| frontend/components/evidence/evidence-modal.tsx | MODIFIED | D2 waterfall cause order |
+| frontend/components/patterns/revenue-driver-glossary.tsx | MODIFIED | D2 glossary row |
+| data/sample/** (regenerated) | MODIFIED | D3 sample exercises BASELINE_LIMITED + LOST_ACCOUNT; commentary v11-v13 added (additive) |
+| scripts/generate_sample_data.py | MODIFIED | D3 Apr-only account story; lost-account story moved to May->Jun |
+| scripts/verify_end_to_end.py | MODIFIED | D3 cause check 15 -> 16 (asserting the new cause model, not old broken behaviour) |
+
 ### Scripts / schema / docs
 | File | Change | Why |
 |---|---|---|

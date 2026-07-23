@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
 Last updated: 2026-07-23T10:40:00Z
 Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
-Resume from: W-D1
+Resume from: W-E1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -139,9 +139,9 @@ Resume from: W-D1
 | W-B7 | R5-B | scale: chunked processing, resumable checkpoints, no full-file materialisation | DONE | (this) | chunked batches + resumable checkpoints + streaming DictReader; streaming-at-scale recorded for SOLUTION_GUIDE next steps (E) |
 | W-C1 | R5-C | real CSVs named after vertex/edge type | TODO | | |
 | W-C2 | R5-C | single catalog for target↔file↔columns; all consumers updated | TODO | | |
-| W-D1 | R5-D | baseline-month concept + BASELINE_LIMITED driver | TODO | | |
-| W-D2 | R5-D | baseline note in UI + commentary guard | TODO | | |
-| W-D3 | R5-D | MIX <15% on first transition; reconciliation $0.00 | TODO | | |
+| W-D1 | R5-D | baseline-month concept + BASELINE_LIMITED driver | DONE | (this) | BASELINE_LIMITED driver; baseline month from data; NEW/LOST skipped out of baseline |
+| W-D2 | R5-D | baseline note in UI + commentary guard | DONE | (this) | prompt+fallback guard; card note on earliest transition; glossary+evidence panels |
+| W-D3 | R5-D | MIX <15% on first transition; reconciliation $0.00 | DONE | (this) | MIX <=6.2% first transition; recon $0.00; 16 causes; v13 published; verify PASS |
 | W-E1 | R5-E | sample data demoted to tests only | TODO | | |
 | W-E2 | R5-E | all docs/verification path = DATA_SET=real; honest report split | TODO | | |
 | W-F1 | R5-F | ROUND5_CHANGED_FILES.md maintained per work-stream, git-derived, conflict flags | TODO | | |
