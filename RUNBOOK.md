@@ -14,9 +14,16 @@ command, the expected output, and the failure symptom with the first thing to ch
 
 Read this once so nothing surprises you mid-setup:
 
+- **Real data is the only demo path.** Everything below assumes `DATA_SET=real`;
+  the sample set is a test asset for the automated verification scripts only.
 - **Steps 4–8 (extract → build → load → generate → verify) are proven on the local SQLite
   tier.** The transform, reconciliation, ingestion contract and commentary generation all
-  work.
+  work. Round 5 additionally proved the ingestion fixes (attribute integrity, fail-loud
+  header mismatch, checkpoint honesty, guarded deletes, idempotency) with the fixture
+  harness: `python scripts/make_ingestion_fixtures.py && python scripts/verify_ingestion_fixes.py`.
+- **First live load after round 5:** run `docs/ROUND5_ACCEPTANCE.md` — it verifies on
+  live TigerGraph what the fixture harness can only prove locally, ending with every
+  entity `VALIDATED` on the ingestion screen.
 - **Steps 2–3 (schema + query install) and the tier-1 graph load have NOT yet run against a
   live TigerGraph.** All 15 GSQL queries are marked `NEEDS-LIVE-INSTALL`. This is expected —
   the first live install is where a query that parses locally may still need adjustment on
