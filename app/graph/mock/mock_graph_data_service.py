@@ -23,7 +23,7 @@ class MockGraphDataService:
         path = self.sample_dir / file_name
         if not path.exists():
             return []
-        with path.open(encoding="utf-8") as f:
+        with path.open(newline="", encoding="utf-8-sig") as f:
             rows = list(csv.DictReader(f))
         return rows[:limit] if limit else rows
 

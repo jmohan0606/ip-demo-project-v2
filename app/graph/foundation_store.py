@@ -61,7 +61,7 @@ class FoundationGraphStore:
         mismatches: list[str] = []
         for entry in manifest["files"]:
             path = self.sample_dir / entry["file"]
-            with path.open(encoding="utf-8") as f:
+            with path.open(newline="", encoding="utf-8-sig") as f:
                 rows = list(csv.DictReader(f))
             if entry.get("expected_rows") is not None and len(rows) != entry["expected_rows"]:
                 mismatches.append(f"{entry['file']}: expected {entry['expected_rows']}, got {len(rows)}")

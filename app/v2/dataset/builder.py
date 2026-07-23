@@ -89,7 +89,8 @@ class ReconciliationError(RuntimeError):
 def write_csv(path: Path, rows: list[dict], columns: list[str]) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+        # lineterminator: csv defaults to CRLF regardless of OS (R5 A3) — force LF.
+        w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
         for r in rows:
             w.writerow(r)
@@ -109,8 +110,9 @@ def preserve_or_create(path: Path, columns: list[str]) -> int:
     versions are additive and regeneration must not delete history. Returns the
     existing row count, or 0 after creating a header-only file."""
     if path.exists():
-        with path.open(encoding="utf-8") as f:
-            return max(0, sum(1 for _ in f) - 1)
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            # csv-aware count: quoted values may contain newlines (R5 A2)
+            return max(0, sum(1 for _ in csv.reader(f)) - 1)
     return write_csv(path, [], columns)
 
 

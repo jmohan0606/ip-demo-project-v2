@@ -40,13 +40,13 @@ def _csv_append(file_rel: str, rows: list[dict]) -> None:
     path = Path("data") / get_settings().data_set / file_rel
     header = _csv_header(path)  # header written by the sample generator
     with path.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore", lineterminator="\n")
         for r in rows:
             writer.writerow(r)
 
 
 def _csv_header(path: Path) -> list[str]:
-    with path.open(encoding="utf-8") as f:
+    with path.open(newline="", encoding="utf-8-sig") as f:
         return next(csv.reader(f))
 
 
@@ -250,14 +250,14 @@ def _run(notes: str = "") -> dict:
     # on existing rows, and append-only would resurrect PUBLISHED on reload.
     path = Path("data") / settings.data_set / "vertices" / "commentary_version.csv"
     header = _csv_header(path)
-    with path.open(encoding="utf-8") as f:
+    with path.open(newline="", encoding="utf-8-sig") as f:
         existing = list(csv.DictReader(f))
     for row in existing:
         if row.get("status") == "PUBLISHED":
             row["status"] = "SUPERSEDED"
     existing.append({k: version_row.get(k, "") for k in header})
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=header, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         writer.writerows(existing)
 

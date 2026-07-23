@@ -90,8 +90,10 @@ class IngestionService:
         return self.checkpoints.list_batches()
 
     def _count_records(self, file_path: Path) -> int:
-        with file_path.open(encoding="utf-8") as f:
-            return max(0, sum(1 for _ in f) - 1)
+        # csv-aware, BOM-tolerant count — a quoted value containing a newline is ONE
+        # record, and a BOM must not corrupt the first header (R5 A2/A3).
+        with file_path.open(newline="", encoding="utf-8-sig") as f:
+            return max(0, sum(1 for _ in csv.reader(f)) - 1)
 
     def run_entity_ingestion(self, request: IngestionRunRequest) -> IngestionRunResponse:
         config = get_entity_config(request.entity_name)
@@ -185,7 +187,7 @@ class IngestionService:
             status.updated_at = datetime.utcnow()
             self.checkpoints.save_batch(status)
 
-        with file_path.open(encoding="utf-8") as f:
+        with file_path.open(newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             header_errors = self.validator.validate_header(config, reader.fieldnames or [])
             if header_errors:
