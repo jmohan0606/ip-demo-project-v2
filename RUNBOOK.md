@@ -141,12 +141,15 @@ With the backend running (step 8 starts it; you can start it now):
 Data Ingestion screen → **Run all**, or headless:
 
 ```bash
-curl -X POST http://localhost:8001/api/v2-foundation/ingestion/run-all
-curl http://localhost:8001/api/v2-foundation/ingestion/run-all/status   # poll
+curl -X POST http://localhost:8001/ingestion/run-all
+curl http://localhost:8001/ingestion/run-all/status      # poll (async; safe to re-GET)
+curl http://localhost:8001/ingestion/validation          # graph-truth check per entity
 ```
 
-**Expect:** every manifest entity loads in dependency order; loaded counts equal the
-manifest's `expected_rows` (three-way reconciliation shown on the screen).
+**Expect:** every manifest entity loads in dependency order and ends `VALIDATED` in
+the screen's Validation column — graph count equals the source CSV's row count AND
+sampled rows carry populated non-key attributes. `EMPTY_ATTRS` or `MISMATCH`
+anywhere = stop and expand that row for the error and remediation.
 Commentary/evidence files load 0 rows on a fresh set — that is correct; they are
 created by step 7.
 **Failure:** a count mismatch names the entity — check that step 5 completed after
