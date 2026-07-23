@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-22T15:30:00Z
-Current phase: ROUND 4 (FIX_SPEC_R4.md) — COMPLETE
-Resume from: — (all S-tasks DONE)
+Last updated: 2026-07-23T00:00:00Z
+Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
+Resume from: W-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -10,6 +10,7 @@ Resume from: — (all S-tasks DONE)
 | 2 | 2026-07-21 | 2026-07-21 | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
 | 3 | 2026-07-22 | 2026-07-22 | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 all DONE; verify OVERALL PASS; 8/8 screens 0 console errors |
 | 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
+| 5 | 2026-07-23 | | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: W-A → W-B → W-C → W-D → W-E |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -120,6 +121,30 @@ Resume from: — (all S-tasks DONE)
 | S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | DONE | f2efd02 | V2 template; 128/128 settings keys present (programmatic cross-check) |
 | S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | DONE | 84f94c4 | 9 numbered steps w/ commands, expected output, failure+first-check; headless CLI added to generation_workflow (__main__) and proven |
 | S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | DONE | (this) | fixtures→build→tier-2 load→recon $0.00→headless commentary v1 all proven; BUILD_REPORT §10 records proven-vs-client-machine table |
+| W-A1 | R5-A | attribute-drop fix: pre-flight column validation, absent≠empty, zero-attr assert | TODO | | |
+| W-A2 | R5-A | CSV quoting correct on every read/write path incl. manual upload | TODO | | |
+| W-A3 | R5-A | write CSVs with LF; readers BOM-tolerant | TODO | | |
+| W-A4 | R5-A | checkpoint only after confirmed write; failures marked FAILED, no hashes | TODO | | |
+| W-A5 | R5-A | screen source of truth = graph count + attribute validation | TODO | | |
+| W-A6 | R5-A | delete-one / delete-all: guarded, non-aborting, CORS-safe errors | TODO | | |
+| W-A7 | R5-A | absolute path resolution + startup logging of resolved paths | TODO | | |
+| W-A8 | R5-A | 90_drop_all.gsql + clear-checkpoints endpoint + runbook procedure | TODO | | |
+| W-A9 | R5-A | A9a fixture verification gate passed; A9b operator acceptance doc written | TODO | | |
+| W-B1 | R5-B | screen: live per-entity progress during Run All | TODO | | |
+| W-B2 | R5-B | screen: async status refresh without blocking/restarting the run | TODO | | |
+| W-B3 | R5-B | screen: batch size visible + configurable | TODO | | |
+| W-B4 | R5-B | screen: per-entity error details persisted + remediation | TODO | | |
+| W-B5 | R5-B | screen: skip-and-continue + end-of-run remediation summary | TODO | | |
+| W-B6 | R5-B | screen: validation proof column (graph count, attr check, state, timestamp) | TODO | | |
+| W-B7 | R5-B | scale: chunked processing, resumable checkpoints, no full-file materialisation | TODO | | |
+| W-C1 | R5-C | real CSVs named after vertex/edge type | TODO | | |
+| W-C2 | R5-C | single catalog for target↔file↔columns; all consumers updated | TODO | | |
+| W-D1 | R5-D | baseline-month concept + BASELINE_LIMITED driver | TODO | | |
+| W-D2 | R5-D | baseline note in UI + commentary guard | TODO | | |
+| W-D3 | R5-D | MIX <15% on first transition; reconciliation $0.00 | TODO | | |
+| W-E1 | R5-E | sample data demoted to tests only | TODO | | |
+| W-E2 | R5-E | all docs/verification path = DATA_SET=real; honest report split | TODO | | |
+| W-F1 | R5-F | ROUND5_CHANGED_FILES.md maintained per work-stream, git-derived, conflict flags | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
