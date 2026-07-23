@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from app.config.settings import get_settings
+from app.config.settings import get_settings, resolve_app_path
 
 
 class FoundationGraphStore:
