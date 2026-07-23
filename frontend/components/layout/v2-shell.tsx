@@ -42,6 +42,7 @@ const RESULTS_TABS = [
   { label: "Transactions", href: "/transactions" },
   { label: "Trends", href: "/trends" },
   { label: "AI Insights", href: "/ai-insights" },
+  { label: "Anomalies", href: "/anomalies" },
 ];
 
 const OPS_TABS = [

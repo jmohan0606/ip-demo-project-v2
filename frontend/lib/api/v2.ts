@@ -209,6 +209,43 @@ export interface MonthlyTotals {
   served_by_tier: number;
 }
 
+/** R6 Y — stored anomaly row (detection is batch; the screen only retrieves). */
+export interface AnomalyRow {
+  anomaly_id: string;
+  advisor_sid: string;
+  from_month_id: string;
+  to_month_id: string;
+  rule_id: string;
+  severity: "HIGH" | "MEDIUM" | "LOW" | "INFO";
+  title: string;
+  detail_text: string;
+  metrics_json: string;
+  threshold_json: string;
+  impact_amt: number;
+  group_id: string;
+  scan_id: string;
+  detected_at: string;
+  data_source: Provenance;
+}
+
+export interface AnomalyScan {
+  scan_id: string;
+  started_at: string;
+  advisors_reviewed: number;
+  transitions_reviewed: number;
+  flagged_count: number;
+  thresholds_json: string;
+  status: string;
+}
+
+export interface AnomaliesResponse {
+  scan_id_used: string;
+  scan: Partial<AnomalyScan>;
+  anomalies: AnomalyRow[];
+  thresholds_in_force: Record<string, number>;
+  served_by_tier: number;
+}
+
 export const v2Api = {
   advisors: () => apiClient.get<{ advisors: Advisor[]; served_by_tier: number }>("/api/v2/reference/advisors"),
   months: () => apiClient.get<{ months: MonthRow[]; served_by_tier: number }>("/api/v2/reference/months"),
@@ -252,6 +289,14 @@ export const v2Api = {
   reconciliation: (advisorId: string, fromMonth: string, toMonth: string) =>
     apiClient.get<{ all_reconcile: boolean; transitions: Record<string, { total_change: number; attributed: number; discrepancy: number; reconciles: boolean }>; served_by_tier: number }>(
       `/api/v2/ops/reconciliation?advisor_id=${advisorId}&from_month=${fromMonth}&to_month=${toMonth}`),
+
+  anomalies: (advisorId = "", scanId = "", severity = "", limit = 500) =>
+    apiClient.get<AnomaliesResponse>(
+      `/api/v2/anomalies?advisor_id=${encodeURIComponent(advisorId)}&scan_id=${encodeURIComponent(scanId)}&severity=${encodeURIComponent(severity)}&result_limit=${limit}`),
+  anomalyScans: () =>
+    apiClient.get<{ scans: AnomalyScan[]; served_by_tier: number }>("/api/v2/anomalies/scans"),
+  anomalyScan: (notes = "") =>
+    apiClient.post<Record<string, unknown>>(`/api/v2/anomalies/scan?notes=${encodeURIComponent(notes)}`),
 
   adapterStatus: () =>
     apiClient.get<{ modes: { graph_client_mode: string; llm_client_mode: string; data_set: string; commentary_mode: string } }>(

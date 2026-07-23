@@ -37,6 +37,15 @@ export const navigationItems: NavigationItem[] = [
     status: "ready"
   },
   {
+    id: "anomalies",
+    label: "Anomalies",
+    description: "Deterministic anomaly rules over stored drivers — batch scans, AI-worded findings.",
+    href: "/anomalies",
+    iconName: "AlertTriangle",
+    group: "Results",
+    status: "ready"
+  },
+  {
     id: "data-ingestion",
     label: "Data Ingestion",
     description: "Load V2 vertices and edges into TigerGraph. Dependency order enforced on load and delete.",

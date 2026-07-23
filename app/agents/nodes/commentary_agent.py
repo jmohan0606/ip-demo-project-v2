@@ -159,6 +159,29 @@ You will be given the rule that fired, the computed metrics that triggered it, a
 - State what was observed and why it crossed the threshold, in plain business language. Never speculate about causes the metrics do not show; never give advice.
 Respond with ONLY a JSON object: {"title": "<short finding, max 12 words>", "detail_text": "<2-3 sentences>"}"""
 
+# What each rule MEANS, passed to the model so its wording reflects the actual
+# business semantics (a model guessing from a rule name writes plausible
+# nonsense — e.g. reading BASELINE_LIMITED as a "baseline calculation limit").
+_ANOMALY_MEANING = {
+    "UNEXPLAINED_RESIDUAL": "part of the month-over-month change could not be attributed "
+        "to any named driver (the MIX residual is above threshold) — a driver may be "
+        "missing or the period may be a data boundary",
+    "CLAWBACK_CONCENTRATION": "reversals (negative credited amounts) in this month are "
+        "far above the advisor's trailing monthly average",
+    "LARGE_SWING": "the total month-over-month credited-revenue change is unusually "
+        "large in both percentage and dollar terms",
+    "FEE_RATE_SHIFT": "the effective fee rate on a recurring (fee-based) product group "
+        "moved by more basis points than the threshold — worth confirming whether a "
+        "discount or repricing was applied",
+    "SINGLE_DRIVER_DOMINANCE": "one named revenue driver accounts for more than the "
+        "threshold share of the total change — the movement rests on a single explanation",
+    "BASELINE_LIMITED_PRESENT": "this transition sits at the edge of the loaded data "
+        "range, so account openings/closures cannot be confirmed on one side of it; the "
+        "unclassifiable recurring-line account movement is reported as a Baseline period "
+        "limit driver instead of being attributed — this is a data-range limitation, "
+        "not a business event",
+}
+
 # Deterministic fallback templates per rule — used when the model's wording
 # fails the no-invented-figures guardrail or cannot be parsed. `m` is the
 # display-formatted metrics dict built by the detection service.
@@ -204,7 +227,9 @@ def narrate_anomaly(rule_id: str, metrics: dict, thresholds: dict, llm) -> dict:
     {title, detail_text, model, ai_generated, guardrail}."""
     from app.guardrails.numeric_validation import validate_anomaly_text
 
-    payload = {"rule": rule_id, "metrics": metrics, "thresholds": thresholds}
+    payload = {"rule": rule_id,
+               "what_this_rule_means": _ANOMALY_MEANING.get(rule_id, ""),
+               "metrics": metrics, "thresholds": thresholds}
     title, detail, llm_model = "", "", "unavailable"
     try:
         raw = llm.generate(json.dumps(payload, indent=2), {"system_prompt": _ANOMALY_SYSTEM_PROMPT})
