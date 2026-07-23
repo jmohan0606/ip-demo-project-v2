@@ -52,5 +52,12 @@
   "get_reason_codes": {},
   "get_commentary_evaluations": {
     "version_id": ""
-  }
+  },
+  "get_anomalies": {
+    "advisor_id": "",
+    "scan_id": "",
+    "severity": "",
+    "result_limit": 100
+  },
+  "get_anomaly_scans": {}
 }

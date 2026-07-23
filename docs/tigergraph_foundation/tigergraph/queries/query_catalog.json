@@ -366,6 +366,53 @@
         "evidence modal Independent review line"
       ],
       "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-018",
+      "name": "get_anomalies",
+      "file": "GQ-018_get_anomalies.gsql",
+      "parameters": [
+        {
+          "name": "advisor_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "scan_id",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "severity",
+          "type": "STRING",
+          "required": true
+        },
+        {
+          "name": "result_limit",
+          "type": "INT",
+          "required": true
+        }
+      ],
+      "purpose": "Stored anomalies for the /anomalies screen (R6 Y). Retrieval only \u2014 detection is batch. advisor_id/scan_id/severity '' = all/latest/all.",
+      "outputs": "scan_id_used; anomalies: vset rows",
+      "consumers": [
+        "GET /api/v2/anomalies",
+        "/anomalies screen"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
+    },
+    {
+      "id": "GQ-019",
+      "name": "get_anomaly_scans",
+      "file": "GQ-019_get_anomaly_scans.gsql",
+      "parameters": [],
+      "purpose": "Anomaly scan history for the scan-version selector (R6 Y). Scans are additive; newest first.",
+      "outputs": "scans: vset rows",
+      "consumers": [
+        "GET /api/v2/anomalies/scans",
+        "/anomalies screen scan selector"
+      ],
+      "status": "created-v2-NEEDS-LIVE-INSTALL"
     }
   ]
 }

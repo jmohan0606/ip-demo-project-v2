@@ -43,6 +43,8 @@ DROP QUERY get_ingestion_counts
 DROP QUERY get_advisor_month_summary
 DROP QUERY get_reason_codes
 DROP QUERY get_commentary_evaluations
+DROP QUERY get_anomalies
+DROP QUERY get_anomaly_scans
 
 // --- 2. the graph ---
 DROP GRAPH iperform_v2_revenue

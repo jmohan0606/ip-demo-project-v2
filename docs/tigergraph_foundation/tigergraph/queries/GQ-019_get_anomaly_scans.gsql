@@ -1,0 +1,21 @@
+/*
+ * GQ-019 — get_anomaly_scans
+ * Purpose: Scan history for the /anomalies scan-version selector (FIX_SPEC_R6
+ *          Y4). Scans are additive — a re-scan never deletes a prior one, so
+ *          this list only grows. Newest first.
+ * Outputs: scans vertex set (ordered by started_at DESC).
+ * Created: V2 round 6 2026-07-23. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_anomaly_scans() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    all_scans = {phx_dm_v2_anomaly_scan.*};
+    scans = SELECT s
+        FROM all_scans:s
+        ORDER BY s.started_at DESC, s.scan_id DESC;
+
+    PRINT scans;
+}
+
+INSTALL QUERY get_anomaly_scans

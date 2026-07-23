@@ -1,0 +1,45 @@
+/*
+ * GQ-018 — get_anomalies
+ * Purpose: Stored anomalies for the /anomalies screen (FIX_SPEC_R6 Y4).
+ *          Detection is batch (POST /api/v2/anomalies/scan) — this query only
+ *          RETRIEVES; the screen never detects on page load.
+ *          advisor_id = "" means all advisors; scan_id = "" means the latest
+ *          scan (highest started_at); severity = "" means all severities.
+ *          Rows are ordered by anomaly_id ASC in BOTH tiers; the service layer
+ *          applies the severity display ranking (HIGH>MEDIUM>LOW>INFO) so the
+ *          two tiers stay byte-comparable.
+ * Outputs: scan_id_used; anomalies vertex set.
+ * Created: V2 round 6 2026-07-23. NEEDS LIVE INSTALL.
+ * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
+ */
+USE GRAPH iperform_v2_revenue
+
+CREATE QUERY get_anomalies(STRING advisor_id, STRING scan_id, STRING severity, INT result_limit) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    MaxAccum<STRING> @@latest_started;
+    MaxAccum<STRING> @@scan_id_used;
+
+    all_scans = {phx_dm_v2_anomaly_scan.*};
+    IF scan_id == "" THEN
+        s1 = SELECT s FROM all_scans:s
+             ACCUM @@latest_started += to_string(s.started_at);
+        s2 = SELECT s FROM all_scans:s
+             WHERE to_string(s.started_at) == @@latest_started
+             ACCUM @@scan_id_used += s.scan_id;
+    ELSE
+        @@scan_id_used += scan_id;
+    END;
+
+    all_anomalies = {phx_dm_v2_anomaly.*};
+    anomalies = SELECT a
+        FROM all_anomalies:a
+        WHERE a.scan_id == @@scan_id_used
+          AND (advisor_id == "" OR a.advisor_sid == advisor_id)
+          AND (severity == "" OR a.severity == severity)
+        ORDER BY a.anomaly_id ASC
+        LIMIT result_limit;
+
+    PRINT @@scan_id_used AS scan_id_used;
+    PRINT anomalies;
+}
+
+INSTALL QUERY get_anomalies

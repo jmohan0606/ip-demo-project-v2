@@ -1,4 +1,4 @@
-"""Local-tier (tier 2) implementations of GQ-001..GQ-015.
+"""Local-tier (tier 2) implementations of GQ-001..GQ-019.
 
 Each function mirrors its GSQL counterpart's traversal semantics and returns the
 IDENTICAL RESTPP result shape (one dict per PRINT statement; vertex rows as
@@ -15,6 +15,8 @@ from app.graph.client import mock_query
 from app.graph.foundation_store import FoundationGraphStore
 from app.graph.queries.common import (
     ACCOUNT_MONTH_BALANCE,
+    ANOMALY,
+    ANOMALY_SCAN,
     ADVISOR,
     COMMENTARY,
     COMMENTARY_EVALUATION,
@@ -347,3 +349,40 @@ def get_advisor_month_summary(store: FoundationGraphStore, params: dict) -> list
         "products_by_month": {m: sorted(v) for m, v in products.items()},
         "accounts_by_month": {m: sorted(v) for m, v in accounts.items()},
     }]
+
+
+# ---------------------------------------------------------------- anomalies (R6 Y)
+
+@mock_query("get_anomalies")
+def get_anomalies(store: FoundationGraphStore, params: dict) -> list[dict]:
+    """Mirrors GQ-018: retrieval only (detection is batch). scan_id "" resolves
+    to the latest scan by started_at; rows ordered by anomaly_id ASC in both
+    tiers — the service applies the severity display ranking."""
+    advisor_id = str(params.get("advisor_id") or "")
+    scan_id = str(params.get("scan_id") or "")
+    severity = str(params.get("severity") or "")
+    result_limit = _int(params.get("result_limit")) or 1000
+    if scan_id == "":
+        scans = store.all_vertices(ANOMALY_SCAN)
+        latest = max(
+            scans.items(),
+            key=lambda kv: (str(kv[1].get("started_at") or ""), str(kv[0])),
+            default=None,
+        )
+        scan_id = str(latest[0]) if latest else ""
+    rows = vrows(
+        store, ANOMALY,
+        lambda a: str(a.get("scan_id")) == scan_id
+        and (advisor_id == "" or str(a.get("advisor_sid")) == advisor_id)
+        and (severity == "" or str(a.get("severity")) == severity),
+    )
+    rows.sort(key=lambda r: str(_attr(r, "anomaly_id") or r["v_id"]))
+    return [{"scan_id_used": scan_id}, {"anomalies": rows[:result_limit]}]
+
+
+@mock_query("get_anomaly_scans")
+def get_anomaly_scans(store: FoundationGraphStore, params: dict) -> list[dict]:
+    """Mirrors GQ-019: full scan history, newest first (scans are additive)."""
+    rows = vrows(store, ANOMALY_SCAN)
+    rows.sort(key=lambda r: (str(_attr(r, "started_at") or ""), r["v_id"]), reverse=True)
+    return [{"scans": rows}]
