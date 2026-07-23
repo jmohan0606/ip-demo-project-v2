@@ -162,18 +162,18 @@ Resume from: Z-A1
 | Y-6 | R6-Y | /anomalies screen per mockup, empty state, thresholds visible | DONE | ca8a911 | Results sub-nav + sidebar; 0 console errors incl. empty state |
 | Y-7 | R6-Y | per-rule fixtures; no-invented-figure assertion; additive re-scan verified | DONE | 1e1a7ae | verify_anomalies --rescan 14/14 PASS |
 | Z-A1 | R7 | conversation + message vertices/edges, tiered persistence | DONE | 57073c6 | 22 vertices/32 edges; artifacts + manifest regenerated; AssistantStore via TigerGraphUpsertClient + CSV append |
-| Z-A2 | R7 | provider selection (cdao primary in client env, claude on build box), logged fallback | TODO | | |
-| Z-A3 | R7 | deterministic intent router covering all A3 intents | TODO | | |
-| Z-A4 | R7 | constrained LLM fallback returning a validated {query, params} selection | TODO | | |
-| Z-A5 | R7 | multi-turn context resolution + screen-seeded context + Pin | TODO | | |
+| Z-A2 | R7 | provider selection (cdao primary in client env, claude on build box), logged fallback | DONE | adc3270/(verify) | AssistantLLM chain; fallback logged + on message metadata |
+| Z-A3 | R7 | deterministic intent router covering all A3 intents | DONE | adc3270/(verify) | 10 intents + follow-up inheritance; 27 routing fixtures PASS |
+| Z-A4 | R7 | constrained LLM fallback returning a validated {query, params} selection | DONE | adc3270/(verify) | structured selection validated vs catalog; rejects unknown queries/params |
+| Z-A5 | R7 | multi-turn context resolution + screen-seeded context + Pin | DONE | adc3270/(verify) | question>pinned>inherited>screen>default; chip label; 3-turn fixture PASS |
 | Z-A6 | R7 | GQ queries for conversations/messages + catalog + local-tier impls | DONE | 57073c6 | GQ-020/021 + catalog + install_all + cases; validator ALL CHECKS PASS |
-| Z-A7 | R7 | facts-only behaviour incl. the advice response pattern | TODO | | |
-| Z-A8 | R7 | NO_DATA / OUT_OF_SCOPE / BLOCKED statuses | TODO | | |
-| Z-A9 | R7 | numeric guardrail on every answer | TODO | | |
-| Z-A10 | R7 | input guardrails wired BEFORE routing (injection/jailbreak/PII/toxicity/oversize) | TODO | | |
-| Z-A11 | R7 | blocked turns visible in transcript with GUARDRAIL chip; category+severity only | TODO | | |
+| Z-A7 | R7 | facts-only behaviour incl. the advice response pattern | DONE | adc3270/(verify) | facts + single limit sentence; fixture asserts exactly one decline |
+| Z-A8 | R7 | NO_DATA / OUT_OF_SCOPE / BLOCKED statuses | DONE | adc3270/(verify) | unloaded month / non-revenue / blocked fixtures PASS |
+| Z-A9 | R7 | numeric guardrail on every answer | DONE | adc3270/(verify) | validate_anomaly_text over figures_json; deterministic fallback on reject |
+| Z-A10 | R7 | input guardrails wired BEFORE routing (injection/jailbreak/PII/toxicity/oversize) | DONE | adc3270/(verify) | screen_input before routing; blocked turns never reach router/LLM (instrumented) |
+| Z-A11 | R7 | blocked turns visible in transcript with GUARDRAIL chip; category+severity only | DONE | adc3270/(verify) | user msg renders, refusal + category/severity-only finding persisted |
 | Z-A12 | R7 | message vertex extended: guardrail_status, guardrail_json | DONE | 57073c6 | in DDL from the start; guardrail_json carries category/severity/action only |
-| Z-A13 | R7 | adversarial fixture set (~15) incl. false-positive checks | TODO | | |
+| Z-A13 | R7 | adversarial fixture set (~15) incl. false-positive checks | DONE | adc3270/(verify) | 12 adversarial + 4 false-positive fixtures, all PASS |
 | Z-B1 | R7 | overlay panel, persists across navigation, collapses to button | TODO | | |
 | Z-B2 | R7 | full-page view sharing the same component | TODO | | |
 | Z-B3 | R7 | answer rendering: AI chip on wording only, figures unmarked, Ran: trail, evidence links | TODO | | |

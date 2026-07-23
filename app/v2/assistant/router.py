@@ -63,6 +63,9 @@ _INTENT_RULES: list[tuple[str, re.Pattern]] = [
         re.IGNORECASE)),
     ("COMMENTARY", re.compile(
         r"\b(summari[sz]e|summary|recap|overview)\b", re.IGNORECASE)),
+    ("DRIVER_DETAIL", re.compile(
+        r"\b(tell me|more) about\b|\babout the\b.*\b(drop|decline|fall|increase|"
+        r"drivers?)\b", re.IGNORECASE)),
     ("WHY_CHANGE", re.compile(
         r"\bwhy\b|\bwhat (drove|was driving|is driving|caused|explains)\b|"
         r"\bdrivers?\b(?! cause)|\bdriving\b|\breasons? (for|behind)\b", re.IGNORECASE)),
