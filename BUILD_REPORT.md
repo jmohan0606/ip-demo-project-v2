@@ -840,3 +840,62 @@ BL is genuinely legitimate, raise it back to us before touching the assertion.
   and running `90_drop_all.gsql` end-to-end is part of the operator acceptance
   checklist. Round 5 shipped a drop script that had never been executable-tested; that
   class of gap is now labelled instead of implied-verified.
+
+### Work-stream Y — anomaly detection
+
+**Gate honoured:** Y started only after work-stream A was green — MIX < 15% on every
+transition of the bug-reproducing fixture (7.0% / 9.4%) and the sample set (≤ 8.1%).
+The real-data gate remains the operator's A4 acceptance.
+
+**Built (commits 768296b, 39f2d84, 02e03d9, 1e1a7ae, ca8a911):**
+- **Schema (Y1):** `phx_dm_v2_anomaly` + `phx_dm_v2_anomaly_scan` vertices; edges
+  `anomaly_for_advisor`, `anomaly_in_scan`, `anomaly_cites_driver`. All artifacts
+  (catalog, loading job, drop script — now 19 queries / 30+30 edges / 20 vertices)
+  regenerated, NEEDS-LIVE-VERIFICATION.
+- **Rules (Y2):** six deterministic rules in `app/v2/anomalies/detection.py`, all
+  thresholds in settings (`ANOMALY_*`, in .env.example, surfaced in the UI and stamped
+  into every scan's `thresholds_json`). **BOOK_MOVEMENT deliberately not implemented** —
+  it presumes account movement is real, which work-stream A showed is largely trading
+  intermittency on this data.
+- **Queries (Y3):** GQ-018 `get_anomalies` (advisor/scan/severity filters; `scan_id=""`
+  = latest) + GQ-019 `get_anomaly_scans`, with catalog entries, install_all, local-tier
+  implementations and query cases; both tiers return rows ordered by `anomaly_id` so
+  they stay byte-comparable — the severity display ranking lives in the service layer.
+- **Service + trigger (Y4):** batch-only — `POST /api/v2/anomalies/scan`, status GET,
+  and a headless CLI (`python -m app.v2.anomalies.detection`). Page loads only
+  retrieve. Scans are additive (`scanNNN`), persisted via graph upsert + CSV append
+  exactly like commentary versions.
+- **Narration (Y5):** `commentary_agent.narrate_anomaly` — the model phrases computed
+  metrics only; the payload includes `what_this_rule_means` so wording reflects real
+  semantics. `validate_anomaly_text` guardrail: every figure in title/detail must exist
+  in metrics_json/threshold_json and negatives must be parenthesised; failures fall
+  back to a deterministic per-rule template with NO AI chip.
+- **Screen (Y7):** `/anomalies` in the Results sub-nav per
+  `docs/ui/reference/roadmap/02_anomaly_detection.png` — review-summary header,
+  transition + scan-version selectors, themed Re-scan, four stat cards, severity-
+  ordered cards (colored rail, severity pill, rule tag, AI Generated chip on model
+  wording only, computed impact, action links), empty state naming the thresholds in
+  force, and a visible configurable-thresholds note.
+
+**Verified HERE (`scripts/verify_anomalies.py`, 14/14 PASS with `--rescan`):** each
+rule fires once and only once on a crafted context and stays silent below threshold;
+the guardrail blocks an invented figure and a minus-signed figure; an LLM that invents
+a figure is forced to the deterministic fallback; no stored anomaly contains a figure
+absent from its metrics_json; a re-scan creates a new scan_id while the prior scan's
+rows remain retrievable byte-identical; `scan_id=""` resolves to the newest scan.
+Headless UI sweep: all six screens (including /anomalies and its empty state) render
+with zero console errors. Sample scan001: 9 flagged (6 LOW dominance, 3 INFO
+baseline-limited; sample-scale data doesn't reach the HIGH/MEDIUM thresholds — the
+per-rule fixtures cover those).
+
+**Deliberate deviations from the spec text (recorded, not hidden):**
+1. `anomaly_id` is **scan-prefixed** (`scanNNN|advisor|from|to|rule[|group]`), not the
+   spec's `advisor|from|to|rule`: with the un-prefixed id a re-scan upserts over the
+   prior scan's vertices and scans stop being additive — the very property Y3 requires.
+   Commentary ids embed their version the same way. Found by the additive re-scan test.
+2. Group-scoped rules (FEE_RATE_SHIFT, and dominance's informative group) append the
+   group id so two groups firing the same rule in one transition cannot collide.
+
+**Pending OPERATOR acceptance:** live install of GQ-018/019 and the two new vertices /
+three edges; a scan against real data; thresholds review with the client (defaults are
+the spec's, deliberately un-tuned to sample data).
