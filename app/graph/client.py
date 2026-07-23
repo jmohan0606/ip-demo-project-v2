@@ -44,6 +44,89 @@ class PartialUpsertError(GraphClientError):
         self.requested = requested
 
 
+class ColumnMismatchError(GraphClientError):
+    """A CSV/record column set does not match the manifest mapping. Raised instead
+    of silently dropping attributes (Round 5 A1 — the 'row loaded but is empty'
+    class of failure must be impossible)."""
+
+
+def entry_key_columns(entry: dict) -> set[str]:
+    """The identity columns of a manifest entry (vertex id, or edge endpoints)."""
+    if entry.get("kind") == "edge":
+        return {entry.get("from_column") or "from_id", entry.get("to_column") or "to_id"}
+    return {entry.get("id_column") or "id"}
+
+
+def validate_entry_header(entry: dict, fieldnames: list[str] | None) -> list[str]:
+    """Pre-flight column validation (A1.1): the CSV header must carry EXACTLY the
+    manifest mapping's source columns (plus the key columns). Returns precise,
+    actionable error strings; empty list when the header matches."""
+    declared = set(entry.get("columns") or {}) | entry_key_columns(entry)
+    headers = list(fieldnames or [])
+    header_set = set(headers)
+    target = entry.get("target", "?")
+    file_name = entry.get("file", "?")
+    errors: list[str] = []
+    if not headers:
+        return [f"{target}: CSV {file_name} has no header row"]
+    missing = sorted(declared - header_set)
+    extra = sorted(header_set - declared)
+    duplicates = sorted({h for h in headers if headers.count(h) > 1})
+    if missing:
+        errors.append(
+            f"{target}: CSV {file_name} is missing declared column(s): {', '.join(missing)} "
+            f"— the manifest maps these and a load would silently drop them; fix the CSV "
+            f"(regenerate with build_real_data.py) or the manifest before loading"
+        )
+    if extra:
+        errors.append(
+            f"{target}: CSV {file_name} has column(s) with no manifest mapping: {', '.join(extra)} "
+            f"— refusing a partial mapping"
+        )
+    if duplicates:
+        errors.append(f"{target}: CSV {file_name} has duplicate column(s): {', '.join(duplicates)}")
+    return errors
+
+
+def map_entry_attributes(
+    entry: dict,
+    row: dict,
+    excluded: set[str],
+    transform: Callable[[str, str, Any], Any],
+) -> dict[str, Any]:
+    """Build the graph attribute dict for one record, fail-loud (A1.2/A1.3):
+
+    - a mapped source column ABSENT from the row is an error (header/manifest
+      mismatch) — never a silent skip;
+    - a present-but-empty value is legitimately skipped;
+    - a record that resolves to ZERO attributes while the manifest declares
+      non-key columns is an error — an attribute-less write is never issued.
+    """
+    attributes: dict[str, Any] = {}
+    declared = 0
+    for source_column, graph_attribute in (entry.get("columns") or {}).items():
+        if source_column in excluded:
+            continue
+        declared += 1
+        if source_column not in row:
+            raise ColumnMismatchError(
+                f"{entry.get('target', '?')}: mapped column '{source_column}' is absent from the "
+                f"record (file {entry.get('file', '?')}) — header/manifest mismatch; refusing to "
+                f"write a partial record"
+            )
+        value = row[source_column]
+        if value in ("", None):
+            continue
+        attributes[graph_attribute] = transform(source_column, graph_attribute, value)
+    if declared and not attributes:
+        raise ColumnMismatchError(
+            f"{entry.get('target', '?')}: record would be written with ZERO attributes although "
+            f"{declared} non-key column(s) are declared (file {entry.get('file', '?')}) — refusing "
+            f"to write an attribute-less {entry.get('kind', 'record')}"
+        )
+    return attributes
+
+
 class GraphClient(Protocol):
     """Adapter interface every service depends on (Section 2 of the rebuild brief).
 
@@ -166,15 +249,9 @@ class RealGraphClient:
         return data
 
     def _attributes(self, entry: dict, row: dict, excluded: set[str]) -> dict:
-        attributes: dict[str, dict[str, Any]] = {}
-        for source_column, graph_attribute in entry.get("columns", {}).items():
-            if source_column in excluded:
-                continue
-            value = row.get(source_column)
-            if value in ("", None):
-                continue
-            attributes[graph_attribute] = {"value": _coerce(value)}
-        return attributes
+        return map_entry_attributes(
+            entry, row, excluded, lambda _src, _attr, value: {"value": _coerce(value)}
+        )
 
     def build_payload(self, entry: dict, records: list[dict]) -> dict:
         if entry["kind"] == "vertex":
@@ -414,10 +491,15 @@ class MockGraphClient:
         if entry["kind"] == "vertex":
             vertex_type = entry["target"]
             id_col = entry["id_column"]
+            id_attr = (entry.get("columns") or {}).get(id_col, id_col)
             for row in records:
                 vertex_id = str(row[id_col])
-                attrs = {graph_attr: self.store.coerce_typed(vertex_type, graph_attr, row.get(src))
-                         for src, graph_attr in entry.get("columns", {}).items()}
+                attrs = map_entry_attributes(
+                    entry, row, {id_col},
+                    lambda _src, graph_attr, value: self.store.coerce_typed(vertex_type, graph_attr, value),
+                )
+                # the store keeps the id as a readable attribute too (matches the CSV-seeded rows)
+                attrs[id_attr] = self.store.coerce_typed(vertex_type, id_attr, vertex_id)
                 existing = self.store.vertices[vertex_type].get(vertex_id, {})
                 self.store.vertices[vertex_type][vertex_id] = {**existing, **attrs}
                 self.runtime_vertices.setdefault(vertex_type, {})[vertex_id] = attrs
@@ -427,11 +509,9 @@ class MockGraphClient:
         from_col, to_col = entry["from_column"], entry["to_column"]
         for row in records:
             from_id, to_id = str(row[from_col]), str(row[to_col])
-            attrs = {
-                graph_attr: row.get(src)
-                for src, graph_attr in entry.get("columns", {}).items()
-                if src not in (from_col, to_col)
-            }
+            attrs = map_entry_attributes(
+                entry, row, {from_col, to_col}, lambda _src, _attr, value: value
+            )
             already = any(t == to_id for t, _ in self.store.out_index[edge_name].get(from_id, []))
             if not already:
                 self.store.edges[edge_name].append(

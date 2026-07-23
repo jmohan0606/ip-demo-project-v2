@@ -34,6 +34,9 @@ class IngestionEntityConfig(BaseModel):
     kind: str = "vertex"  # "vertex" | "edge"
     order: int = 0
     expected_rows: int | None = None
+    # Manifest column mapping (source CSV column -> graph attribute) — drives the
+    # Round 5 pre-flight header validation so a mismatched CSV fails before load.
+    columns: dict[str, str] = Field(default_factory=dict)
     from_type: str | None = None
     to_type: str | None = None
     from_column: str | None = None

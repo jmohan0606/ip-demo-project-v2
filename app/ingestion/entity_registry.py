@@ -65,6 +65,7 @@ def _configs() -> dict[str, IngestionEntityConfig]:
             kind=kind,
             order=int(entry.get("order", 0)),
             expected_rows=entry.get("expected_rows"),
+            columns=dict(entry.get("columns") or {}),
             from_type=entry.get("from_type"),
             to_type=entry.get("to_type"),
             from_column=entry.get("from_column"),

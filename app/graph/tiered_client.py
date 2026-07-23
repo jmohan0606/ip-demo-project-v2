@@ -32,6 +32,7 @@ from app.graph.client import (
     PartialUpsertError,
     RealGraphClient,
     _coerce,
+    map_entry_attributes,
 )
 from app.graph.tier_log import TIER_NAMES, get_tier_log
 from app.shared.logging import get_logger
@@ -51,16 +52,10 @@ def _mask(value: str | None) -> str:
 
 
 def _entry_attributes(entry: dict, row: dict, excluded: set[str]) -> dict[str, Any]:
-    """Map a manifest-entry row to graph attribute dict (same rule as RESTPP tier)."""
-    attributes: dict[str, Any] = {}
-    for source_column, graph_attribute in entry.get("columns", {}).items():
-        if source_column in excluded:
-            continue
-        value = row.get(source_column)
-        if value in ("", None):
-            continue
-        attributes[graph_attribute] = _coerce(value)
-    return attributes
+    """Map a manifest-entry row to a graph attribute dict, fail-loud (Round 5 A1):
+    an absent mapped column raises ColumnMismatchError instead of silently dropping
+    the attribute, and an all-empty record refuses to write attribute-less."""
+    return map_entry_attributes(entry, row, excluded, lambda _src, _attr, value: _coerce(value))
 
 
 class McpGraphClient:
