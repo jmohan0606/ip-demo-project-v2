@@ -191,14 +191,44 @@ Then verify, in order:
 To reload after a new extract:
 
 ```bash
-curl http://localhost:8001/api/v2-foundation/ingestion/delete-plan       # review the plan
-curl -X POST http://localhost:8001/api/v2-foundation/ingestion/delete-all
+curl http://localhost:8001/ingestion/delete-plan       # review the plan
+curl -X POST http://localhost:8001/ingestion/delete-all
 ```
 
 Delete runs in REVERSE dependency order (analytics → facts → dimensions); the confirm
 dialog on the ingestion screen shows the same plan. Then repeat steps 4–7.
+Delete-all never aborts on a failing entity: it returns a per-entity report
+(`outcome: deleted|failed` + reason). Checkpoints are cleared per *confirmed*
+entity so a stale checkpoint can never suppress a re-load.
 **Caveat on live TigerGraph:** RESTPP/pyTigerGraph cannot bulk-delete edges — edges
 disappear when their endpoint vertices are deleted; the delete report states this.
-The delete path has been exercised only against the local tier (client-machine
-follow-up). Checkpoints are cleared on delete so a stale checkpoint can never
+
+### Step 10 — Clean-slate reset (guaranteed, manual — use when delete-all cannot be trusted)
+
+When the graph and the checkpoints disagree, or a load has left partial state you
+cannot reason about, reset from zero. This always works because it rebuilds the
+schema itself:
+
+1. **Drop everything** (edges → vertices → graph, correct order):
+   ```bash
+   gsql docs/tigergraph_foundation/tigergraph/schema/90_drop_all.gsql
+   ```
+2. **Recreate the schema and queries:**
+   ```bash
+   gsql docs/tigergraph_foundation/tigergraph/schema/01_vertices.gsql
+   gsql docs/tigergraph_foundation/tigergraph/schema/02_edges.gsql
+   gsql docs/tigergraph_foundation/tigergraph/schema/03_create_graph.gsql
+   gsql docs/tigergraph_foundation/tigergraph/queries/install_all_queries.gsql
+   ```
+3. **Clear the ingestion checkpoints** (otherwise every row hash-matches and skips
+   as "Unchanged" against the now-empty graph):
+   ```bash
+   curl -X POST http://localhost:8001/ingestion/clear-checkpoints
+   # or one entity: curl -X POST "http://localhost:8001/ingestion/clear-checkpoints?entity_name=advisor"
+   ```
+   The backend startup log and `/env-health` (`resolved_paths`) show the absolute
+   path of the checkpoint SQLite DB actually in use.
+4. **Run All** from the ingestion screen and confirm every entity reaches
+   `VALIDATED` in the validation-proof column (graph count matches expected AND
+   sampled rows carry populated non-key attributes).
 

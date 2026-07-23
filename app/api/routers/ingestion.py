@@ -56,3 +56,12 @@ def delete_entity(entity_name: str):
 @router.post("/delete-all")
 def delete_all():
     return ok(data=IngestionService().delete_all_entities())
+
+
+@router.post("/clear-checkpoints")
+def clear_checkpoints(entity_name: str | None = None):
+    """Reset ingestion checkpoint state (batch records + row hashes) WITHOUT touching
+    the graph — the recovery path when checkpoints and graph disagree (e.g. after a
+    manual GSQL drop, R5 A8). One entity when entity_name is given, else every entity.
+    The next load then re-writes everything instead of skipping as 'Unchanged'."""
+    return ok(data=IngestionService().clear_checkpoints(entity_name))

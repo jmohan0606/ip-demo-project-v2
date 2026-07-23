@@ -104,6 +104,21 @@ class IngestionService:
             "results": results,
         }
 
+    def clear_checkpoints(self, entity_name: str | None = None) -> dict:
+        """Clear checkpoint state (batches + row hashes) for one entity or all —
+        the graph is NOT touched. Exposed for the A8 clean-slate procedure."""
+        if entity_name:
+            config = get_entity_config(entity_name)  # validates the name
+            self.checkpoints.clear_entity(config.entity_name)
+            cleared = [config.entity_name]
+        else:
+            cleared = []
+            for config in list_entity_configs():
+                self.checkpoints.clear_entity(config.entity_name)
+                cleared.append(config.entity_name)
+        return {"cleared_entities": len(cleared), "entities": cleared,
+                "note": "graph data untouched; next load re-writes everything"}
+
     def list_batches(self) -> list[dict]:
         return self.checkpoints.list_batches()
 

@@ -1,0 +1,67 @@
+// iPerform V2 — FULL SCHEMA DROP (Round 5 A8: the manual reset that always works)
+//
+// Drops everything phx_dm_v2_* in the safe order: graph first (releases the schema
+// objects), then every edge type, then every vertex type. Reverse edges are part of
+// each edge definition and drop with it.
+//
+// Run:      gsql 90_drop_all.gsql
+// Recreate: gsql 01_vertices.gsql && gsql 02_edges.gsql && gsql 03_create_graph.gsql
+//           && gsql ../queries/install_all_queries.gsql
+// Then:     clear ingestion checkpoints (POST /ingestion/clear-checkpoints or
+//           scripts CLI — see RUNBOOK.md "Clean-slate reset") and Run All.
+//
+// This script is intentionally idempotent-ish: if an object is already absent GSQL
+// reports it and continues with the next statement.
+
+DROP GRAPH iperform_v2_revenue
+
+USE GLOBAL
+
+// --- edges (facts/relationships) first ---
+DROP EDGE phx_dm_v2_evaluation_of_commentary
+DROP EDGE phx_dm_v2_evidence_for_driver
+DROP EDGE phx_dm_v2_commentary_cites_driver
+DROP EDGE phx_dm_v2_commentary_in_version
+DROP EDGE phx_dm_v2_commentary_to_month
+DROP EDGE phx_dm_v2_commentary_from_month
+DROP EDGE phx_dm_v2_commentary_for_advisor
+DROP EDGE phx_dm_v2_driver_for_group
+DROP EDGE phx_dm_v2_driver_has_cause
+DROP EDGE phx_dm_v2_driver_of_change
+DROP EDGE phx_dm_v2_change_to_month
+DROP EDGE phx_dm_v2_change_from_month
+DROP EDGE phx_dm_v2_change_for_group
+DROP EDGE phx_dm_v2_change_for_advisor
+DROP EDGE phx_dm_v2_balance_in_month
+DROP EDGE phx_dm_v2_balance_for_account
+DROP EDGE phx_dm_v2_mpr_for_group
+DROP EDGE phx_dm_v2_mpr_in_month
+DROP EDGE phx_dm_v2_mpr_for_advisor
+DROP EDGE phx_dm_v2_txn_has_reason
+DROP EDGE phx_dm_v2_txn_for_account
+DROP EDGE phx_dm_v2_txn_for_product
+DROP EDGE phx_dm_v2_txn_in_month
+DROP EDGE phx_dm_v2_txn_for_advisor
+DROP EDGE phx_dm_v2_line_in_class
+DROP EDGE phx_dm_v2_group_in_line
+DROP EDGE phx_dm_v2_product_in_group
+
+// --- vertices (facts before dimensions) ---
+DROP VERTEX phx_dm_v2_evidence
+DROP VERTEX phx_dm_v2_commentary_evaluation
+DROP VERTEX phx_dm_v2_commentary
+DROP VERTEX phx_dm_v2_commentary_version
+DROP VERTEX phx_dm_v2_revenue_driver
+DROP VERTEX phx_dm_v2_revenue_change
+DROP VERTEX phx_dm_v2_account_month_balance
+DROP VERTEX phx_dm_v2_monthly_product_revenue
+DROP VERTEX phx_dm_v2_revenue_transaction
+DROP VERTEX phx_dm_v2_reason_code
+DROP VERTEX phx_dm_v2_driver_cause
+DROP VERTEX phx_dm_v2_account
+DROP VERTEX phx_dm_v2_product
+DROP VERTEX phx_dm_v2_product_group
+DROP VERTEX phx_dm_v2_product_line
+DROP VERTEX phx_dm_v2_revenue_class
+DROP VERTEX phx_dm_v2_month
+DROP VERTEX phx_dm_v2_advisor
