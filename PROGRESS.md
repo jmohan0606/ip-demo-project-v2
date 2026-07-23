@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T18:20:00Z
-Current phase: ROUND 6 (FIX_SPEC_R6.md) — COMPLETE (operator acceptance pending: real-data MIX <15%, live GSQL install/drop, real-data anomaly scan)
-Resume from: — (all X and Y tasks DONE)
+Last updated: 2026-07-23T21:00:00Z
+Current phase: ROUND 7 (FIX_SPEC_R7.md) — conversational assistant
+Resume from: Z-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -12,6 +12,7 @@ Resume from: — (all X and Y tasks DONE)
 | 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
 | 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
+| 7 | 2026-07-23 | | round 7 fresh start | FIX_SPEC_R7.md: Ask iPerform assistant, Z-A1..Z-C3 |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -160,6 +161,25 @@ Resume from: — (all X and Y tasks DONE)
 | Y-5 | R6-Y | anomaly narration via commentary_agent + guardrail | DONE | 02e03d9/ca8a911 | narrate_anomaly + rule meanings; validate_anomaly_text; deterministic fallback, no chip |
 | Y-6 | R6-Y | /anomalies screen per mockup, empty state, thresholds visible | DONE | ca8a911 | Results sub-nav + sidebar; 0 console errors incl. empty state |
 | Y-7 | R6-Y | per-rule fixtures; no-invented-figure assertion; additive re-scan verified | DONE | 1e1a7ae | verify_anomalies --rescan 14/14 PASS |
+| Z-A1 | R7 | conversation + message vertices/edges, tiered persistence | TODO | | |
+| Z-A2 | R7 | provider selection (cdao primary in client env, claude on build box), logged fallback | TODO | | |
+| Z-A3 | R7 | deterministic intent router covering all A3 intents | TODO | | |
+| Z-A4 | R7 | constrained LLM fallback returning a validated {query, params} selection | TODO | | |
+| Z-A5 | R7 | multi-turn context resolution + screen-seeded context + Pin | TODO | | |
+| Z-A6 | R7 | GQ queries for conversations/messages + catalog + local-tier impls | TODO | | |
+| Z-A7 | R7 | facts-only behaviour incl. the advice response pattern | TODO | | |
+| Z-A8 | R7 | NO_DATA / OUT_OF_SCOPE / BLOCKED statuses | TODO | | |
+| Z-A9 | R7 | numeric guardrail on every answer | TODO | | |
+| Z-A10 | R7 | input guardrails wired BEFORE routing (injection/jailbreak/PII/toxicity/oversize) | TODO | | |
+| Z-A11 | R7 | blocked turns visible in transcript with GUARDRAIL chip; category+severity only | TODO | | |
+| Z-A12 | R7 | message vertex extended: guardrail_status, guardrail_json | TODO | | |
+| Z-A13 | R7 | adversarial fixture set (~15) incl. false-positive checks | TODO | | |
+| Z-B1 | R7 | overlay panel, persists across navigation, collapses to button | TODO | | |
+| Z-B2 | R7 | full-page view sharing the same component | TODO | | |
+| Z-B3 | R7 | answer rendering: AI chip on wording only, figures unmarked, Ran: trail, evidence links | TODO | | |
+| Z-C1 | R7 | scripts/verify_assistant.py — all seven checks | TODO | | |
+| Z-C2 | R7 | docs/ROUND7_ACCEPTANCE.md | TODO | | |
+| Z-C3 | R7 | docs/ROUND7_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
