@@ -7,6 +7,7 @@ generated on read; the generation workflow has its own POST).
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
+from pydantic import BaseModel
 
 from app.shared.responses import ok
 from app.v2.drivers.service import V2DriverService
@@ -187,3 +188,63 @@ def anomaly_scan(notes: str = ""):
 def anomaly_scan_status():
     from app.v2.anomalies.detection import get_status
     return ok(data=get_status())
+
+
+# ---------------------------------------------------------------- Ask iPerform (R7 Z)
+# The assistant CHOOSES which audited query to run and NARRATES the result —
+# it never computes a figure. Input guardrails run BEFORE routing (A9);
+# conversations persist to the graph with the local tier as fallback (A5).
+
+class AskBody(BaseModel):
+    text: str
+    conversation_id: str = ""
+    screen: dict | None = None    # screen-seeded context: advisor_sid, from_month, to_month, group_id
+    pinned: dict | None = None    # frozen context when the Pin control is on
+
+
+@router.post("/assistant/ask")
+def assistant_ask(body: AskBody):
+    from app.v2.assistant.service import AssistantService
+
+    return ok(data=AssistantService().ask(
+        body.text, body.conversation_id, body.screen, body.pinned))
+
+
+@router.get("/assistant/conversations")
+def assistant_conversations(advisor_id: str = "", days: int = -1):
+    """Rehydration list — last ASSISTANT_HISTORY_DAYS days unless overridden."""
+    from app.v2.assistant.store import AssistantStore
+
+    return ok(data=AssistantStore().conversations(
+        advisor_id, None if days < 0 else days))
+
+
+@router.get("/assistant/conversations/{conversation_id}")
+def assistant_conversation(conversation_id: str):
+    """Full transcript + the conversation header (restores last context)."""
+    from app.v2.assistant.store import AssistantStore
+
+    store = AssistantStore()
+    data = store.messages(conversation_id)
+    data["conversation"] = store.conversation(conversation_id) or {}
+    return ok(data=data)
+
+
+@router.get("/assistant/config")
+def assistant_config():
+    from app.config.settings import get_settings
+    from app.v2.assistant.providers import AssistantLLM
+    from app.v2.assistant.service import AssistantService
+
+    settings = get_settings()
+    svc = AssistantService()
+    ref = svc._reference()
+    return ok(data={
+        "history_days": settings.assistant_history_days,
+        "provider_chain": AssistantLLM().chain,
+        "month_ids": ref["month_ids"],
+        "month_names": ref["month_names"],
+        "advisor_count": len(ref["advisor_names"]),
+        "loaded_range": (f"{ref['month_names'][ref['month_ids'][0]]}–"
+                         f"{ref['month_names'][ref['month_ids'][-1]]}") if ref["month_ids"] else "",
+    })

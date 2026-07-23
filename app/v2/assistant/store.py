@@ -33,6 +33,14 @@ _log = get_logger("app.v2.assistant.store")
 
 DATA_SOURCE = "DERIVED"  # runtime artifacts computed by us over real/loaded data
 
+# Full column set for the conversation row. Empty-string attributes are
+# dropped by the upsert/read-back path, so rows are re-normalized before every
+# write to keep the record complete (ColumnMismatchError otherwise).
+_CONVERSATION_DEFAULTS = {
+    "conversation_id": "", "title": "", "created_at": "", "last_message_at": "",
+    "message_count": 0, "scope_json": "", "data_source": DATA_SOURCE,
+}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -115,8 +123,9 @@ class AssistantStore:
 
         conversation["message_count"] = seq
         conversation["last_message_at"] = _now()
-        self.upsert.upsert_vertex_rows("phx_dm_v2_conversation", [dict(conversation)], "conversation_id")
-        _csv_append(csv_file_for("vertex", "conversation"), [dict(conversation)])
+        row = {**_CONVERSATION_DEFAULTS, **conversation}
+        self.upsert.upsert_vertex_rows("phx_dm_v2_conversation", [row], "conversation_id")
+        _csv_append(csv_file_for("vertex", "conversation"), [row])
         return message
 
     # ------------------------------------------------------------ reads (catalogued queries)
@@ -125,7 +134,7 @@ class AssistantStore:
         """One conversation's header row, via the same catalogued list query."""
         for row in self.conversations(days=0)["conversations"]:
             if str(row.get("conversation_id")) == conversation_id:
-                return row
+                return {**_CONVERSATION_DEFAULTS, **row}
         return None
 
     def conversations(self, advisor_id: str = "", days: int | None = None,
