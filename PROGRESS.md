@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T11:25:00Z
-Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
-Resume from: — (all W-tasks DONE; work-stream A pending operator acceptance per docs/ROUND5_ACCEPTANCE.md)
+Last updated: 2026-07-23T12:00:00Z
+Current phase: ROUND 6 (FIX_SPEC_R6.md) — ATTRIBUTION CORRECTNESS + ANOMALY DETECTION
+Resume from: X-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -11,6 +11,7 @@ Resume from: — (all W-tasks DONE; work-stream A pending operator acceptance pe
 | 3 | 2026-07-22 | 2026-07-22 | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 all DONE; verify OVERALL PASS; 8/8 screens 0 console errors |
 | 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
 | 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
+| 6 | 2026-07-23 | | round 6 fresh start | FIX_SPEC_R6.md: attribution correctness (X-A), drop-script carry-over (X-B), anomaly detection (Y, gated on A) |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -145,6 +146,20 @@ Resume from: — (all W-tasks DONE; work-stream A pending operator acceptance pe
 | W-E1 | R5-E | sample data demoted to tests only | DONE | 53e2289 | sample demoted to test asset in SOLUTION_GUIDE + RUNBOOK + screen chip |
 | W-E2 | R5-E | all docs/verification path = DATA_SET=real; honest report split | DONE | f6d467d | real-data path throughout docs; BUILD_REPORT splits verified-here vs operator |
 | W-F1 | R5-F | ROUND5_CHANGED_FILES.md maintained per work-stream, git-derived, conflict flags | DONE | (this) | manifest updated after A, B, D, E+C; git-derived; renames + conflict flags listed |
+| X-A1 | R6-A | account-presence drivers gated to recurring-class groups | TODO | | |
+| X-A2 | R6-A | persistence rule (ACCOUNT_ABSENCE_MONTHS, default 2) for new/lost | TODO | | |
+| X-A3 | R6-A | BASELINE_LIMITED bounded + assertion \|BL\| ≤ \|total change\| | TODO | | |
+| X-A4 | R6-A | fixture reproducing the bug; automated checks; MIX <15% everywhere | TODO | | |
+| X-A5 | R6-A | docs + glossary updated to the precise rule | TODO | | |
+| X-B1 | R6-B | 90_drop_all.gsql corrected (queries→graph→reverse→forward→vertices), generated from schema | TODO | | |
+| X-B2 | R6-B | BUILD_REPORT note: generated GSQL is NEEDS-LIVE-VERIFICATION | TODO | | |
+| Y-1 | R6-Y | anomaly vertex/edges + scan vertex | TODO | | gated: start only after MIX <15% everywhere (X-A4) |
+| Y-2 | R6-Y | six detection rules, thresholds in config | TODO | | |
+| Y-3 | R6-Y | GQ queries + catalog + local-tier impls | TODO | | |
+| Y-4 | R6-Y | detection service, batch scan endpoint + CLI, additive scans | TODO | | |
+| Y-5 | R6-Y | anomaly narration via commentary_agent + guardrail | TODO | | |
+| Y-6 | R6-Y | /anomalies screen per mockup, empty state, thresholds visible | TODO | | |
+| Y-7 | R6-Y | per-rule fixtures; no-invented-figure assertion; additive re-scan verified | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
