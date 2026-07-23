@@ -899,3 +899,106 @@ per-rule fixtures cover those).
 **Pending OPERATOR acceptance:** live install of GQ-018/019 and the two new vertices /
 three edges; a scan against real data; thresholds review with the client (defaults are
 the spec's, deliberately un-tuned to sample data).
+
+## 13. Round 7 (FIX_SPEC_R7.md, 2026-07-23) — CONVERSATIONAL ASSISTANT ("Ask iPerform")
+
+**What was built.** The capability the client asked for by name: a chat assistant over
+the loaded revenue data. The governing principle is enforced end-to-end — **the
+assistant chooses which audited query to run and narrates the result; it never
+computes, estimates or infers a figure.** Every number in every answer is read from
+stored rows returned by catalogued GQ queries; selection/ordering/filtering is
+presentation. Commits (ordered): `c5846aa` progress · `57073c6` schema + persistence +
+GQ-020/021 · `adc3270` engine + API · `1377993` verification · `0f37a8a` UI ·
+(this commit) wrap.
+
+**Architecture (A-stream).**
+- **Persistence (Z-A1/A12):** `phx_dm_v2_conversation` + `phx_dm_v2_message`
+  (message extended with `guardrail_status`, `guardrail_json`), edges
+  `message_in_conversation` / `conversation_for_advisor` (nullable for cross-advisor).
+  Writes go through TigerGraphUpsertClient (graph = system of record) plus the
+  workflow-CSV local tier; reads via GQ-020/021 with `served_by_tier` recorded.
+  10-day rehydration window from `ASSISTANT_HISTORY_DAYS`.
+- **Providers (Z-A2):** `AssistantLLM` chain — primary `ASSISTANT_LLM_MODE`
+  (default: app `LLM_CLIENT_MODE`; cdao_openai primary in the client env, claude on
+  the build box), sequential fallback; a fallback that answers is WARNING-logged and
+  recorded in the message's `llm_provider` ("azure (after cdao_openai failed)").
+- **Routing (Z-A3/A4):** deterministic rule table FIRST — all ten A3 intents plus
+  follow-up inheritance ("what about May?"); entity extraction resolves months,
+  advisors and product groups against LOADED reference data only. Stage 2 is a
+  constrained LLM fallback that returns a structured `{query, params}` selection
+  validated against `query_catalog.json` — non-catalogued names and undeclared
+  params are rejected; the model never answers directly and never returns a figure.
+- **Context (Z-A5):** deterministic resolution, precedence question > pinned >
+  inherited > screen > defaults; each turn stores its resolved parameters; the chip
+  label is stored with the turn so context is visible on every answer; Pin freezes it.
+- **Facts only (Z-A7):** advice questions get the factual answer plus exactly one
+  deterministic limit sentence ("…recommendations aren't something I cover yet"),
+  appended after narration; the narrator never sees the advisory phrasing.
+- **Honesty (Z-A8):** unloaded month → `NO_DATA` naming the loaded range;
+  unroutable/non-domain → `OUT_OF_SCOPE`; guardrail rejection → `BLOCKED`. No gap is
+  ever filled from model knowledge.
+- **Numeric guardrail (Z-A9):** every narration is validated with the same
+  no-invented-figures check the anomaly wording uses (figures must appear in
+  `figures_json`; negatives parenthesised). A failing narration falls back to the
+  deterministic template (built only from stored figures); stored commentary is
+  quoted VERBATIM (validated at publication, never re-narrated).
+
+**Input/output guardrails (Z-A10/A11/A13) — the round's security gap, closed.**
+`app/guardrails/client.py` (V1 stack: prompt-injection, jailbreak, PII with
+Luhn-gated cards, toxicity, oversize) is now wired in front of the assistant:
+`check_input()` runs BEFORE routing, context resolution and any model call.
+Injection/jailbreak/toxicity/oversize BLOCK with `GuardrailService.neutral_refusal()`
+(new method; V1's `safe_refusal` untouched); PII is REDACTED before storage and
+before any provider — the verify script asserts the raw SSN/card/email/phone appears
+NOWHERE in persisted messages. Blocked turns stay VISIBLE in the transcript with the
+neutral ⛉ GUARDRAIL chip; `guardrail_json` stores `[{category, severity, action}]`
+only — never the matched text or rule. `check_output()` additionally screens the
+narrative for PII surfacing from data.
+
+**UI (B-stream).** One `AssistantPanel` component, two presentations: the overlay
+(420px right-edge float per `04_chat_overlay.png` — content keeps full width,
+persists across navigation, collapses to a floating button) and the full-page `/ask`
+(per `01_conversational_assistant.png` — grouped conversation rail, scope + tier
+pills). Rendering per rule 8a: AI Generated chip on wording ONLY; figures list and
+tables never AI-marked; `Ran: <queries>` monospace audit trail; Evidence › and
+deep links carry resolved parameters; loading/empty/error and all three A7 statuses
+render distinctly.
+
+**Verified HERE** (`scripts/verify_assistant.py` 84/84 OVERALL PASS +
+`scripts/verify_assistant_ui.mjs` 7/7): 27 routing fixtures incl. follow-ups; every
+number in every fixture answer present in `figures_json` (plus a negative control);
+3-turn context inheritance; NO_DATA/OUT_OF_SCOPE honesty; the advice pattern
+(exactly one limit sentence); persistence round-trip, rehydration with last context,
+10-day window; 12 adversarial + 4 false-positive guardrail fixtures with
+instrumentation proving blocked inputs never reach the router or an LLM; overlay
+persistence across navigation, collapse/expand, full-page sharing, guardrail chip —
+zero console errors. `validate_v2_queries.py` ALL CHECKS PASS (21 queries);
+`verify_end_to_end.py` OVERALL PASS (no regression). All of this is sample-set /
+local-tier / build-box-model evidence — **not** real-data verification.
+
+**Decisions taken (recorded, not hidden).**
+1. **ACCOUNT-number PII exemption:** the V1 PII scanner redacts "account <digits>"
+   references, but account numbers are this application's subject matter (rendered on
+   every screen, present in stored answers) and A11 explicitly requires "show me
+   account 83700968" to pass. The assistant gate drops `PII-ACCOUNT` findings (both
+   directions); SSN/card/email/phone/secrets remain enforced.
+2. **Refusal wording:** `safe_refusal()` (V1) names matched categories and lectures —
+   contrary to A9's "neutral and brief". Added `neutral_refusal()` to
+   GuardrailService with the spec's exact wording rather than changing V1 behaviour.
+3. **Narration failure → deterministic fallback, not BLOCKED:** A8 says BLOCK on
+   validation failure; the deterministic template is built exclusively from stored
+   figures, so substituting it (marked non-AI, LLM rejection logged) preserves "never
+   display an unvalidated answer" without turning a wording failure into a dead turn —
+   the same pattern Round 6 established for anomaly wording. BLOCKED is reserved for
+   guardrail rejections.
+4. **Cross-advisor totals are never summed:** an all-advisor revenue question lists
+   per-advisor stored figures instead of a computed sum — summation would create a
+   figure no query returned.
+5. **Verbatim stored commentary** is exempt from re-validation at answer time (it was
+   validated at publication; `verbatim_stored` recorded on the turn).
+
+**Pending OPERATOR acceptance** (`docs/ROUND7_ACCEPTANCE.md`): live install of the 2
+vertices / 2 edges / GQ-020-021 (GQ-020's datetime window needs a live syntax check);
+a real conversation against real data on tier 1; cdao confirmed as serving provider
+with a logged-fallback drill; the live guardrail probe; advisor-permission scoping
+remains DEFERRED (A1) and must be stated in any multi-user demo.

@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T21:00:00Z
-Current phase: ROUND 7 (FIX_SPEC_R7.md) — conversational assistant
-Resume from: Z-A1
+Last updated: 2026-07-23T23:30:00Z
+Current phase: ROUND 7 (FIX_SPEC_R7.md) — COMPLETE (operator acceptance pending: live schema/query install, real-data conversation, cdao provider confirmation)
+Resume from: — (all Z tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -12,7 +12,7 @@ Resume from: Z-A1
 | 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
 | 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
-| 7 | 2026-07-23 | | round 7 fresh start | FIX_SPEC_R7.md: Ask iPerform assistant, Z-A1..Z-C3 |
+| 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -174,12 +174,12 @@ Resume from: Z-A1
 | Z-A11 | R7 | blocked turns visible in transcript with GUARDRAIL chip; category+severity only | DONE | adc3270/(verify) | user msg renders, refusal + category/severity-only finding persisted |
 | Z-A12 | R7 | message vertex extended: guardrail_status, guardrail_json | DONE | 57073c6 | in DDL from the start; guardrail_json carries category/severity/action only |
 | Z-A13 | R7 | adversarial fixture set (~15) incl. false-positive checks | DONE | adc3270/(verify) | 12 adversarial + 4 false-positive fixtures, all PASS |
-| Z-B1 | R7 | overlay panel, persists across navigation, collapses to button | TODO | | |
-| Z-B2 | R7 | full-page view sharing the same component | TODO | | |
-| Z-B3 | R7 | answer rendering: AI chip on wording only, figures unmarked, Ran: trail, evidence links | TODO | | |
-| Z-C1 | R7 | scripts/verify_assistant.py — all seven checks | TODO | | |
-| Z-C2 | R7 | docs/ROUND7_ACCEPTANCE.md | TODO | | |
-| Z-C3 | R7 | docs/ROUND7_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| Z-B1 | R7 | overlay panel, persists across navigation, collapses to button | DONE | 0f37a8a | 420px overlay; persists across nav; collapses to iP button; History/expand/collapse header |
+| Z-B2 | R7 | full-page view sharing the same component | DONE | 0f37a8a | /ask full page, grouped rail; same AssistantPanel component, variant prop only |
+| Z-B3 | R7 | answer rendering: AI chip on wording only, figures unmarked, Ran: trail, evidence links | DONE | 0f37a8a | AI chip wording-only; figures unmarked; Ran: trail; evidence/deep links; GUARDRAIL chip |
+| Z-C1 | R7 | scripts/verify_assistant.py — all seven checks | DONE | 1377993/0f37a8a | verify_assistant.py 84/84 + verify_assistant_ui.mjs 7/7, zero console errors |
+| Z-C2 | R7 | docs/ROUND7_ACCEPTANCE.md | DONE | (wrap) | operator-only: live install, real conversation, cdao provider drill, guardrail probe |
+| Z-C3 | R7 | docs/ROUND7_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived per work-stream; conflict flags on v2.ts/v2-shell/manifest/.env.example |
 
 ## Decisions
 | When | Decision | Why |
@@ -211,6 +211,11 @@ Resume from: Z-A1
 | 2026-07-23 | R6: legacy_two_month_presence kept as an explicit TEST-ONLY parameter | verify_attribution proves the bug and the fix on the same fixture; documented never-in-production |
 | 2026-07-23 | R6: anomaly_id scan-prefixed, deviating from spec's advisor\|from\|to\|rule | un-prefixed ids made re-scans upsert over prior scans, breaking Y3's additivity; commentary ids embed version the same way |
 | 2026-07-23 | R6: sample anomaly scan001 committed as the stored demo scan | screen renders real stored data out of the box; re-scan adds scan002+ additively |
+| 2026-07-23 | R7: assistant gate drops PII-ACCOUNT findings (both directions) | account numbers are the app's subject matter; A11 requires "show me account 83700968" to pass; SSN/card/email/phone stay enforced |
+| 2026-07-23 | R7: added GuardrailService.neutral_refusal() instead of changing safe_refusal | A9 wording must be neutral/brief; V1 surfaces keep their existing message |
+| 2026-07-23 | R7: rejected narration falls back to the deterministic template (non-AI), not BLOCKED | template is built only from stored figures — unvalidated text still never displays; same pattern as R6 anomaly wording |
+| 2026-07-23 | R7: cross-advisor questions list per-advisor stored figures, never a computed sum | a sum would be a figure no query returned |
+| 2026-07-23 | R7: stored commentary quoted verbatim, exempt from answer-time re-validation | validated at publication (R5 judge + guardrail); re-narration would risk drift |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
