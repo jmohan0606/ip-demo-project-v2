@@ -147,7 +147,7 @@
         "account_no",
         "data_source"
       ],
-      "expected_rows": 30,
+      "expected_rows": 33,
       "workflow_generated": false
     },
     {
@@ -236,7 +236,7 @@
         "txn_id",
         "data_source"
       ],
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -290,7 +290,7 @@
         "balance_id",
         "data_source"
       ],
-      "expected_rows": 90,
+      "expected_rows": 99,
       "workflow_generated": false
     },
     {
@@ -341,7 +341,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 90,
+      "expected_rows": 92,
       "workflow_generated": false
     },
     {
@@ -502,7 +502,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -515,7 +515,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -528,7 +528,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -541,7 +541,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -554,7 +554,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 223,
+      "expected_rows": 229,
       "workflow_generated": false
     },
     {
@@ -606,7 +606,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 90,
+      "expected_rows": 99,
       "workflow_generated": false
     },
     {
@@ -619,7 +619,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 90,
+      "expected_rows": 99,
       "workflow_generated": false
     },
     {
@@ -684,7 +684,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 90,
+      "expected_rows": 92,
       "workflow_generated": false
     },
     {
@@ -697,7 +697,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 90,
+      "expected_rows": 92,
       "workflow_generated": false
     },
     {
@@ -710,7 +710,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 78,
+      "expected_rows": 80,
       "workflow_generated": false
     },
     {

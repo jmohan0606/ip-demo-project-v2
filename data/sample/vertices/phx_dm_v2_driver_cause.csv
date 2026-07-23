@@ -9,9 +9,9 @@ FEE_RATE,Effective fee rate,Change in client_rate_bps / std_tier_rate,REAL,7,REA
 DISCOUNT,Discounting,Change in concession_type / discount_amt / eff_disc_pct,REAL,8,REAL
 BILLABLE_DAYS,Billable days,Different number of billing days between months,DERIVED,9,REAL
 MIX,Product mix,Shift between products at different rates,DERIVED,10,REAL
-NEW_ACCOUNT,Accounts opened,Accounts contributing this month but not last,REAL,11,REAL
-LOST_ACCOUNT,Accounts closed,Accounts contributing last month but not this,REAL,12,REAL
+NEW_ACCOUNT,Accounts opened,Accounts in recurring product lines with billing activity after ACCOUNT_ABSENCE_MONTHS consecutive months of none,REAL,11,REAL
+LOST_ACCOUNT,Accounts closed,Accounts in recurring product lines with no billing activity for ACCOUNT_ABSENCE_MONTHS consecutive months,REAL,12,REAL
 CLAWBACK,Reversals,Negative credited amounts (chargebacks),REAL,13,REAL
 MARKET,Market performance,Asset value movement,DUMMY,14,REAL
 NET_FLOW,Net client flows,Inflows less outflows,DUMMY,15,REAL
-BASELINE_LIMITED,Baseline period limit,First period in the loaded data — account-level attribution requires a prior period,DERIVED,16,REAL
+BASELINE_LIMITED,Baseline period limit,Recurring-line account movement the loaded data cannot classify — too few months before/after the transition to apply the account-presence test,DERIVED,16,REAL

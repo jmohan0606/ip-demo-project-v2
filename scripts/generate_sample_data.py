@@ -5,9 +5,17 @@ Writes data/sample/{vertices,edges}/*.csv and the ingestion manifest
 OBVIOUSLY synthetic: 3 advisors named "Sample Advisor One/Two/Three", ids
 SMPL001..003, months Apr/May/Jun 2026.
 
-The transaction set is engineered so every driver cause is exercised:
-  NEW_ACCOUNT   SMPL001 account SMPLACCT-1109 first contributes in Jun
-  LOST_ACCOUNT  SMPL001 account SMPLACCT-1104 stops after May (Apr->May is baseline-limited)
+The transaction set is engineered so every driver cause is exercised (R6: the
+account-presence rule is now "recurring-class groups only, after
+ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
+  NEW_ACCOUNT   SMPLACCT-x109 first contributes in Jun (quiet Apr+May confirmed)
+                -> fires on May->Jun
+  LOST_ACCOUNT  SMPLACCT-x110 contributes ONLY in April (quiet May+Jun confirmed)
+                -> fires on Apr->May
+  BASELINE_LIMITED SMPLACCT-x104 stops after May; only one loaded month follows,
+                so the 2-month absence test cannot be evaluated -> May->Jun
+  (persistence proof) SMPLACCT-x111 skips May and returns in Jun — intermittent,
+                NOT lost and NOT new; no account driver may fire for it
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
   ELIGIBILITY   SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
                 household) in Jun — revenue moves credited -> non-credited
@@ -188,9 +196,12 @@ def build_transactions() -> list[dict]:
     for ai, adv in enumerate(("SMPL001", "SMPL002", "SMPL003"), start=1):
         base = ai * 1000
         accounts = [f"SMPLACCT-{base + i}" for i in range(101, 109)]
-        lost = f"SMPLACCT-{base + 104}"       # stops after May (R5 D1: Apr->May is
-        # baseline-limited, so the LOST_ACCOUNT story must fire on May->Jun)
-        new = f"SMPLACCT-{base + 109}"        # first contributes Jun
+        # R6: stops after May — with only ONE loaded month following, the
+        # 2-month absence test cannot be evaluated, so this is the
+        # BASELINE_LIMITED story (fires on May->Jun), NOT a lost account.
+        bl_lost = f"SMPLACCT-{base + 104}"
+        new = f"SMPLACCT-{base + 109}"        # first contributes Jun; quiet
+        # Apr+May are both loaded, so NEW_ACCOUNT is confirmed on May->Jun
         small_household = f"SMPLACCT-{base + 103}"  # SMPL001: goes 9E in Jun
         for m in MONTHS:
             days = BILLABLE_DAYS[m]
@@ -198,7 +209,7 @@ def build_transactions() -> list[dict]:
             # SMPL002 rate steps 82 -> 88 bps in Jun (FEE_RATE).
             rate = 88.0 if (adv == "SMPL002" and m == "202606") else 82.0
             for acct in accounts[:4]:
-                if acct == lost and m == "202606":
+                if acct == bl_lost and m == "202606":
                     continue
                 fee = round((5200 + ai * 700 + int(acct[-1]) * 130) * days / 22 * rate / 82.0, 2)
                 disc = 0.0
@@ -219,13 +230,23 @@ def build_transactions() -> list[dict]:
             if new and m == "202606":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", new, 28,
                                     round(4100 + ai * 350, 2), rate_bps=rate, file_key="ace"))
-            # R5 D1 — BASELINE_LIMITED story: an account contributing ONLY in
-            # April (the baseline month). With no prior period, its Apr->May
-            # disappearance cannot honestly be called a lost account; the
-            # attribution routes it to BASELINE_LIMITED on that transition.
+            # R6 — LOST_ACCOUNT story: an account contributing ONLY in April.
+            # Both following loaded months (May, Jun) are quiet, so the 2-month
+            # absence test CONFIRMS it lost on the Apr->May transition.
+            # (For SMPL002 this account also carries the steady 9G trail below,
+            # so it stays active and no account driver fires — intentional.)
             if m == "202604":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", f"SMPLACCT-{base + 110}", 15,
                                     round(1200 + ai * 400, 2), rate_bps=82.0, file_key="ace"))
+            # R6 A2 persistence proof: an account that skips May and returns in
+            # June is ordinary intermittency — NOT lost on Apr->May (activity in
+            # Jun is inside the 2-month absence window) and NOT new on May->Jun
+            # (activity in Apr is inside the look-back window). Its movement
+            # stays with the group's other drivers/MIX; the amount is kept small
+            # so the MIX share stays under the 15% gate.
+            if m != "202605":
+                txns.append(_mk_txn(adv, m, "UMA|FEE", f"SMPLACCT-{base + 111}", 18,
+                                    round(420 + ai * 60, 2), rate_bps=82.0, file_key="ace"))
             # 90-day rule (LATE_PROCESSING driver, FIX_SPEC_R3 T1-1): SMPL003
             # carries a 900 UMA fee all three months. April's instance processed
             # 100 days late (in Total, excluded from Credited); May and June
@@ -335,6 +356,8 @@ def main() -> int:
     print("eligibility mix:", summary["split_sizes"])
     print("reconciliation:", json.dumps(summary["report"]["transitions"], indent=2)[:400], "…")
     print("MIX share:", json.dumps(summary["mix_share"], indent=2))
+    print(f"account presence (ACCOUNT_ABSENCE_MONTHS={summary['absence_months']}):",
+          json.dumps(summary["account_presence"], indent=2))
     print("causes exercised:", sorted({d["cause_id"] for d in summary["drivers"]}))
     return 0
 
