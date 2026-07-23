@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T00:00:00Z
+Last updated: 2026-07-23T10:40:00Z
 Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
-Resume from: W-A1
+Resume from: W-B1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -121,15 +121,15 @@ Resume from: W-A1
 | S-B4 | R4-B | .env.example fully populated; cross-checked vs settings.py | DONE | f2efd02 | V2 template; 128/128 settings keys present (programmatic cross-check) |
 | S-B5 | R4-B | SOLUTION_GUIDE Chapter 9 operations runbook (numbered, exact) | DONE | 84f94c4 | 9 numbered steps w/ commands, expected output, failure+first-check; headless CLI added to generation_workflow (__main__) and proven |
 | S-B6 | R4-B | Prove real pipeline locally with test fixtures; document proven-vs-pending | DONE | (this) | fixtures→build→tier-2 load→recon $0.00→headless commentary v1 all proven; BUILD_REPORT §10 records proven-vs-client-machine table |
-| W-A1 | R5-A | attribute-drop fix: pre-flight column validation, absent≠empty, zero-attr assert | TODO | | |
-| W-A2 | R5-A | CSV quoting correct on every read/write path incl. manual upload | TODO | | |
-| W-A3 | R5-A | write CSVs with LF; readers BOM-tolerant | TODO | | |
-| W-A4 | R5-A | checkpoint only after confirmed write; failures marked FAILED, no hashes | TODO | | |
-| W-A5 | R5-A | screen source of truth = graph count + attribute validation | TODO | | |
-| W-A6 | R5-A | delete-one / delete-all: guarded, non-aborting, CORS-safe errors | TODO | | |
-| W-A7 | R5-A | absolute path resolution + startup logging of resolved paths | TODO | | |
-| W-A8 | R5-A | 90_drop_all.gsql + clear-checkpoints endpoint + runbook procedure | TODO | | |
-| W-A9 | R5-A | A9a fixture verification gate passed; A9b operator acceptance doc written | TODO | | |
+| W-A1 | R5-A | attribute-drop fix: pre-flight column validation, absent≠empty, zero-attr assert | DONE | 0f64509 | shared fail-loud mapper all tiers + exact pre-flight header validation |
+| W-A2 | R5-A | CSV quoting correct on every read/write path incl. manual upload | DONE | 8ea3140 | csv module everywhere; comma+quote+newline round-trip proven; no naive split existed |
+| W-A3 | R5-A | write CSVs with LF; readers BOM-tolerant | DONE | 8ea3140 | LF on all writers; utf-8-sig readers; csv-aware counting |
+| W-A4 | R5-A | checkpoint only after confirmed write; failures marked FAILED, no hashes | DONE | 23fe017 | hashes/tallies only after confirmed flush; fallback-tier write fails batch; retry-not-skip proven |
+| W-A5 | R5-A | screen source of truth = graph count + attribute validation | DONE | e1f9b06 | fetch_vertices all tiers; GET /ingestion/validation w/ W11 states |
+| W-A6 | R5-A | delete-one / delete-all: guarded, non-aborting, CORS-safe errors | DONE | feb169d | guarded non-aborting deletes; CORS-safe 500s w/ real message |
+| W-A7 | R5-A | absolute path resolution + startup logging of resolved paths | DONE | 971235f | APP_ROOT anchoring; startup log + env-health resolved_paths |
+| W-A8 | R5-A | 90_drop_all.gsql + clear-checkpoints endpoint + runbook procedure | DONE | 6d8a6ef | 90_drop_all.gsql; clear-checkpoints endpoint; RUNBOOK Step 10 |
+| W-A9 | R5-A | A9a fixture verification gate passed; A9b operator acceptance doc written | DONE | 4bdc43d | A9a 25/25 PASS (local tier + fixtures); A9b ROUND5_ACCEPTANCE.md written — pending operator acceptance |
 | W-B1 | R5-B | screen: live per-entity progress during Run All | TODO | | |
 | W-B2 | R5-B | screen: async status refresh without blocking/restarting the run | TODO | | |
 | W-B3 | R5-B | screen: batch size visible + configurable | TODO | | |
