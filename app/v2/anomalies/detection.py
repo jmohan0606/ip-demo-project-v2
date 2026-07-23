@@ -393,10 +393,13 @@ def _scan(notes: str = "") -> dict:
             fired.extend(rule_fee_rate_shift(ctx))
 
             for hit in fired:
-                # Primary-id format per spec: advisor|from|to|rule; group-scoped
-                # rules (FEE_RATE_SHIFT) append the group so two groups firing
-                # the same rule cannot collide (recorded in BUILD_REPORT).
-                anomaly_id = f"{advisor}|{from_m}|{to_m}|{hit['rule_id']}"
+                # Primary id: the spec's advisor|from|to|rule, PREFIXED with the
+                # scan id (exactly as commentary ids embed their version) —
+                # without it a re-scan would upsert over the prior scan's rows
+                # and scans would not be additive. Group-scoped rules append
+                # the group so two groups firing the same rule cannot collide.
+                # Both deviations recorded in BUILD_REPORT.
+                anomaly_id = f"{scan_id}|{advisor}|{from_m}|{to_m}|{hit['rule_id']}"
                 if hit["group_id"]:
                     anomaly_id += f"|{hit['group_id']}"
                 wording = narrate_anomaly(hit["rule_id"], hit["metrics"], thresholds, llm)
