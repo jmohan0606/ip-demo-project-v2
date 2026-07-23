@@ -670,3 +670,92 @@ middle between the human-run extraction SQLs and `data/real/`.
 ae7dd90 S-A4 compare-two guard · c7d5fb8 S-A5 sweep 13/13 zero errors ·
 c23dbe5 shared builder + provenance · a095acd real-data builder + fixtures ·
 f2efd02 .env.example 128/128 · 84f94c4 runbook + headless CLI · (this) report
+
+## 11. Round 5 (FIX_SPEC_R5.md, 2026-07-23) — INGESTION RESCUE
+
+The first real load against live TigerGraph exposed that ingestion reported success
+while writing nothing: attributes silently dropped (id-only vertices), checkpoints
+recorded success for writes that never landed (then hash-skipped forever as
+"Unchanged"), and delete/reset paths threw 500s whose missing CORS headers masked
+the real errors. This round made ingestion trustworthy.
+
+### Commits (in order)
+
+| Commit | What |
+|---|---|
+| d98d825 | W-tasks appended to PROGRESS; round-5 session record |
+| 0f64509 | W-A1 attribute drop impossible: shared fail-loud mapper (all tiers) + exact pre-flight header validation |
+| 23fe017 | W-A4 checkpoint honesty: hashes/tallies only after confirmed flush; fallback-tier write fails the batch |
+| 8ea3140 | W-A2/A3 CSV correctness: LF everywhere, BOM-tolerant reads, csv-aware counting |
+| feb169d | W-A6 deletes guarded + non-aborting; CORS-safe JSON 500s with the real message |
+| 971235f | W-A7 repo-root path anchoring (.env, SQLite, data dir, manifest, logs) + startup logging + env-health resolved_paths |
+| 3d5bd3c/6d8a6ef | W-A8 90_drop_all.gsql + POST /ingestion/clear-checkpoints + RUNBOOK Step 10 clean-slate |
+| e1f9b06 | W-A5 graph-truth validation: fetch_vertices on every tier; GET /ingestion/validation (VALIDATED/EMPTY_ATTRS/MISMATCH/NOT_LOADED/UNVERIFIABLE) |
+| 4bdc43d | W-A9 fixture harness (data/fixtures, gitignored) + verify_ingestion_fixes.py 25/25 PASS + docs/ROUND5_ACCEPTANCE.md |
+| a5fc7c3, d82494c | W-B1..B7 ingestion screen rebuilt: validation column, live n/45 progress, async polling, batch-size override, persisted errors + remediation, skip-and-continue summary |
+| 71b78c5 | W-D1..D3 baseline month: BASELINE_LIMITED driver, commentary guard, UI note; sample v13; MIX ≤6.2%, recon $0.00 |
+| 53e2289, f6d467d | W-E1/E2 real data is the only demo path; sample demoted to test asset; §10.12 streaming next-step |
+| 3f849fb | W-C1/C2 CSVs named after their vertex/edge type; csv_file_for() is the single naming catalog |
+
+### VERIFIED HERE (local tier + real-shaped fixtures — NOT a real-data verification)
+
+All via `scripts/verify_ingestion_fixes.py` (25/25 PASS after every work-stream) plus
+targeted checks:
+
+1. Attribute integrity — stored rows carry populated non-PK attributes, never id-only.
+2. Fail-loud mismatch — a renamed column fails the entity naming missing AND extra columns; nothing written; error persisted with remediation.
+3. Quoting — a value with comma + quote + newline round-trips into the right columns; empty optional values load.
+4. LF + BOM — writers emit LF only; a BOM-prefixed file parses cleanly.
+5. Checkpoint honesty — real mode with the engine unreachable: batch FAILED, 0 hashes, 0 created; reload RETRIES (does not skip); a write served by the mock fallback tier fails the batch with remediation.
+6. Screen truth — /ingestion/validation detects VALIDATED, MISMATCH (count drift AND checkpoint-vs-graph conflict) and EMPTY_ATTRS (id-only rows) from actual stored rows.
+7. Deletes — delete-one/-all never raise; delete-all continues past an injected failure (44 deleted, 1 reported); 500s carry CORS headers + real message.
+8. Paths — all resolved paths absolute and launch-dir independent (verified from cwd=/).
+9. Idempotency — full load twice: identical counts, second run all-skipped, no false skips.
+
+Also: end-to-end suite OVERALL PASS (reconciliation $0.00 every transition, MIX ≤6.2%
+< 15% incl. the first transition, all 16 causes incl. BASELINE_LIMITED), query
+validation ALL PASS, frontend typechecks, screens verified headless with zero console
+errors (ingestion: 45 rows, 45 VALIDATED pills, run-all to completion; AI-insights:
+baseline note on the Apr→May card).
+
+### REQUIRES OPERATOR ACCEPTANCE (live TigerGraph, real data — NOT run here)
+
+The build environment has no TigerGraph and no client data (`data/real/` gitignored).
+`docs/ROUND5_ACCEPTANCE.md` is the numbered checklist: drop/recreate schema, clear
+checkpoints (confirm resolved DB path), build_real_data (recon $0.00, first-transition
+MIX < 15% with BASELINE_LIMITED), Run All to all-45-VALIDATED, GSQL spot-check of
+populated attributes, delete-one/-all without 500, idempotent re-run. Work-stream A is
+DONE **pending operator acceptance** of exactly those steps.
+
+### Decisions taken
+
+- A write served by the local fallback tier while GRAPH_CLIENT_MODE is a real mode now
+  FAILS the batch (this was the root of "created=2, 100%, graph empty" — the tiered
+  fallback made a lost write look successful).
+- Delete failure keeps the entity's checkpoints (state stays consistent with the graph);
+  only a confirmed delete clears them.
+- Zero-attribute records refuse to write even when the header matched (all-empty row) —
+  per spec A1.3; a legitimately all-blank optional row is treated as a data defect.
+- Sample's LOST_ACCOUNT story moved to May→Jun and a new Apr-only account added, so both
+  LOST_ACCOUNT and BASELINE_LIMITED stay exercised after D1 (Apr→May is baseline-limited).
+- verify_end_to_end's cause assertion updated 15→16: it asserted the pre-D1 cause model.
+- Sample CSVs renamed via git mv BEFORE regeneration so commentary history v1–v13
+  survived the C1 renaming.
+
+### Known gaps
+
+- The MCP tier's `fetch_vertices` uses the `get_nodes` tool name; if a given
+  tigergraph-mcp version does not expose it, validation sampling falls through to the
+  pyTigerGraph tier (by design) — unverifiable here.
+- Attribute validation samples N=5 rows per vertex type; edge entities (no declared
+  attribute columns) validate on count only.
+- Streaming ingestion for multi-million-row loads deliberately deferred
+  (SOLUTION_GUIDE §10.12).
+- LOST_ACCOUNT + BASELINE_LIMITED interplay on real data (10 advisors) is exactly what
+  ROUND5_ACCEPTANCE step 3 checks — MIX < 15% on the first transition must be confirmed
+  on real data, not only on sample.
+
+### File-change manifest
+
+`docs/ROUND5_CHANGED_FILES.md` — git-derived per work-stream, with operator-local
+exclusions, conflict-risk flags, and the full C1 rename list.

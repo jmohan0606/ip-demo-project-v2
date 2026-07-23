@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T10:40:00Z
+Last updated: 2026-07-23T11:25:00Z
 Current phase: ROUND 5 (FIX_SPEC_R5.md) — INGESTION RESCUE
-Resume from: W-E1
+Resume from: — (all W-tasks DONE; work-stream A pending operator acceptance per docs/ROUND5_ACCEPTANCE.md)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -10,7 +10,7 @@ Resume from: W-E1
 | 2 | 2026-07-21 | 2026-07-21 | round 2 fresh start | FIX_SPEC.md round: R1..R9 |
 | 3 | 2026-07-22 | 2026-07-22 | round 3 fresh start | FIX_SPEC_R3.md: T1..T8 all DONE; verify OVERALL PASS; 8/8 screens 0 console errors |
 | 4 | 2026-07-22 | 2026-07-22 | round 4 fresh start | FIX_SPEC_R4.md: S-A1..A5 + S-B1..B6 all DONE; 13/13 shots 0 console errors; real pipeline proven on local tier; verify OVERALL PASS |
-| 5 | 2026-07-23 | | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: W-A → W-B → W-C → W-D → W-E |
+| 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -137,14 +137,14 @@ Resume from: W-E1
 | W-B5 | R5-B | screen: skip-and-continue + end-of-run remediation summary | DONE | (this) | run continues past failures; end-of-run remediation summary panel |
 | W-B6 | R5-B | screen: validation proof column (graph count, attr check, state, timestamp) | DONE | (this) | validation proof column from GET /ingestion/validation |
 | W-B7 | R5-B | scale: chunked processing, resumable checkpoints, no full-file materialisation | DONE | (this) | chunked batches + resumable checkpoints + streaming DictReader; streaming-at-scale recorded for SOLUTION_GUIDE next steps (E) |
-| W-C1 | R5-C | real CSVs named after vertex/edge type | TODO | | |
-| W-C2 | R5-C | single catalog for target↔file↔columns; all consumers updated | TODO | | |
+| W-C1 | R5-C | real CSVs named after vertex/edge type | DONE | 3f849fb | 45 CSVs renamed to typed names via git mv; history preserved |
+| W-C2 | R5-C | single catalog for target↔file↔columns; all consumers updated | DONE | 3f849fb | csv_file_for() single catalog; manifest/workflow/scripts consume; grep-verified |
 | W-D1 | R5-D | baseline-month concept + BASELINE_LIMITED driver | DONE | (this) | BASELINE_LIMITED driver; baseline month from data; NEW/LOST skipped out of baseline |
 | W-D2 | R5-D | baseline note in UI + commentary guard | DONE | (this) | prompt+fallback guard; card note on earliest transition; glossary+evidence panels |
 | W-D3 | R5-D | MIX <15% on first transition; reconciliation $0.00 | DONE | (this) | MIX <=6.2% first transition; recon $0.00; 16 causes; v13 published; verify PASS |
-| W-E1 | R5-E | sample data demoted to tests only | TODO | | |
-| W-E2 | R5-E | all docs/verification path = DATA_SET=real; honest report split | TODO | | |
-| W-F1 | R5-F | ROUND5_CHANGED_FILES.md maintained per work-stream, git-derived, conflict flags | TODO | | |
+| W-E1 | R5-E | sample data demoted to tests only | DONE | 53e2289 | sample demoted to test asset in SOLUTION_GUIDE + RUNBOOK + screen chip |
+| W-E2 | R5-E | all docs/verification path = DATA_SET=real; honest report split | DONE | f6d467d | real-data path throughout docs; BUILD_REPORT splits verified-here vs operator |
+| W-F1 | R5-F | ROUND5_CHANGED_FILES.md maintained per work-stream, git-derived, conflict flags | DONE | (this) | manifest updated after A, B, D, E+C; git-derived; renames + conflict flags listed |
 
 ## Decisions
 | When | Decision | Why |
@@ -166,6 +166,12 @@ Resume from: W-E1
 | 2026-07-22 | Shared ingestion manifest reflects the ACTIVE data set; repo keeps sample scope | build_real_data.py rewrites it with real counts on the client machine; after the local fixture proof the sample manifest was regenerated so the committed state stays sample-scoped |
 | 2026-07-22 | Real product_name = "product_cd sub_cd"; account_typ/wrap_flg blank; blank advisor names -> id shown | The extracts carry no display names/types — never invent data (CLAUDE.md §11) |
 | 2026-07-22 | Fixture GENERATOR committed (make_test_raw_extracts.py); fixture DATA gitignored under data/real/_raw | Reviewers can reproduce the B6 proof; FIX_SPEC_R4 forbids committing anything under data/real/ |
+
+| 2026-07-23 | Fallback-tier write in real mode FAILS the batch | root cause of 'created=2, graph empty' — a lost write must never checkpoint as success |
+| 2026-07-23 | Failed delete keeps the entity's checkpoints | screen state must stay consistent with the graph |
+| 2026-07-23 | Sample LOST_ACCOUNT story moved to May->Jun + Apr-only account added | Apr->May is baseline-limited after D1; both causes must stay exercised |
+| 2026-07-23 | verify_end_to_end cause check 15->16 | script asserted the pre-D1 cause model (old behaviour), per W14 |
+| 2026-07-23 | Sample CSVs git-mv'd BEFORE regeneration (C1) | preserve_or_create looks for new names; renaming first kept commentary v1-v13 history |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |

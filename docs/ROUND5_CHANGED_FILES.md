@@ -1,5 +1,5 @@
 # Round 5 — Changed Files
-Generated: 2026-07-23T10:35:00Z   Base commit: ea57f3c (before round 5)   Head: (work-stream B) — see git log
+Generated: 2026-07-23T11:20:00Z   Base commit: ea57f3c (before round 5)   Head: work-streams A+B+D+E+C complete — `git diff --name-status -M ea57f3c..HEAD` is the authority
 
 Derived from `git diff --name-status ea57f3c..HEAD` — updated after each
 work-stream's commit. The operator copies files from this list literally into the
@@ -53,6 +53,16 @@ client environment; nothing outside it changed.
 | scripts/generate_sample_data.py | MODIFIED | D3 Apr-only account story; lost-account story moved to May->Jun |
 | scripts/verify_end_to_end.py | MODIFIED | D3 cause check 15 -> 16 (asserting the new cause model, not old broken behaviour) |
 
+### Backend / docs (work-streams E + C)
+| File | Change | Why |
+|---|---|---|
+| app/v2/dataset/builder.py | MODIFIED | C2 csv_file_for() single naming catalog; all writes + manifest use it |
+| app/v2/commentary/generation_workflow.py | MODIFIED | C2 workflow CSVs named via the catalog |
+| docs/tigergraph_foundation/data/manifest.json | MODIFIED (regenerated) | C1 typed file names, D3 counts |
+| docs/SOLUTION_GUIDE.md | MODIFIED | E1/E2 real-data-only rule; §10.12 streaming next-step; C file mentions |
+| RUNBOOK.md | MODIFIED | E2 real-data-only + fixture-harness proof + Step 6 endpoints/VALIDATED |
+| BUILD_REPORT.md | MODIFIED | Round 5 section (verified-here vs operator-acceptance split) |
+
 ### Scripts / schema / docs
 | File | Change | Why |
 |---|---|---|
@@ -87,8 +97,58 @@ These commonly differ in the client environment; copying them would overwrite lo
 ## New directories to create
 - data/fixtures/  (gitignored — do NOT copy contents; regenerate locally if wanted)
 
-## Deletions / renames
-- (none in work-stream A)
+## Deletions / renames (work-stream C — the operator MUST apply these, or stale
+files keep being loaded; use `git mv` equivalents or delete-old + copy-new)
+
+All 45 `data/sample/` CSVs renamed to carry their vertex/edge type
+(`vertices/advisor.csv` → `vertices/phx_dm_v2_advisor.csv`, etc.). In the client
+environment the same renaming applies to **data/real/** after re-running
+`python scripts/build_real_data.py` (it now writes the typed names; delete the
+old-named files afterwards). Full sample rename list from git:
+
+- `data/sample/edges/balance_for_account.csv` → `data/sample/edges/phx_dm_v2_balance_for_account.csv`
+- `data/sample/edges/balance_in_month.csv` → `data/sample/edges/phx_dm_v2_balance_in_month.csv`
+- `data/sample/edges/change_for_advisor.csv` → `data/sample/edges/phx_dm_v2_change_for_advisor.csv`
+- `data/sample/edges/change_for_group.csv` → `data/sample/edges/phx_dm_v2_change_for_group.csv`
+- `data/sample/edges/change_from_month.csv` → `data/sample/edges/phx_dm_v2_change_from_month.csv`
+- `data/sample/edges/change_to_month.csv` → `data/sample/edges/phx_dm_v2_change_to_month.csv`
+- `data/sample/edges/commentary_cites_driver.csv` → `data/sample/edges/phx_dm_v2_commentary_cites_driver.csv`
+- `data/sample/edges/commentary_for_advisor.csv` → `data/sample/edges/phx_dm_v2_commentary_for_advisor.csv`
+- `data/sample/edges/commentary_from_month.csv` → `data/sample/edges/phx_dm_v2_commentary_from_month.csv`
+- `data/sample/edges/commentary_in_version.csv` → `data/sample/edges/phx_dm_v2_commentary_in_version.csv`
+- `data/sample/edges/commentary_to_month.csv` → `data/sample/edges/phx_dm_v2_commentary_to_month.csv`
+- `data/sample/edges/driver_for_group.csv` → `data/sample/edges/phx_dm_v2_driver_for_group.csv`
+- `data/sample/edges/driver_has_cause.csv` → `data/sample/edges/phx_dm_v2_driver_has_cause.csv`
+- `data/sample/edges/driver_of_change.csv` → `data/sample/edges/phx_dm_v2_driver_of_change.csv`
+- `data/sample/edges/evaluation_of_commentary.csv` → `data/sample/edges/phx_dm_v2_evaluation_of_commentary.csv`
+- `data/sample/edges/evidence_for_driver.csv` → `data/sample/edges/phx_dm_v2_evidence_for_driver.csv`
+- `data/sample/edges/group_in_line.csv` → `data/sample/edges/phx_dm_v2_group_in_line.csv`
+- `data/sample/edges/line_in_class.csv` → `data/sample/edges/phx_dm_v2_line_in_class.csv`
+- `data/sample/edges/mpr_for_advisor.csv` → `data/sample/edges/phx_dm_v2_mpr_for_advisor.csv`
+- `data/sample/edges/mpr_for_group.csv` → `data/sample/edges/phx_dm_v2_mpr_for_group.csv`
+- `data/sample/edges/mpr_in_month.csv` → `data/sample/edges/phx_dm_v2_mpr_in_month.csv`
+- `data/sample/edges/product_in_group.csv` → `data/sample/edges/phx_dm_v2_product_in_group.csv`
+- `data/sample/edges/txn_for_advisor.csv` → `data/sample/edges/phx_dm_v2_txn_for_advisor.csv`
+- `data/sample/edges/txn_has_reason.csv` → `data/sample/edges/phx_dm_v2_txn_has_reason.csv`
+- `data/sample/edges/txn_in_month.csv` → `data/sample/edges/phx_dm_v2_txn_in_month.csv`
+- `data/sample/vertices/account.csv` → `data/sample/vertices/phx_dm_v2_account.csv`
+- `data/sample/vertices/account_month_balance.csv` → `data/sample/vertices/phx_dm_v2_account_month_balance.csv`
+- `data/sample/vertices/advisor.csv` → `data/sample/vertices/phx_dm_v2_advisor.csv`
+- `data/sample/vertices/commentary.csv` → `data/sample/vertices/phx_dm_v2_commentary.csv`
+- `data/sample/vertices/commentary_evaluation.csv` → `data/sample/vertices/phx_dm_v2_commentary_evaluation.csv`
+- `data/sample/vertices/commentary_version.csv` → `data/sample/vertices/phx_dm_v2_commentary_version.csv`
+- `data/sample/vertices/driver_cause.csv` → `data/sample/vertices/phx_dm_v2_driver_cause.csv`
+- `data/sample/vertices/evidence.csv` → `data/sample/vertices/phx_dm_v2_evidence.csv`
+- `data/sample/vertices/month.csv` → `data/sample/vertices/phx_dm_v2_month.csv`
+- `data/sample/vertices/monthly_product_revenue.csv` → `data/sample/vertices/phx_dm_v2_monthly_product_revenue.csv`
+- `data/sample/vertices/product.csv` → `data/sample/vertices/phx_dm_v2_product.csv`
+- `data/sample/vertices/product_group.csv` → `data/sample/vertices/phx_dm_v2_product_group.csv`
+- `data/sample/vertices/product_line.csv` → `data/sample/vertices/phx_dm_v2_product_line.csv`
+- `data/sample/vertices/reason_code.csv` → `data/sample/vertices/phx_dm_v2_reason_code.csv`
+- `data/sample/vertices/revenue_change.csv` → `data/sample/vertices/phx_dm_v2_revenue_change.csv`
+- `data/sample/vertices/revenue_class.csv` → `data/sample/vertices/phx_dm_v2_revenue_class.csv`
+- `data/sample/vertices/revenue_driver.csv` → `data/sample/vertices/phx_dm_v2_revenue_driver.csv`
+- `data/sample/vertices/revenue_transaction.csv` → `data/sample/vertices/phx_dm_v2_revenue_transaction.csv`
 
 ## Post-copy steps
 1. Restart the backend and confirm the startup log line `Resolved paths:` shows the
