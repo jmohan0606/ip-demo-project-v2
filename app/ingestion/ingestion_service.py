@@ -140,6 +140,8 @@ class IngestionService:
         pending_rows: list[dict] = []
         pending_hashes: list[tuple[str, str]] = []
         pending_first_row: list[int] = []  # row number of the first unflushed row
+        pending_actions: list[DeltaAction] = []  # per pending row: CREATE or UPDATE
+        pending_result_idx: list[int] = []  # index into results[] for each pending row
 
         def _record_pk(record: dict) -> str:
             if is_edge:
@@ -147,8 +149,10 @@ class IngestionService:
             return record.get(config.primary_key, "")
 
         def _flush_writes() -> None:
-            """Push the accumulated rows to the graph in ONE adapter call, then
-            persist their hashes in one transaction."""
+            """Push the accumulated rows to the graph in ONE adapter call, then —
+            ONLY after the graph confirmed the write — persist their hashes and add
+            them to the created/updated tallies (Round 5 A4: a checkpoint must never
+            record a write TigerGraph did not confirm)."""
             if not pending_rows:
                 return
             if not request.dry_run:
@@ -159,9 +163,23 @@ class IngestionService:
                         config.tigergraph_vertex, list(pending_rows), id_column=config.primary_key
                     )
                 self.checkpoints.upsert_hashes(config.entity_name, pending_hashes)
+            status.created_records += sum(1 for a in pending_actions if a == DeltaAction.CREATE)
+            status.updated_records += sum(1 for a in pending_actions if a == DeltaAction.UPDATE)
             pending_rows.clear()
             pending_hashes.clear()
             pending_first_row.clear()
+            pending_actions.clear()
+            pending_result_idx.clear()
+
+        def _mark_pending_failed(reason: str) -> None:
+            """A flush failed: the pending rows did NOT land. Correct their optimistic
+            per-row results and rewind the checkpoint so a resume retries them."""
+            for idx in pending_result_idx:
+                results[idx].action = DeltaAction.FAILED
+                results[idx].success = False
+                results[idx].message = f"Not persisted — graph write failed: {reason}"
+            if pending_first_row:
+                status.last_processed_row = pending_first_row[0] - 1
 
         def _save_status() -> None:
             status.updated_at = datetime.utcnow()
@@ -198,11 +216,11 @@ class IngestionService:
                             pending_first_row.append(row_number)
                         pending_rows.append(record)
                         pending_hashes.append((primary_key, new_hash))
+                        pending_actions.append(action)
+                        pending_result_idx.append(len(results))
                         known_hashes[primary_key] = new_hash
-                        if action == DeltaAction.CREATE:
-                            status.created_records += 1
-                        else:
-                            status.updated_records += 1
+                        # created/updated tallies advance in _flush_writes, only after
+                        # the graph confirms the batch (A4).
                         message = action.value
 
                     status.processed_records += 1
@@ -262,10 +280,17 @@ class IngestionService:
                     except Exception as exc:  # graph write failed for this batch
                         status.status = IngestionStatus.FAILED
                         status.message = f"Graph write failed at row {row_number}: {exc}"
-                        # rewind so resume re-reads the unflushed rows
-                        if pending_first_row:
-                            status.last_processed_row = pending_first_row[0] - 1
+                        _mark_pending_failed(str(exc))
                         _save_status()
+                        self.checkpoints.save_error(
+                            error_id=timestamp_id("err"),
+                            batch_id=status.batch_id,
+                            entity_name=config.entity_name,
+                            row_number=pending_first_row[0] if pending_first_row else row_number,
+                            primary_key=None,
+                            error_message=f"Graph write failed (batch not persisted): {exc}",
+                            raw_record={},
+                        )
                         return IngestionRunResponse(batch_status=status, records=results[-batch_size:])
                     status.message = "Batch completed; call again to continue if needed."
                     _save_status()
@@ -276,9 +301,17 @@ class IngestionService:
         except Exception as exc:
             status.status = IngestionStatus.FAILED
             status.message = f"Graph write failed on final flush: {exc}"
-            if pending_first_row:
-                status.last_processed_row = pending_first_row[0] - 1
+            _mark_pending_failed(str(exc))
             _save_status()
+            self.checkpoints.save_error(
+                error_id=timestamp_id("err"),
+                batch_id=status.batch_id,
+                entity_name=config.entity_name,
+                row_number=pending_first_row[0] if pending_first_row else status.last_processed_row,
+                primary_key=None,
+                error_message=f"Graph write failed on final flush (batch not persisted): {exc}",
+                raw_record={},
+            )
             return IngestionRunResponse(batch_status=status, records=results[-batch_size:])
         status.status = IngestionStatus.COMPLETED
         status.progress_percent = 100.0

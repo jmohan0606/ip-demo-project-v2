@@ -190,3 +190,15 @@ class TigerGraphUpsertClient:
             raise RuntimeError(
                 f"{kind} upsert for {target} accepted {accepted}/{requested} records"
             )
+        # Round 5 A4 — checkpoint honesty. In a real mode the tiered client can fall
+        # back to the local mock store; that "succeeds" without TigerGraph receiving a
+        # single byte. Such a write must FAIL the batch (loudly, with remediation),
+        # never be checkpointed as landed.
+        mode = get_settings().graph_client_mode.lower()
+        if mode not in {"mock", "local"} and result.get("served_by_tier") == 4:
+            raise RuntimeError(
+                f"{kind} upsert for {target} was served by the LOCAL FALLBACK tier, not TigerGraph "
+                f"(GRAPH_CLIENT_MODE={mode}) — the write did NOT land in the real graph. "
+                f"Check TigerGraph connectivity (env-health screen / logs/app.log) and re-run; "
+                f"the batch is marked FAILED and no row hashes were recorded."
+            )
