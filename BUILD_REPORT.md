@@ -1002,3 +1002,74 @@ vertices / 2 edges / GQ-020-021 (GQ-020's datetime window needs a live syntax ch
 a real conversation against real data on tier 1; cdao confirmed as serving provider
 with a logged-fallback drill; the live guardrail probe; advisor-permission scoping
 remains DEFERRED (A1) and must be stated in any multi-user demo.
+
+## 14. Round 8 (FIX_SPEC_R8.md, 2026-07-24) — DRIVER METADATA, BASELINE LABELLING, ACCOUNT EVIDENCE
+
+**Context fix first.** The two between-round attribution fixes (DEAL_SIZE; A3 abort →
+gross-movement WARNING) had been committed to `prompts/` but never installed at the
+live path. `prompts/attribution (1).py` (the newer file) was installed verbatim as
+`app/v2/drivers/attribution.py` — diff vs the old module removes exactly the two
+described changes; arithmetic untouched (settled). `verify_attribution.py` updated to
+assert the new behaviour: legacy bug signature = gross misattribution (DEAL_SIZE now
+absorbs what MIX carried), and an over-net BASELINE_LIMITED must complete + reconcile
+$0.00 rather than abort. `prompts/` copies left as the operator committed them.
+
+**A — driver metadata from data (the main change).** `phx_dm_v2_driver_cause` gained
+`display_name` / `description` / `computation` (cause_id unchanged — permanent
+internal key). Full chain propagated: DDL → regenerated schema_catalog +
+load_v2_all + 90_drop_all → manifest columns (17 rows) → the single seed in
+`app/v2/dataset/builder.py` (shared by sample and real builders; legacy
+cause_name/cause_description now MIRROR the new fields so they cannot drift) →
+GQ-004 (whole-vertex PRINT; catalog updated; NEEDS LIVE REINSTALL) → both tiers
+(local tier returns full rows unchanged). Frontend: new
+`lib/v2/driver-causes.tsx` single cached fetch; glossary's hardcoded table DELETED
+and rendered from the query; CauseTag, waterfall bars, attribution chips,
+earlier-claims, export headers and anomaly threshold phrases all read
+`display_name`. Seeded: DEAL_SIZE = "Average Transaction Value" (was a raw id in the
+UI), CLAWBACK = "Charge Back". A5 grep: zero driver-name literals left outside seed
+files. **Rename proof:** editing a seed display_name and re-reading through the
+service returned the new name with zero code changes (fixture-tier proof; live = operator).
+
+**B — baseline transition labelled, shown, excluded from quality signals.**
+Identified from data everywhere (earliest loaded month via GQ-002 frontend /
+get_months backend — never a hardcoded month). Labelled in all four places: card
+(tag + full amber note), walk row (tag + limitation line), chart pill (BASELINE
+chip), evidence modal (banner) — neutral INFO treatment, still fully visible.
+Excluded from: the MIX self-check (logged as informational `baseline`, not a
+warning), the UNEXPLAINED_RESIDUAL anomaly rule, and the build summary failure
+count (prints `[baseline — indicative attribution]`). B4: prompt v1.1 — commentary
+must open with the limitation; deterministic fallback prefixes it; verified in
+v16–v19, every baseline narrative states it.
+
+**Guardrail hardening (from B4 verification).** validate_commentary check 5 now also
+rejects any parenthesised figure that does not trace to a computed NEGATIVE value —
+parentheses mean negative (rule 8), so "(55.4%)" for a rise is a misstatement. The
+check immediately caught a real one (v18: TIMING +7,000 written "($7.0k)"); v18 kept
+in history with that transition BLOCKED, v19 regenerated clean: 6/6 PUBLISHED.
+
+**C — account comparison in evidence (rendering only).** attribution `inputs_json`
+on NEW/LOST/BASELINE_LIMITED now carries per-account revenue maps + the
+classification-rule sentence (rendering data; contribution arithmetic untouched —
+recorded as a Decision). Evidence modal shows, for account drivers only, two
+side-by-side ranked lists (account, revenue in its active month, product group),
+top-20 with totals and "showing N of M", the stated rule
+(ACCOUNT_ABSENCE_MONTHS=2, advisor level, recurring lines), and a link into
+Transactions filtered to those accounts (new `?accounts=` param, chip + filtered
+footer).
+
+**Verified here (sample/local tier — NOT real data):** verify_attribution PASS ·
+validate_v2_queries ALL PASS · verify_anomalies --rescan PASS · verify_end_to_end
+OVERALL PASS (17-cause model, recon $0.00, MIX ≤8.9%) · verify_assistant 84/84 ·
+15/15 Playwright shots zero console errors incl. new shots 14 (baseline labelled
+end-to-end) and 15 (account-comparison panel) · commentary v15–v19 additive, v19
+latest 6/6 PUBLISHED.
+
+**Not done, recorded:** the client's revised driver specification (eight drivers,
+"ineligible = anything starting with 9", broader recurring set, chargebacks limited
+to Annuities/Life) CONFLICTS with the CWM PCR Confluence mapping and is UNRESOLVED —
+recorded in SOLUTION_GUIDE §10.13, deliberately not coded (FIX_SPEC_R8 §D).
+
+**Pending OPERATOR acceptance** (`docs/ROUND8_ACCEPTANCE.md`): live schema change +
+GQ-004 reinstall + reseed (17 rows); real-data rebuild confirming the baseline label
+on April→May and MIX 0.1–2.3% on later transitions; client validation of the
+account-comparison lists; the driver-spec reconciliation decision.

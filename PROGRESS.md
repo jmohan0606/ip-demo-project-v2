@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-24T00:00:00Z
-Current phase: ROUND 8 (FIX_SPEC_R8.md) — driver metadata from data, baseline labelling, account evidence
-Resume from: V-A1
+Last updated: 2026-07-24T11:45:00Z
+Current phase: ROUND 8 (FIX_SPEC_R8.md) — COMPLETE (operator acceptance pending: live schema/GQ-004 reinstall + reseed, real-data baseline label + MIX band, account-list client validation, driver-spec reconciliation)
+Resume from: — (all V tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -13,7 +13,7 @@ Resume from: V-A1
 | 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
-| 8 | 2026-07-24 | | round 8 fresh start | FIX_SPEC_R8.md: V-A/B/C/D tasks |
+| 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -181,20 +181,20 @@ Resume from: V-A1
 | Z-C1 | R7 | scripts/verify_assistant.py — all seven checks | DONE | 1377993/0f37a8a | verify_assistant.py 84/84 + verify_assistant_ui.mjs 7/7, zero console errors |
 | Z-C2 | R7 | docs/ROUND7_ACCEPTANCE.md | DONE | (wrap) | operator-only: live install, real conversation, cdao provider drill, guardrail probe |
 | Z-C3 | R7 | docs/ROUND7_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived per work-stream; conflict flags on v2.ts/v2-shell/manifest/.env.example |
-| V-A1 | R8 | driver_cause vertex: display_name, description, computation | TODO | | |
-| V-A2 | R8 | GQ-004 returns them (query file + catalog + local-tier impl) | TODO | | |
-| V-A3 | R8 | glossary, driver tags and evidence render from the query | TODO | | |
-| V-A4 | R8 | seed all causes incl. DEAL_SIZE; CLAWBACK display_name = "Charge Back" | TODO | | |
-| V-A4b | R8 | propagate attributes: DDL, regenerated catalog + loading job, manifest, both builders, both tiers | TODO | | |
-| V-A5 | R8 | no driver-name literals left in the frontend (grep-verified) | TODO | | |
-| V-B1 | R8 | baseline transition identified from data | TODO | | |
-| V-B2 | R8 | labelled in cards, walk table, chart arrow, evidence modal | TODO | | |
-| V-B3 | R8 | excluded from MIX check, UNEXPLAINED_RESIDUAL, and build-summary failure count | TODO | | |
-| V-B4 | R8 | commentary states the limitation instead of narrating noise | TODO | | |
-| V-C1 | R8 | account-comparison section in evidence (account drivers only) | TODO | | |
-| V-C2 | R8 | ranked top-20 with total and Transactions link | TODO | | |
-| V-C3 | R8 | classification rule stated from inputs_json | TODO | | |
-| V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| V-A1 | R8 | driver_cause vertex: display_name, description, computation | DONE | 8ce2c23 | DDL + 3 attrs; artifacts regenerated |
+| V-A2 | R8 | GQ-004 returns them (query file + catalog + local-tier impl) | DONE | 8ce2c23 | whole-vertex PRINT carries attrs; catalog updated; local tier returns full rows; NEEDS LIVE REINSTALL |
+| V-A3 | R8 | glossary, driver tags and evidence render from the query | DONE | eb67a2b | lib/v2/driver-causes single source; hardcoded glossary table deleted; CauseTag/waterfall/chips/export/anomaly phrases read display_name |
+| V-A4 | R8 | seed all causes incl. DEAL_SIZE; CLAWBACK display_name = "Charge Back" | DONE | 8ce2c23 | 17 causes; legacy cause_name mirrored from display_name (anti-drift); rename proof PASS (data-only edit → API name change) |
+| V-A4b | R8 | propagate attributes: DDL, regenerated catalog + loading job, manifest, both builders, both tiers | DONE | 8ce2c23 | full chain; manifest expected_rows 17; both builders share one seed; sample regenerated w/o ColumnMismatchError |
+| V-A5 | R8 | no driver-name literals left in the frontend (grep-verified) | DONE | eb67a2b | grep clean; anomalies threshold phrases were the last hit — now resolve display_name |
+| V-B1 | R8 | baseline transition identified from data | DONE | eb67a2b | earliest loaded month via GQ-002 (frontend hook) / get_months (revenue_agent); never hardcoded |
+| V-B2 | R8 | labelled in cards, walk table, chart arrow, evidence modal | DONE | eb67a2b | tag + amber note in all four; INFO treatment; shot 14 proves |
+| V-B3 | R8 | excluded from MIX check, UNEXPLAINED_RESIDUAL, and build-summary failure count | DONE | 8ce2c23 | MIX check logs informational `baseline`; anomaly rule returns None; summary tags [baseline] |
+| V-B4 | R8 | commentary states the limitation instead of narrating noise | DONE | 7bc5677 | prompt v1.1 + fallback prefix; v19 all baseline narratives open with the limitation; guardrail also rejects positive-in-parens (caught real v18 misstatement) |
+| V-C1 | R8 | account-comparison section in evidence (account drivers only) | DONE | eb67a2b | AccountComparisonPanel; NEW/LOST/BASELINE_LIMITED only; shot 15 proves |
+| V-C2 | R8 | ranked top-20 with total and Transactions link | DONE | eb67a2b | abs-revenue ranked; showing N of M; ?accounts= filter on Transactions |
+| V-C3 | R8 | classification rule stated from inputs_json | DONE | 8ce2c23/eb67a2b | classification_rule string in inputs_json, rendered above the lists |
+| V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived e42622c..HEAD; prompts/ + data/real + qa_screenshots excluded; conflict flags on attribution/manifest/v2.ts/evidence-modal |
 
 ## Decisions
 | When | Decision | Why |
@@ -232,6 +232,11 @@ Resume from: V-A1
 | 2026-07-23 | R7: cross-advisor questions list per-advisor stored figures, never a computed sum | a sum would be a figure no query returned |
 | 2026-07-23 | R7: stored commentary quoted verbatim, exempt from answer-time re-validation | validated at publication (R5 judge + guardrail); re-narration would risk drift |
 | 2026-07-24 | R8: operator's attribution edits were committed to prompts/ (fdb67fe, 84b7287) but never installed at app/v2/drivers/attribution.py — installed `prompts/attribution (1).py` (the later one) verbatim as the live module | diff vs live module removes only the two described changes (VOLUME-only step, R6 A3 abort); FIX_SPEC_R8 says the fixes are "already in the repo" and the arithmetic is settled — installing the operator's file is applying, not changing, it. prompts/ copies left untouched |
+| 2026-07-24 | R8: per-account revenue maps + classification_rule added to NEW/LOST/BASELINE_LIMITED inputs_json | C says "the data already exists in inputs_json" but per-account revenue did not — adding RENDERING data to inputs (module contract: "every number an attribution used lands in inputs_json") is not an arithmetic change; contributions untouched; sample regenerated anyway for DEAL_SIZE |
+| 2026-07-24 | R8: guardrail check 5 extended — a parenthesised figure must trace to a computed NEGATIVE value | rule 8 makes parens MEAN negative; v18 proved the model can write "($7.0k)" for a +7,000 TIMING offset. v18 kept in history (1 BLOCKED), v19 regenerated clean 6/6 |
+| 2026-07-24 | R8: legacy cause_name/cause_description seeded as mirrors of display_name/description | keeping two independently-editable name fields would recreate the exact drift class this round removes; the legacy columns stay only for schema compatibility |
+| 2026-07-24 | R8: baseline label = FIRST transition only; the other edge keeps the R6 edge-note | FIX_SPEC_R8 B defines THE baseline transition as earliest from_month; the last transition's unevaluable-stop case is a different (persistence) limitation and keeps its existing wording |
+| 2026-07-24 | R8: client's revised driver spec recorded in SOLUTION_GUIDE §10.13, NOT coded | conflicts with the CWM PCR Confluence mapping (FIX_SPEC_R8 §D); needs operator/client reconciliation first |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |

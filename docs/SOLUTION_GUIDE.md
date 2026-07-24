@@ -442,10 +442,21 @@ The evidence modal's "attribution order" panel shows for any driver *which step 
 and *what earlier steps had already claimed* — the direct answer to "how do you know
 you're not double-counting?".
 
-### 6.4 The 13 causes, one by one
+### 6.4 The causes, one by one
 
 Every worked example below is a real stored driver row from
 `data/sample/vertices/phx_dm_v2_revenue_driver.csv`; the inputs shown are its `inputs_json`.
+
+> **Round-8 additions not yet given worked examples here:** **DEAL_SIZE**
+> ("Average Transaction Value") — the average-value effect of the VOLUME step's
+> price/volume decomposition, emitted for all groups and netted against
+> FEE_RATE/BILLABLE_DAYS on recurring groups so the same dollars are never claimed
+> twice. Driver names, descriptions and computations now live ON
+> `phx_dm_v2_driver_cause` (`display_name`/`description`/`computation`, served by
+> GQ-004) — the in-app glossary is the always-current reference; the operator can
+> rename a driver by editing that seed with no code change. The R6 A3 abort was
+> replaced by a gross-movement WARNING (drivers offset, so one driver may exceed
+> the NET change legitimately).
 
 ---
 
@@ -1059,6 +1070,28 @@ checkpoints, no full-file materialisation in memory) and honest (checkpoint only
 after the graph confirms the write). True streaming ingestion — constant-memory
 multi-million-row loads with parallel entity pipelines and backpressure — is
 deliberately NOT built yet; it is the next scale step once real volumes demand it.
+
+### 10.13 Client's revised driver specification — UNRESOLVED, not implemented (round 8)
+
+During round 8 the client supplied a revised driver specification: **their own list of
+eight drivers**, an eligibility rule of **"ineligible = anything starting with 9"**, a
+**broader recurring set** than Managed + Trails, and **chargebacks limited to
+Annuities/Life**. This list **conflicts with the CWM PCR Confluence "Revenue Summary
+Data Mapping" document the system was built to** (the 15-row reason-code table with
+per-code eligibility, the recurring classification in 10.6, and the negative-amount
+CLAWBACK definition). The two sources cannot both be right:
+
+- "anything starting with 9" would flip codes 91/92/9L (credited per the Confluence
+  mapping, see 10.5) to ineligible;
+- the broader recurring set changes which groups the account-presence drivers
+  (NEW/LOST_ACCOUNT) and BILLABLE_DAYS run on;
+- restricting chargebacks to Annuities/Life changes what CLAWBACK may claim
+  everywhere else.
+
+**Decision: recorded, not coded.** The operator must reconcile the two sources with
+the client before any of it is implemented — building to the new list now would
+silently contradict the documented mapping the evidence trail cites. Until then the
+system continues to follow the Confluence mapping. (FIX_SPEC_R8 §D.)
 
 ### 10.11 Round-2-specific interpretations (recorded, to confirm)
 
