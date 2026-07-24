@@ -79,8 +79,9 @@ def main() -> int:
           f"{sum(len(r) for r in c.store.vertices.values())} vertices")
 
     causes = {a["cause_id"] for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values()}
-    check("all 16 causes exercised (incl. BASELINE_LIMITED on the baseline transition)",
-          len(causes) == 16, str(sorted(causes)))
+    # R8 — 17 causes: DEAL_SIZE (average-transaction-value effect) joined the model.
+    check("all 17 causes exercised (incl. DEAL_SIZE and BASELINE_LIMITED on the baseline transition)",
+          len(causes) == 17, str(sorted(causes)))
 
     # T1-4: MIX magnitude per transition. Reconciliation at $0.00 proves
     # COMPLETENESS only — MIX absorbs whatever named drivers don't claim, so it

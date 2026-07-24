@@ -16,7 +16,8 @@ from app.agents.core.base_agent import BaseAgent
 from app.agents.state.agent_state import AgentWorkflowState
 from app.v2.format import fmt_money, fmt_money_k, fmt_pct
 
-PROMPT_VERSION = "v1.0"
+# v1.1 (R8): baseline-transition limitation rule + cause_display_name vocabulary.
+PROMPT_VERSION = "v1.1"
 
 # Bullets shown per card (UI shows five drivers ranked by impact).
 BULLET_COUNT = 5
@@ -26,7 +27,7 @@ You will be given ALREADY-COMPUTED revenue drivers as JSON. Your job is language
 - Use ONLY figures that appear in the input JSON, copied VERBATIM in their given format (e.g. "($44.1k)", "(17.7%)").
 - NEVER introduce, adjust, round, re-round or infer a number. NEVER compute sums, differences, ratios or combined figures across drivers — if you want to describe a combination, use words ("together", "largely offset"), not a new number.
 - If a figure is not in the input, it must not appear in your output.
-- Negative amounts are written in parentheses, never with a minus sign.
+- Negative amounts are written in parentheses, never with a minus sign. NEVER wrap a positive figure in parentheses — parentheses MEAN negative, so "(38.3%)" would misstate a rise as a fall. Copy each figure exactly as given, including or omitting parentheses exactly as the input does.
 - Use the client's product vocabulary exactly as given in the input.
 - A driver flagged data_source DUMMY or ASSUMED must be described as unavailable/placeholder, never as an established fact.
 - A driver with cause BASELINE_LIMITED reflects a limit of the loaded data range: too few months are loaded on one side of this transition to confirm whether accounts were genuinely opened or closed. Say that account-level attribution is unavailable for this transition for that reason. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.

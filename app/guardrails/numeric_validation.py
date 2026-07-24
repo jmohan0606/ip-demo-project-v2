@@ -21,6 +21,10 @@ _NUMBER_RE = re.compile(r"(?<![\w-])\$?\(?\s*\d[\d,]*\.?\d*\s*k?\)?%?(?![A-Za-z]
 # A minus applied to a figure ("-$44.1k", "- 17.7%"). The lookbehind excludes
 # intra-word hyphens and date/month ranges like "202604-202605" or "one-time".
 _MINUS_FIGURE_RE = re.compile(r"(?<![\w])[-−]\s*\$?\d")
+# A figure in NEGATIVE notation: the closing paren immediately follows the
+# number ("($44.1k)", "(17.7%)", "($35,393)"). A parenthetical remark like
+# "(3 transactions)" has words before the close and does not match.
+_PAREN_FIGURE_RE = re.compile(r"\(\s*\$?\d[\d,]*\.?\d*\s*k?\s*%?\s*\)")
 
 
 def _num(value) -> float | None:
@@ -30,14 +34,17 @@ def _num(value) -> float | None:
         return None
 
 
-def _collect_allowed(revenue_output: dict) -> set[float]:
+def _collect_allowed(revenue_output: dict, negatives_only: bool = False) -> set[float]:
     """Every figure the commentary is allowed to mention: the transition totals,
-    every driver's contribution/share, and every numeric inside inputs_json."""
+    every driver's contribution/share, and every numeric inside inputs_json.
+    With negatives_only, only values computed as NEGATIVE are collected (as
+    absolute values) — the set a parenthesised figure must belong to (R8:
+    parentheses MEAN negative, so a positive may never be parenthesised)."""
     allowed: set[float] = set()
 
     def add(v) -> None:
         f = _num(v)
-        if f is not None:
+        if f is not None and (not negatives_only or f < 0):
             allowed.add(abs(f))
 
     for key in ("from_revenue", "to_revenue", "change_amt", "change_pct", "txn_count"):
@@ -172,11 +179,27 @@ def validate_commentary(
           "DUMMY/ASSUMED drivers are flagged as such" if not dishonest
           else f"bullets present DUMMY/ASSUMED figures as fact: {dishonest[:5]}")
 
-    # 5. Format: negatives parenthesised, no minus signs on figures.
+    # 5. Format: negatives parenthesised, no minus signs on figures — and
+    # (R8) no POSITIVE figure in parentheses: parentheses mean negative, so
+    # "(55.4%)" for a rise misstates it as a fall. Every parenthesised figure
+    # must trace to a value the computation produced as negative.
     minus_hits = [t[:40] for t in texts if _MINUS_FIGURE_RE.search(t)]
-    check("negative_format", not minus_hits,
-          "negatives parenthesised" if not minus_hits
-          else f"minus sign used on a figure: {minus_hits[:3]}")
+    negative_allowed = _collect_allowed(revenue_output, negatives_only=True)
+    paren_positive: list[str] = []
+    for text in texts:
+        for m in _PAREN_FIGURE_RE.finditer(text):
+            token = m.group(0)
+            values = _extract_numbers(token)
+            if values and not _matches(values[0][0], negative_allowed, values[0][1]):
+                paren_positive.append(token)
+    check("negative_format", not minus_hits and not paren_positive,
+          "negatives parenthesised; no positive figure parenthesised"
+          if not minus_hits and not paren_positive
+          else "; ".join(filter(None, [
+              f"minus sign used on a figure: {minus_hits[:3]}" if minus_hits else "",
+              f"positive figure wrapped in parentheses (parens mean negative): {paren_positive[:3]}"
+              if paren_positive else "",
+          ])))
 
     failed = [c for c in checks if not c["passed"]]
     return {
