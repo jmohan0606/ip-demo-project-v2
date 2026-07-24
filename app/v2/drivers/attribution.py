@@ -65,6 +65,16 @@ def _sum(txns: Iterable[dict]) -> float:
     return sum(_num(t.get("credited_amt")) for t in txns)
 
 
+def _rev_by_account(txns: Iterable[dict]) -> dict[str, float]:
+    """Per-account credited revenue — evidence rendering data (FIX_SPEC_R8 C).
+    Lands in inputs_json so the account-comparison lists in the evidence modal
+    are rendered, never recomputed."""
+    out: dict[str, float] = defaultdict(float)
+    for t in txns:
+        out[str(t.get("account_no"))] += _num(t.get("credited_amt"))
+    return {a: round(v, 2) for a, v in sorted(out.items())}
+
+
 def _weighted_rate(txns: list[dict]) -> float:
     base = sum(_num(t.get("credited_amt")) for t in txns
                if _num(t.get("credited_amt")) > 0 and _num(t.get("client_rate_bps")) > 0)
@@ -162,13 +172,25 @@ def attribute_group(
         lost_accounts = sorted((from_accounts - to_accounts) & adv_lost)
         bl_new = sorted((to_accounts - from_accounts) & (bl_new_accounts or set()))
         bl_lost = sorted((from_accounts - to_accounts) & (bl_lost_accounts or set()))
+        # FIX_SPEC_R8 C — the account-comparison evidence renders straight from
+        # these inputs: which accounts, each one's revenue in the month where it
+        # was active, and the rule that classified them. Rendering data only —
+        # the contribution arithmetic is unchanged.
+        absence = rule.get("absence_months")
+        classification_rule = (
+            f"Accounts with no activity for {absence} consecutive months "
+            f"(ACCOUNT_ABSENCE_MONTHS={absence}), evaluated at advisor level "
+            "across recurring product lines")
         if new_accounts:
             new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
             emit("NEW_ACCOUNT", _sum(new_txns), {
                 "accounts": new_accounts, "txn_count": len(new_txns),
+                "accounts_present_only_in_to_month": new_accounts,
+                "to_month_revenue_by_account": _rev_by_account(new_txns),
                 "to_month_revenue_of_new_accounts": round(_sum(new_txns), 2),
-                "account_absence_months": rule.get("absence_months"),
+                "account_absence_months": absence,
                 "months_confirmed_quiet_before": rule.get("new_months_checked"),
+                "classification_rule": classification_rule,
                 "formula": "sum(credited_amt of accounts appearing this month after "
                            "ACCOUNT_ABSENCE_MONTHS consecutive months of no activity); "
                            "recurring-class groups only",
@@ -177,9 +199,12 @@ def attribute_group(
             lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
             emit("LOST_ACCOUNT", -_sum(lost_txns), {
                 "accounts": lost_accounts, "txn_count": len(lost_txns),
+                "accounts_present_only_in_from_month": lost_accounts,
+                "from_month_revenue_by_account": _rev_by_account(lost_txns),
                 "from_month_revenue_of_lost_accounts": round(_sum(lost_txns), 2),
-                "account_absence_months": rule.get("absence_months"),
+                "account_absence_months": absence,
                 "months_confirmed_quiet_after": rule.get("lost_months_checked"),
+                "classification_rule": classification_rule,
                 "formula": "-(sum(credited_amt of accounts with no activity for "
                            "ACCOUNT_ABSENCE_MONTHS consecutive months after the from-month)); "
                            "recurring-class groups only",
@@ -190,9 +215,12 @@ def attribute_group(
             emit("BASELINE_LIMITED", _sum(new_txns) - _sum(lost_txns), {
                 "accounts_present_only_in_to_month": bl_new,
                 "accounts_present_only_in_from_month": bl_lost,
+                "to_month_revenue_by_account": _rev_by_account(new_txns),
+                "from_month_revenue_by_account": _rev_by_account(lost_txns),
                 "to_month_revenue_of_those_accounts": round(_sum(new_txns), 2),
                 "from_month_revenue_of_those_accounts": round(_sum(lost_txns), 2),
-                "account_absence_months": rule.get("absence_months"),
+                "account_absence_months": absence,
+                "classification_rule": classification_rule,
                 "reason": rule.get("bl_reason") or (
                     "the loaded data does not span enough months to apply the "
                     "account-presence persistence test on this side of the transition"),
@@ -571,8 +599,24 @@ def attribute_transition(
     # the transition's total change means a named driver is missing or
     # mis-specified — WARN with the breakdown; never block (reconciliation
     # still holds by construction).
+    #
+    # FIX_SPEC_R8 B3 — the BASELINE transition (from-month = earliest loaded
+    # month) is exempt: there is no prior period for the account-presence
+    # comparison, so a large residual there is EXPECTED, not a defect. It is
+    # logged as informational instead so build summaries print it as baseline.
+    is_baseline_transition = bool(months) and from_month == months[0]
     mix_total = sum(_num(d["contribution_amt"]) for _c, d in raw if d["cause_id"] == "MIX")
-    if abs(total_change) >= 1.0 and abs(mix_total) > mix_warning_fraction * abs(total_change):
+    mix_breaches = (abs(total_change) >= 1.0
+                    and abs(mix_total) > mix_warning_fraction * abs(total_change))
+    if mix_breaches and is_baseline_transition:
+        logger.info(
+            "baseline transition %s %s->%s: MIX residual %.1f%% of total change "
+            "(MIX %.2f of change %.2f) — expected on the baseline period (no prior "
+            "period for account comparison); not a MIX failure (FIX_SPEC_R8 B3).",
+            total_row["advisor_sid"], from_month, to_month,
+            abs(mix_total) / abs(total_change) * 100, mix_total, total_change,
+        )
+    elif mix_breaches:
         by_cause: dict[str, float] = defaultdict(float)
         for _c, d in raw:
             by_cause[d["cause_id"]] += _num(d["contribution_amt"])

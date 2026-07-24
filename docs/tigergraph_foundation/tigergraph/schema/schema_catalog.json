@@ -112,6 +112,9 @@
         "cause_description": "STRING",
         "default_data_source": "STRING",
         "display_order": "INT",
+        "display_name": "STRING",
+        "description": "STRING",
+        "computation": "STRING",
         "data_source": "STRING"
       }
     },

@@ -110,6 +110,12 @@ def _month_name(month_id: str) -> str:
 # all computed here; the model never adds a number.
 
 def rule_unexplained_residual(ctx: dict) -> dict | None:
+    # FIX_SPEC_R8 B3 — never fires on the BASELINE transition (from-month =
+    # earliest loaded month): with no prior period for the account comparison a
+    # large residual there is expected, not a defect. The transition stays
+    # visible in the UI with its baseline label; it is just not an anomaly.
+    if ctx["month_ids"] and ctx["from_month"] == min(ctx["month_ids"]):
+        return None
     threshold = ctx["thresholds"]["ANOMALY_UNEXPLAINED_RESIDUAL_PCT"]
     total = ctx["total_change"]
     mix_rows = [d for d in ctx["drivers"] if d.get("cause_id") == "MIX"]

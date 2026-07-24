@@ -240,7 +240,7 @@ def build_dataset(
     counts[csv_file_for("vertex", "driver_cause")] = write_vertex_csv(out_dir / csv_file_for("vertex", "driver_cause"),
         [dict(r) for r in _driver_cause_rows()],
         ["cause_id", "cause_name", "cause_description", "default_data_source", "display_order",
-         "data_source"], "driver_cause")
+         "display_name", "description", "computation", "data_source"], "driver_cause")
     counts[csv_file_for("vertex", "reason_code")] = write_vertex_csv(out_dir / csv_file_for("vertex", "reason_code"), elig.seed_rows(),
         ["reason_code", "description", "ui_mapping", "owned_by", "eligibility",
          "include_in_credited", "incentive_eligible", "display_order", "data_source"],
@@ -410,6 +410,10 @@ def _mix_share(changes: list[dict], drivers: list[dict]) -> dict[str, dict]:
         if d["cause_id"] == "MIX":
             key = tuple(d["driver_id"].split("|")[:3])
             mix_sum[key] += float(d["contribution_amt"])
+    # FIX_SPEC_R8 B3 — the baseline transition (from-month = earliest loaded
+    # month) is flagged so summaries print it as `baseline` instead of counting
+    # a large residual there as a MIX failure.
+    earliest = min((k[1] for k in total_change), default=None)
     out = {}
     for key, total in sorted(total_change.items()):
         mix = mix_sum.get(key, 0.0)
@@ -417,6 +421,7 @@ def _mix_share(changes: list[dict], drivers: list[dict]) -> dict[str, dict]:
             "total_change": round(total, 2),
             "mix_total": round(mix, 2),
             "mix_pct_of_change": round(abs(mix) / abs(total) * 100, 2) if abs(total) > 0.005 else 0.0,
+            "is_baseline": key[1] == earliest,
         }
     return out
 
@@ -443,27 +448,114 @@ def _presence_summary(drivers: list[dict]) -> dict[str, dict]:
 
 
 def _driver_cause_rows() -> list[dict]:
-    """The driver_cause seed — single source shared by sample and real
-    (previously inlined in generate_sample_data.py)."""
+    """The driver_cause seed — the SINGLE source of driver display metadata
+    (FIX_SPEC_R8 A). Every place the UI shows a driver name, description or
+    computation reads these values via GQ-004 get_driver_causes; nothing is
+    hardcoded in components. cause_id is the permanent internal primary key and
+    NEVER changes — the operator renames a driver by editing display_name here
+    (or directly in the graph) only. cause_name / cause_description are legacy
+    aliases mirrored from display_name / description so the old fields can
+    never drift from the new ones.
+
+    Tuple: (cause_id, display_name, description, computation, default_data_source, display_order)
+    """
     causes = [
-        ("VOLUME", "Transaction volume", "More or fewer transactions at similar rates", "REAL", 1),
-        ("ONE_TIME", "One-time items", "Syndicate allocations, new issues, referrals that don't repeat", "REAL", 2),
-        ("ELIGIBILITY", "Credited eligibility", "Revenue moved between credited and non-credited reason codes month over month", "REAL", 3),
-        ("LATE_PROCESSING", "Late processing", "Revenue excluded by the 90-day rule (processed more than 90 days after the trade) changed month over month", "REAL", 4),
-        ("EXCLUDED_CHANGE", "Excluded bookings", "Revenue moved between credited and excluded reason codes (e.g. deleted bookings) month over month", "REAL", 5),
-        ("TIMING", "Billing timing", "Quarterly billing cycle falls in one month not the other", "REAL", 6),
-        ("FEE_RATE", "Effective fee rate", "Change in client_rate_bps / std_tier_rate", "REAL", 7),
-        ("DISCOUNT", "Discounting", "Change in concession_type / discount_amt / eff_disc_pct", "REAL", 8),
-        ("BILLABLE_DAYS", "Billable days", "Different number of billing days between months", "DERIVED", 9),
-        ("MIX", "Product mix", "Shift between products at different rates", "DERIVED", 10),
-        ("NEW_ACCOUNT", "Accounts opened", "Accounts in recurring product lines with billing activity after ACCOUNT_ABSENCE_MONTHS consecutive months of none", "REAL", 11),
-        ("LOST_ACCOUNT", "Accounts closed", "Accounts in recurring product lines with no billing activity for ACCOUNT_ABSENCE_MONTHS consecutive months", "REAL", 12),
-        ("CLAWBACK", "Reversals", "Negative credited amounts (chargebacks)", "REAL", 13),
-        ("MARKET", "Market performance", "Asset value movement", "DUMMY", 14),
-        ("NET_FLOW", "Net client flows", "Inflows less outflows", "DUMMY", 15),
-        ("BASELINE_LIMITED", "Baseline period limit",
-         "Recurring-line account movement the loaded data cannot classify — too few months before/after the transition to apply the account-presence test",
-         "DERIVED", 16),
+        ("VOLUME", "Volume",
+         "More or fewer transactions at similar rates",
+         "(Δ transaction count) × prior-month average transaction value, for the remaining "
+         "transactions after account-level and one-time effects are claimed.",
+         "REAL", 1),
+        ("DEAL_SIZE", "Average Transaction Value",
+         "The same number of transactions at a different average value.",
+         "to_txn_count × (to_avg_value − from_avg_value), net of fee-rate and billable-day "
+         "effects on recurring groups so the same dollars are not counted twice.",
+         "REAL", 2),
+        ("ONE_TIME", "One-Time",
+         "Non-recurring items such as syndicate allocations, new issues, referrals",
+         "Change in revenue tagged one-time (from file_key and trade_description) between "
+         "the two months.",
+         "REAL", 3),
+        ("ELIGIBILITY", "Eligibility",
+         "Revenue moving into or out of credited status",
+         "Change in non-credited revenue for the group (e.g. a household crossing the "
+         "minimum-household threshold moves revenue from credited to non-credited). "
+         "Contribution = −(Δ non-credited).",
+         "REAL", 4),
+        ("LATE_PROCESSING", "Late Processing",
+         "Revenue excluded because it processed more than 90 days after the trade",
+         "Change in revenue failing the 90-day rule (proc_dt − trade_dt > 90). "
+         "Contribution = −(Δ late-excluded).",
+         "REAL", 5),
+        ("EXCLUDED_CHANGE", "Excluded Bookings",
+         "Revenue moving into or out of an excluded state (e.g. a deleted booking)",
+         "Change in revenue carrying an excluding reason code (e.g. 9X deleted) between "
+         "the two months. Contribution = −(Δ excluded).",
+         "REAL", 6),
+        ("TIMING", "Timing",
+         "Quarterly or periodic billing landing in one month but not the other",
+         "Revenue for a group present in one month's billing cycle and absent the other, "
+         "not already claimed by One-Time.",
+         "REAL", 7),
+        ("FEE_RATE", "Fee Rate",
+         "Change in the effective fee rate charged",
+         "Prior-month asset proxy × (this month's avg rate − last month's), in bps.",
+         "REAL", 8),
+        ("DISCOUNT", "Discount",
+         "Change in fee discounting / concessions",
+         "Change in Σ discount amount and in the count of discounted transactions.",
+         "REAL", 9),
+        ("BILLABLE_DAYS", "Billable Days",
+         "A different number of billing days between the two months",
+         "Recurring/fee-based revenue × (Δ billable days ÷ prior billable days). Derived "
+         "from a business-day calendar.",
+         "DERIVED", 10),
+        ("MIX", "Product Mix",
+         "The residual shift between products at different rates",
+         "Whatever remains after all named drivers are attributed. A large value here "
+         "means a driver may be missing.",
+         "DERIVED", 11),
+        ("NEW_ACCOUNT", "New Account",
+         "Revenue from accounts in recurring product lines (Managed, Trails) that began "
+         "billing after a confirmed quiet period",
+         "Accounts in recurring product lines with no activity for ACCOUNT_ABSENCE_MONTHS "
+         "consecutive loaded months (default 2) that then appear, evaluated at advisor "
+         "level so a mere product switch is not miscounted. Transactional product lines "
+         "never emit this driver — intermittent trading there is routine. "
+         "Contribution = Σ credited revenue of those accounts.",
+         "REAL", 12),
+        ("LOST_ACCOUNT", "Lost Account",
+         "Revenue lost from accounts in recurring product lines with no billing activity "
+         "for consecutive months",
+         "Mirror of New Account: accounts in recurring product lines billing in the "
+         "from-month and then quiet for ACCOUNT_ABSENCE_MONTHS consecutive loaded months "
+         "(default 2). A single quiet month is ordinary intermittency, not a lost "
+         "account. Contribution = −(their prior-month credited revenue).",
+         "REAL", 13),
+        ("CLAWBACK", "Charge Back",
+         "Reversals / chargebacks (negative revenue)",
+         "Change in the sum of negative credited amounts between the months.",
+         "REAL", 14),
+        ("MARKET", "Market",
+         "Movement in asset values (not yet sourced — shown as illustrative)",
+         "Requires an index-return feed not currently available. Modelled, flagged, "
+         "contributes $0 until data is supplied.",
+         "DUMMY", 15),
+        ("NET_FLOW", "Net Flow",
+         "Client inflows and outflows (not yet sourced — shown as illustrative)",
+         "Requires a flows feed (current source stops Jan 2026). Modelled, flagged, "
+         "contributes $0 until data is supplied.",
+         "DUMMY", 16),
+        ("BASELINE_LIMITED", "Baseline Period",
+         "Recurring-line account movement the loaded data cannot classify — too few "
+         "loaded months before or after this transition to apply the account-presence test",
+         "At the edges of the loaded range (not enough months before the first transition "
+         "/ after the last), New/Lost Account cannot be confirmed. Contribution = Σ "
+         "credited revenue of unconfirmable recurring-line accounts present in only one "
+         "of the two months, signed. Checked against total gross driver movement as a "
+         "build-time warning. Derived, never narrated as a business event.",
+         "DERIVED", 17),
     ]
-    return [{"cause_id": c, "cause_name": n, "cause_description": d, "default_data_source": s,
-             "display_order": o} for c, n, d, s, o in causes]
+    return [{"cause_id": c, "cause_name": n, "cause_description": d,
+             "display_name": n, "description": d, "computation": comp,
+             "default_data_source": s, "display_order": o}
+            for c, n, d, comp, s, o in causes]

@@ -83,6 +83,9 @@ CREATE VERTEX phx_dm_v2_driver_cause (
     cause_description STRING,
     default_data_source STRING,
     display_order INT,
+    display_name STRING,
+    description STRING,
+    computation STRING,
     data_source STRING
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 

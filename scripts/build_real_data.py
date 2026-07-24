@@ -324,14 +324,17 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Account-presence rule (R6): recurring-class groups only; "
           f"ACCOUNT_ABSENCE_MONTHS={summary['absence_months']} consecutive quiet months")
     print("Per transition — total change, MIX residual, accounts classified new/lost, "
-          "BASELINE_LIMITED (a large MIX means a named driver is missing):")
+          "BASELINE_LIMITED (a large MIX means a named driver is missing; the baseline "
+          "transition has no prior period for account comparison, so a large MIX there "
+          "is expected and printed as `baseline`, not a failure — FIX_SPEC_R8 B3):")
     presence = summary["account_presence"]
     for key, m in summary["mix_share"].items():
         p = presence.get(key, {"new_accounts": 0, "lost_accounts": 0, "baseline_limited_amt": 0.0})
+        tag = "  [baseline — indicative attribution]" if m.get("is_baseline") else ""
         print(f"  {key:28s} total change {m['total_change']:>14,.2f}   "
               f"MIX {m['mix_total']:>12,.2f}  ({m['mix_pct_of_change']:.2f}%)   "
               f"new {p['new_accounts']:>3}  lost {p['lost_accounts']:>3}  "
-              f"BL {p['baseline_limited_amt']:>12,.2f}")
+              f"BL {p['baseline_limited_amt']:>12,.2f}{tag}")
     print("\nNext steps: load via the ingestion screen with DATA_SET=real, then run the "
           "Regenerate workflow to create commentary + evidence (never generated here).")
     return 0

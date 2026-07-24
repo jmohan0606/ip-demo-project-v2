@@ -1,8 +1,15 @@
 /*
  * GQ-004 — get_driver_causes
- * Purpose: The controlled cause vocabulary — legend and filters.
- * Outputs: causes vertex set (ordered by display_order).
- * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * Purpose: The controlled cause vocabulary — the SINGLE source of driver
+ *          display metadata (FIX_SPEC_R8 A). The UI's glossary, driver tags
+ *          and evidence labels all render display_name / description /
+ *          computation from this query; driver names are never hardcoded.
+ * Outputs: causes vertex set (ordered by display_order). Each row's
+ *          attributes include cause_id (permanent internal key),
+ *          display_name, description, computation, default_data_source.
+ * Created: V2 build 2026-07-20. Updated R8 2026-07-24 (new attributes flow
+ *          automatically via the whole-vertex PRINT). NEEDS LIVE REINSTALL
+ *          after the schema change adds the three attributes.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
