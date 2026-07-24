@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-23T23:30:00Z
-Current phase: ROUND 7 (FIX_SPEC_R7.md) — COMPLETE (operator acceptance pending: live schema/query install, real-data conversation, cdao provider confirmation)
-Resume from: — (all Z tasks DONE)
+Last updated: 2026-07-24T00:00:00Z
+Current phase: ROUND 8 (FIX_SPEC_R8.md) — driver metadata from data, baseline labelling, account evidence
+Resume from: V-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -13,6 +13,7 @@ Resume from: — (all Z tasks DONE)
 | 5 | 2026-07-23 | 2026-07-23 | round 5 fresh start | FIX_SPEC_R5.md ingestion rescue: A→B→D→E→C all DONE; A9a 25/25 PASS; e2e OVERALL PASS; A9b awaits operator |
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
+| 8 | 2026-07-24 | | round 8 fresh start | FIX_SPEC_R8.md: V-A/B/C/D tasks |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -180,6 +181,20 @@ Resume from: — (all Z tasks DONE)
 | Z-C1 | R7 | scripts/verify_assistant.py — all seven checks | DONE | 1377993/0f37a8a | verify_assistant.py 84/84 + verify_assistant_ui.mjs 7/7, zero console errors |
 | Z-C2 | R7 | docs/ROUND7_ACCEPTANCE.md | DONE | (wrap) | operator-only: live install, real conversation, cdao provider drill, guardrail probe |
 | Z-C3 | R7 | docs/ROUND7_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived per work-stream; conflict flags on v2.ts/v2-shell/manifest/.env.example |
+| V-A1 | R8 | driver_cause vertex: display_name, description, computation | TODO | | |
+| V-A2 | R8 | GQ-004 returns them (query file + catalog + local-tier impl) | TODO | | |
+| V-A3 | R8 | glossary, driver tags and evidence render from the query | TODO | | |
+| V-A4 | R8 | seed all causes incl. DEAL_SIZE; CLAWBACK display_name = "Charge Back" | TODO | | |
+| V-A4b | R8 | propagate attributes: DDL, regenerated catalog + loading job, manifest, both builders, both tiers | TODO | | |
+| V-A5 | R8 | no driver-name literals left in the frontend (grep-verified) | TODO | | |
+| V-B1 | R8 | baseline transition identified from data | TODO | | |
+| V-B2 | R8 | labelled in cards, walk table, chart arrow, evidence modal | TODO | | |
+| V-B3 | R8 | excluded from MIX check, UNEXPLAINED_RESIDUAL, and build-summary failure count | TODO | | |
+| V-B4 | R8 | commentary states the limitation instead of narrating noise | TODO | | |
+| V-C1 | R8 | account-comparison section in evidence (account drivers only) | TODO | | |
+| V-C2 | R8 | ranked top-20 with total and Transactions link | TODO | | |
+| V-C3 | R8 | classification rule stated from inputs_json | TODO | | |
+| V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
@@ -216,6 +231,7 @@ Resume from: — (all Z tasks DONE)
 | 2026-07-23 | R7: rejected narration falls back to the deterministic template (non-AI), not BLOCKED | template is built only from stored figures — unvalidated text still never displays; same pattern as R6 anomaly wording |
 | 2026-07-23 | R7: cross-advisor questions list per-advisor stored figures, never a computed sum | a sum would be a figure no query returned |
 | 2026-07-23 | R7: stored commentary quoted verbatim, exempt from answer-time re-validation | validated at publication (R5 judge + guardrail); re-narration would risk drift |
+| 2026-07-24 | R8: operator's attribution edits were committed to prompts/ (fdb67fe, 84b7287) but never installed at app/v2/drivers/attribution.py — installed `prompts/attribution (1).py` (the later one) verbatim as the live module | diff vs live module removes only the two described changes (VOLUME-only step, R6 A3 abort); FIX_SPEC_R8 says the fixes are "already in the repo" and the arithmetic is settled — installing the operator's file is applying, not changing, it. prompts/ copies left untouched |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
