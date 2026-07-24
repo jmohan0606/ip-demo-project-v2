@@ -261,6 +261,69 @@ const SHOTS = [
     proves:
       "S-A5: the third view mode (All transitions) renders its pointer to the monthly walk with zero console errors.",
   },
+  {
+    name: "14_r8_baseline_labelled",
+    url: "/ai-insights",
+    interact: async (page, entry) => {
+      // Single mode: select the transition ENDING at the second loaded month —
+      // the baseline transition (from-month = earliest loaded month). The
+      // transition select is the one whose option values are YYYYMM month ids
+      // (the page's first select is the advisor selector).
+      const handle = await page.waitForFunction(() => {
+        const selects = [...document.querySelectorAll("select")];
+        return (
+          selects.find((s) =>
+            [...s.options].every((o) => /^\d{6}$/.test(o.value)) && s.options.length > 0,
+          ) ?? false
+        );
+      }, null, { timeout: 20000 });
+      const select = handle.asElement();
+      const values = await select.evaluate((s) => [...s.options].map((o) => o.value));
+      await select.selectOption(values.sort()[0]);
+      await settle(page);
+      entry.note = "Baseline transition selected in Single mode (earliest to-month).";
+    },
+    proves:
+      "FIX_SPEC_R8 B: the baseline transition (earliest loaded from-month, identified from data) is VISIBLE and labelled — Baseline tag on the card + chart pill, full amber 'Baseline period' note, commentary stating the limitation. Not hidden, not styled as an error.",
+  },
+  {
+    name: "15_r8_account_comparison",
+    url: "/ai-insights",
+    fullPage: false,
+    interact: async (page, entry) => {
+      // Open evidence for an ACCOUNT driver (its tag shows the stored
+      // display_name New Account / Lost Account / Baseline Period). Single
+      // mode shows one card's top-5 bullets — iterate the transition options
+      // until a card carries an account-driver bullet.
+      const select = page.locator("select").first();
+      await select.waitFor({ state: "visible", timeout: 20000 });
+      const values = await select.locator("option").evaluateAll((os) => os.map((o) => o.value));
+      const tag = page.getByText(/^(New Account|Lost Account|Baseline Period)$/).first();
+      let row = null;
+      for (const v of values) {
+        await select.selectOption(v);
+        await settle(page);
+        if ((await tag.count()) > 0 && (await tag.isVisible().catch(() => false))) {
+          row = page
+            .locator("div.flex.items-start", {
+              has: page.getByText(/^(New Account|Lost Account|Baseline Period)$/),
+            })
+            .first();
+          break;
+        }
+      }
+      if (!row) throw new Error("no transition card exposes an account-driver bullet in its top 5");
+      await row.getByRole("button", { name: /view evidence/i }).click();
+      await page.getByText("Account comparison — which accounts drove this").waitFor({ timeout: 20000 });
+      await page
+        .getByText("Account comparison — which accounts drove this")
+        .scrollIntoViewIfNeeded();
+      await settle(page);
+      entry.note = "Evidence opened at an account driver; account-comparison panel in view.";
+    },
+    proves:
+      "FIX_SPEC_R8 C: account drivers show the account-comparison panel — classification rule stated from inputs_json, two side-by-side ranked lists with per-account revenue and totals, and a link into Transactions filtered to those accounts. Non-account drivers never show it.",
+  },
 ];
 
 function writeIndex() {
