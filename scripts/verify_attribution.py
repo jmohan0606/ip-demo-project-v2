@@ -181,8 +181,14 @@ def main() -> int:
     first = legacy[f"{ADVISOR}|202604|202605"]
     mix_pct = abs(first["by_cause"].get("MIX", 0.0)) / abs(first["total"]) * 100
     print(f"  first transition: total {first['total']:,.2f}  by cause {first['by_cause']}")
-    check("legacy: MIX > 90% of the first transition's change",
-          mix_pct > 90.0, f"{mix_pct:.1f}%")
+    # R8: the price/volume decomposition (DEAL_SIZE) now runs on the legacy path
+    # too, so the residual that used to sit in MIX (>90%) shows up as offsetting
+    # BASELINE_LIMITED / DEAL_SIZE noise instead. The bug signature is the gross
+    # misattribution itself: driver movement many times the actual change.
+    gross_first = sum(abs(v) for v in first["by_cause"].values())
+    check("legacy: gross driver movement > 5x the first transition's actual change",
+          gross_first > 5 * abs(first["total"]),
+          f"gross {gross_first:,.2f} vs |total| {abs(first['total']):,.2f} (MIX {mix_pct:.1f}%)")
     bl = first["by_cause"].get("BASELINE_LIMITED", 0.0)
     check("legacy: BASELINE_LIMITED over-claims (|BL| > |total change|)",
           abs(bl) > abs(first["total"]), f"BL {bl:,.2f} vs total {first['total']:,.2f}")
@@ -246,18 +252,34 @@ def main() -> int:
           str(first_f["by_cause"].get("BASELINE_LIMITED")))
 
     # ---------------------------------------------------------------- 3. guard
-    print("\n— A3 guard: a BL over-claim must fail the build loudly —")
+    # R8: the R6 A3 abort (|BL| > |NET change| -> AttributionError) was removed —
+    # drivers offset each other, so a single driver can legitimately exceed the
+    # net change. The build must now COMPLETE on that scenario and still
+    # reconcile to $0.00; the gross-movement comparison is a WARNING only.
+    print("\n— A3 guard (R8): |BL| > |net change| must NOT abort; reconciliation still holds —")
     guard = [t for t in txns if t["account_no"] != "FIXM-BLST"]
     # FIXM-GUARD bills Apr+May at $9,000 and stops; equities May->Jun swings
-    # +8,000 so the total change is small — BL (-9,000) must exceed it.
+    # +8,000 so the total NET change is small — BL (-9,000) exceeds it, which is
+    # legitimate offsetting, not an error.
     guard.append(txn("202604", "UMA|FEE", "FIXM-GUARD", 9000.0, 80.0))
     guard.append(txn("202605", "UMA|FEE", "FIXM-GUARD", 9000.0, 80.0))
     guard.append(txn("202606", "EQ|COMM", "FIXE-CONT0", 8000.0))
     try:
-        attribute(guard, legacy=False)
-        check("AttributionError raised on |BL| > |total change|", False, "no exception")
+        g_changes, g_drivers = attribute(guard, legacy=False)
+        g_rec = reconcile(g_changes, g_drivers)
+        g_bl = sum(float(d["contribution_amt"]) for d in g_drivers
+                   if d["cause_id"] == "BASELINE_LIMITED")
+        g_total = next(float(c["change_amt"]) for c in g_changes
+                       if c["group_id"] == TOTAL_GROUP
+                       and c["from_month_id"] == "202605" and c["to_month_id"] == "202606")
+        check("guard: |BL| exceeds |net change| on the crafted transition (scenario is real)",
+              abs(g_bl) > abs(g_total), f"BL {g_bl:,.2f} vs net {g_total:,.2f}")
+        check("guard: build completes without AttributionError (R8: abort removed)", True)
+        check("guard: reconciliation still $0.00 with the over-net BL", g_rec["all_reconcile"],
+              json.dumps({k: v["discrepancy"] for k, v in g_rec["transitions"].items()}))
     except AttributionError as exc:
-        check("AttributionError raised on |BL| > |total change|", True, str(exc)[:80])
+        check("guard: build completes without AttributionError (R8: abort removed)",
+              False, str(exc)[:80])
 
     # ---------------------------------------------------------------- 4. sample set
     print("\n— committed sample data set —")
