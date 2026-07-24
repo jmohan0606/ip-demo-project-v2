@@ -2,9 +2,12 @@
 /**
  * Transactions drill-down (UI_SPEC §7). The target of every clickable pivot
  * figure and evidence "Open all in Transactions" link. Accepts
- * ?advisor=&month=&group=. The footer total is the API's credited_total —
- * its equality with the pivot cell the user clicked from is the point of
- * this screen.
+ * ?advisor=&month=&group=&accounts= (accounts: comma-separated, from the
+ * evidence account-comparison lists — FIX_SPEC_R8 C2; filters the fetched
+ * rows client-side). The footer total is the API's credited_total — its
+ * equality with the pivot cell the user clicked from is the point of this
+ * screen; with an account filter active the footer shows the filtered rows'
+ * stored amounts summed for display.
  */
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -99,10 +102,20 @@ function TransactionsView() {
   const paramAdvisor = params.get("advisor") ?? "";
   const paramMonth = params.get("month");
   const paramGroup = params.get("group");
+  const paramAccounts = params.get("accounts") ?? "";
 
   // null = "no override yet — use the URL param, else the context default".
   const [monthOverride, setMonthOverride] = useState<string | null>(null);
   const [groupOverride, setGroupOverride] = useState<string | null>(null);
+  // FIX_SPEC_R8 C2 — account filter from the evidence account-comparison link.
+  const [accountsCleared, setAccountsCleared] = useState(false);
+  const accountFilter = useMemo(
+    () =>
+      accountsCleared
+        ? []
+        : paramAccounts.split(",").map((a) => a.trim()).filter(Boolean),
+    [paramAccounts, accountsCleared],
+  );
 
   const advisorId = paramAdvisor || ctx.advisorId || "";
   const monthId = monthOverride ?? paramMonth ?? ctx.toMonth;
@@ -166,8 +179,16 @@ function TransactionsView() {
   const groupName = (id: string): string =>
     groups.find((g) => g.group_id === id)?.group_name ?? id;
 
+  const filteredRows = useMemo(
+    () =>
+      accountFilter.length
+        ? rows.filter((r) => accountFilter.includes(String(r.account_no)))
+        : rows,
+    [rows, accountFilter],
+  );
+
   const sorted = useMemo(() => {
-    const copy = [...rows];
+    const copy = [...filteredRows];
     const { key, dir } = sort;
     copy.sort((a, b) => {
       const av = a[key];
@@ -178,7 +199,7 @@ function TransactionsView() {
       return dir === "asc" ? cmp : -cmp;
     });
     return copy;
-  }, [rows, sort]);
+  }, [filteredRows, sort]);
 
   const paginated = sorted.length > PAGE_SIZE;
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
@@ -217,6 +238,12 @@ function TransactionsView() {
           )}
           {groupId && (
             <Chip label={`Group ${groupName(groupId)}`} onRemove={() => setGroupOverride("")} />
+          )}
+          {accountFilter.length > 0 && (
+            <Chip
+              label={`Accounts ${accountFilter.length <= 3 ? accountFilter.join(", ") : `${accountFilter.length} selected`}`}
+              onRemove={() => setAccountsCleared(true)}
+            />
           )}
           <div className="ml-auto flex items-center gap-2">
             <label className="text-[11px] text-v2-muted" htmlFor="txn-month">
@@ -265,7 +292,7 @@ function TransactionsView() {
           onRetry={() => setRetryKey((k) => k + 1)}
           loadingLabel="Loading transactions…"
         >
-          {rows.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <div className="px-4 py-10 text-center text-[11.5px] text-v2-muted">
               No transactions match the current filters.
             </div>
@@ -319,7 +346,9 @@ function TransactionsView() {
 
           <div className="flex items-center justify-between border-t border-v2-border px-4 py-2.5">
             <span className="text-[11.5px] font-semibold text-v2-text">
-              {rowCount} transactions · Credited revenue {fmtMoney(creditedTotal)}
+              {accountFilter.length > 0
+                ? `${filteredRows.length} of ${rowCount} transactions (filtered to ${accountFilter.length} account${accountFilter.length === 1 ? "" : "s"}) · Credited revenue of filtered rows ${fmtMoney(filteredRows.reduce((s, r) => s + (r.credited_amt ?? 0), 0))}`
+                : `${rowCount} transactions · Credited revenue ${fmtMoney(creditedTotal)}`}
             </span>
             {paginated && (
               <div className="flex items-center gap-2 text-[11.5px] text-v2-muted">

@@ -17,6 +17,7 @@ import { AsyncBoundary } from "@/components/patterns/async-state";
 import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
 import { type AnomaliesResponse, type AnomalyRow, type AnomalyScan, v2Api } from "@/lib/api/v2";
 import { fmtMoney, monthShort } from "@/lib/v2/format";
+import { useDriverCauses } from "@/lib/v2/driver-causes";
 
 const SEVERITY_STYLE: Record<AnomalyRow["severity"], { rail: string; pill: string }> = {
   HIGH: { rail: "bg-v2-negative", pill: "bg-v2-negative-bg text-v2-negative" },
@@ -35,13 +36,15 @@ const RULE_TAG: Record<string, string> = {
 };
 
 // Threshold display: config key -> human phrasing (values interpolated live).
-const THRESHOLD_LABELS: [string, (v: number) => string][] = [
-  ["ANOMALY_UNEXPLAINED_RESIDUAL_PCT", (v) => `Unexplained residual: MIX above ${(v * 100).toFixed(0)}% of the change`],
-  ["ANOMALY_CLAWBACK_MULTIPLE", (v) => `Clawback concentration: over ${v}× the trailing mean`],
+// FIX_SPEC_R8 A3/A5 — phrases that name a driver resolve its display_name
+// from GQ-004 via the passed resolver; driver names are never hardcoded.
+const THRESHOLD_LABELS: [string, (v: number, name: (causeId: string) => string) => string][] = [
+  ["ANOMALY_UNEXPLAINED_RESIDUAL_PCT", (v, name) => `Unexplained residual: ${name("MIX")} above ${(v * 100).toFixed(0)}% of the change`],
+  ["ANOMALY_CLAWBACK_MULTIPLE", (v, name) => `${name("CLAWBACK")} concentration: over ${v}× the trailing mean`],
   ["ANOMALY_CLAWBACK_MIN_USD", (v) => `… with a floor of ${fmtMoney(v)}`],
   ["ANOMALY_LARGE_SWING_PCT", (v) => `Large swing: beyond ${v}%`],
   ["ANOMALY_LARGE_SWING_MIN_USD", (v) => `… and beyond ${fmtMoney(v)}`],
-  ["ANOMALY_FEE_RATE_SHIFT_BPS", (v) => `Fee-rate shift: more than ${v} bps on a recurring group`],
+  ["ANOMALY_FEE_RATE_SHIFT_BPS", (v, name) => `${name("FEE_RATE")} shift: more than ${v} bps on a recurring group`],
   ["ANOMALY_SINGLE_DRIVER_DOMINANCE_PCT", (v) => `Single-driver dominance: above ${v}% of the change`],
 ];
 
@@ -117,9 +120,10 @@ export default function AnomaliesPage() {
 
   const scan = data?.scan;
   const unexplained = (data?.anomalies ?? []).filter((a) => a.rule_id === "UNEXPLAINED_RESIDUAL").length;
+  const { name: causeName } = useDriverCauses();
   const thresholdLines = THRESHOLD_LABELS
     .filter(([k]) => data?.thresholds_in_force?.[k] != null)
-    .map(([k, f]) => f(data!.thresholds_in_force[k]));
+    .map(([k, f]) => f(data!.thresholds_in_force[k], causeName));
   const selectCls = "h-7 rounded-[3px] border border-v2-border bg-white px-1.5 text-[11.5px]";
 
   const stat = (label: string, value: number | string, accent = "") => (

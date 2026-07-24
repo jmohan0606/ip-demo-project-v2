@@ -55,10 +55,18 @@ export interface ProductHierarchy {
 
 export interface DriverCause {
   cause_id: string;
+  /** Legacy alias — mirrored from display_name in the seed; UI reads display_name. */
   cause_name: string;
+  /** Legacy alias — mirrored from description in the seed; UI reads description. */
   cause_description: string;
   default_data_source: Provenance;
   display_order: number;
+  /** What the UI shows (FIX_SPEC_R8 A) — operator-editable, cause_id never changes. */
+  display_name: string;
+  /** Plain-English meaning, shown in the glossary. */
+  description: string;
+  /** How it is calculated, shown in the glossary. */
+  computation: string;
 }
 
 export interface MonthlyRevenueRow {

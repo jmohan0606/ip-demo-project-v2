@@ -11,6 +11,7 @@ import { exportWalkData } from "@/components/ai-insights/export-data";
 import { latestPublished } from "@/components/ai-insights/commentary-cards";
 import { useV2Context } from "@/components/layout/v2-shell";
 import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
+import { BaselineTag, useBaselineFromMonth } from "@/components/patterns/baseline-note";
 import type { CommentaryRow, CommentaryVersion, MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
 import { fmtMoney, fmtPct, monthFull, monthShort } from "@/lib/v2/format";
 
@@ -30,6 +31,8 @@ export function MonthlyWalkTable({
   onOpenEvidence: (req: EvidenceRequest) => void;
 }) {
   const monthIds = Object.keys(totals.revenue_by_month).sort();
+  // FIX_SPEC_R8 B1 — from data (GQ-002); loaded totals are the fallback.
+  const baselineFromMonth = useBaselineFromMonth() ?? monthIds[0];
   const changeByTo = new Map(
     changes.filter((c) => c.group_id === "__TOTAL__").map((c) => [c.to_month_id, c]),
   );
@@ -127,11 +130,19 @@ export function MonthlyWalkTable({
               const baseline = i === 0;
               const change = baseline ? null : changeByTo.get(m) ?? null;
               const commentary = baseline ? null : commentaryByTo.get(m) ?? null;
+              // FIX_SPEC_R8 B2 — the row whose transition starts at the
+              // earliest loaded month is THE baseline transition: labelled,
+              // never hidden.
+              const isBaselineTransitionRow =
+                !baseline && (change?.from_month_id ?? monthIds[i - 1]) === baselineFromMonth;
               const up = (change?.change_amt ?? 0) >= 0;
               const changeCls = up ? "text-v2-positive" : "text-v2-negative";
               return (
                 <tr key={m} className={`border-b border-v2-border-subtle align-top ${i % 2 === 1 ? "bg-v2-sub-bg" : ""}`}>
-                  <td className="px-3 py-3 text-[12px] font-bold text-v2-text">{monthShort(m)}</td>
+                  <td className="px-3 py-3 text-[12px] font-bold text-v2-text">
+                    {monthShort(m)}
+                    {isBaselineTransitionRow && <BaselineTag className="ml-1.5" />}
+                  </td>
                   <td className="num px-3 py-3 text-[11.5px] text-v2-text">
                     {fmtMoney(totals.revenue_by_month[m] ?? 0)}
                   </td>
@@ -150,7 +161,15 @@ export function MonthlyWalkTable({
                         {commentary.blocked_reason || "Validation failed — reason not recorded."}
                       </span>
                     ) : commentary ? (
-                      commentary.narrative_text
+                      <>
+                        {isBaselineTransitionRow && (
+                          <span className="mb-1 block text-[10.5px] font-semibold text-v2-warn">
+                            Baseline period — {monthFull(baselineFromMonth)} is the first month in
+                            the loaded data; driver attribution for this transition is indicative.
+                          </span>
+                        )}
+                        {commentary.narrative_text}
+                      </>
                     ) : (
                       <span className="italic text-v2-faint">No commentary in the selected version.</span>
                     )}

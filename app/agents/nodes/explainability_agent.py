@@ -23,6 +23,8 @@ _EXTRACTION_SQL_PATH = Path("docs/data/extraction/extract_revenue_transaction.sq
 
 _CAUSE_FINDING = {
     "VOLUME": "transaction volume changed at broadly similar rates",
+    "DEAL_SIZE": "the average transaction value changed while the transaction count "
+                 "stayed similar",
     "ONE_TIME": "one-time items in one month did not repeat in the other",
     "ELIGIBILITY": "revenue moved between credited and non-credited reason codes "
                    "(e.g. a household crossing the minimum-household threshold)",
@@ -55,19 +57,23 @@ ATTRIBUTION_ORDER = [
     "the loaded range is too short to apply the persistence test)",
     "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK", "TIMING",
-    "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "MARKET", "NET_FLOW", "MIX",
+    "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS",
+    "VOLUME/DEAL_SIZE (count effect and average-value effect of one price/volume "
+    "decomposition; DEAL_SIZE is netted against FEE_RATE and BILLABLE_DAYS on "
+    "recurring groups so the same dollars are not counted twice)",
+    "MARKET", "NET_FLOW", "MIX",
 ]
 _CAUSE_STEP = {
     "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "BASELINE_LIMITED": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
     "LATE_PROCESSING": 4, "EXCLUDED_CHANGE": 5,
     "CLAWBACK": 6, "TIMING": 7, "FEE_RATE": 8, "DISCOUNT": 9,
-    "BILLABLE_DAYS": 10, "VOLUME": 11, "MARKET": 12, "NET_FLOW": 13, "MIX": 14,
+    "BILLABLE_DAYS": 10, "VOLUME": 11, "DEAL_SIZE": 11, "MARKET": 12, "NET_FLOW": 13, "MIX": 14,
 }
 # Deterministic per-cause ordering for the waterfall (step order, split pairs).
 _WATERFALL_CAUSE_ORDER = [
     "NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK",
-    "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
+    "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "DEAL_SIZE",
     "MARKET", "NET_FLOW", "MIX",
 ]
 
@@ -276,9 +282,11 @@ _CAUSE_WHY: dict[str, dict] = {
         ],
     },
     "VOLUME": {
-        "rule": "Transaction-based (non-recurring-class) groups: contribution = "
-                "(to_txn_count - from_txn_count) x from-month average transaction value, "
-                "computed after every earlier revenue driver removed its rows.",
+        "rule": "The COUNT effect of a price/volume decomposition over the remaining "
+                "transactions (after every earlier revenue driver removed its rows): "
+                "contribution = (to_txn_count - from_txn_count) x from-month average "
+                "transaction value. The companion average-value effect is emitted "
+                "separately as the DEAL_SIZE driver (R8), so neither falls to MIX.",
         "inputs_tested": ["remaining transaction counts per month",
                           "from-month average transaction value"],
         "rejected": [
@@ -286,6 +294,27 @@ _CAUSE_WHY: dict[str, dict] = {
              "present in only one month were claimed at step 1"},
             {"cause": "ONE_TIME", "reason": "one-time rows were removed at step 2, so a "
              "non-repeating item is not read as a volume change"},
+            {"cause": "DEAL_SIZE", "reason": "the average-value movement of the same "
+             "decomposition is its own driver; VOLUME carries only the count effect"},
+        ],
+    },
+    "DEAL_SIZE": {
+        "rule": "The AVERAGE-VALUE effect of the same price/volume decomposition as "
+                "VOLUME: contribution = to_txn_count x (to-month average transaction "
+                "value - from-month average transaction value). On recurring groups it "
+                "is emitted NET of what FEE_RATE and BILLABLE_DAYS already claimed, so "
+                "the same dollars are never counted twice (R8).",
+        "inputs_tested": ["remaining transaction counts per month",
+                          "from- and to-month average transaction values",
+                          "FEE_RATE / BILLABLE_DAYS claims (recurring groups, netted)"],
+        "rejected": [
+            {"cause": "VOLUME", "reason": "the count effect is claimed separately; "
+             "DEAL_SIZE carries only the average-value movement"},
+            {"cause": "FEE_RATE", "reason": "on recurring groups the fee-rate estimate "
+             "keeps its claim and DEAL_SIZE is netted against it — the two never claim "
+             "the same dollars"},
+            {"cause": "MIX", "reason": "before R8 this value effect fell to the residual; "
+             "it is now an explicit named driver"},
         ],
     },
     "MARKET": {

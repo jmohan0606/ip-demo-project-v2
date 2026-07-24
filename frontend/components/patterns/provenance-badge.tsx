@@ -1,4 +1,6 @@
+"use client";
 import { type ProvenanceFlag, provenanceStyle } from "@/components/design-system/design-tokens";
+import { useDriverCauses } from "@/lib/v2/driver-causes";
 
 /** Provenance badge — every non-real value carries one (ABSOLUTE RULE 3).
  * DUMMY / ASSUMED explain themselves on hover (what data would make it real). */
@@ -18,14 +20,19 @@ export function ProvenanceBadge({ value, className = "" }: { value: string; clas
 
 /** Revenue-driver tag — deliberately quieter than the provenance badge.
  * (Internally still keyed by cause_id; "Revenue Driver" is the client's term
- * for the concept — labels only, data fields unchanged, T4-1.) */
+ * for the concept — labels only, data fields unchanged, T4-1.)
+ * FIX_SPEC_R8 A3: the text shown is the STORED display_name from GQ-004
+ * (phx_dm_v2_driver_cause) — never a hardcoded name. While metadata loads
+ * (or for an unseeded id) the humanised cause_id shows as a fallback. */
 export function CauseTag({ causeId, className = "" }: { causeId: string; className?: string }) {
+  const { name, byId } = useDriverCauses();
+  const cause = byId[causeId];
   return (
     <span
-      title="Revenue driver"
+      title={cause?.description || "Revenue driver"}
       className={`inline-block rounded-full bg-v2-header-bg px-2 py-0.5 text-[9.5px] font-semibold uppercase text-v2-navy ${className}`}
     >
-      {causeId.replace(/_/g, "-")}
+      {name(causeId)}
     </span>
   );
 }

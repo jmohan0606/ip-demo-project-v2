@@ -23,7 +23,9 @@ const AI_FOOTER =
 async function causeNames(): Promise<Record<string, string>> {
   try {
     const res = await v2Api.driverCauses();
-    return Object.fromEntries(res.causes.map((c) => [c.cause_id, c.cause_name]));
+    // FIX_SPEC_R8 A3 — display_name is the operator-editable UI name;
+    // cause_name is its legacy alias kept only as a fallback.
+    return Object.fromEntries(res.causes.map((c) => [c.cause_id, c.display_name || c.cause_name]));
   } catch {
     return {};
   }

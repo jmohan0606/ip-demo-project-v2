@@ -25,6 +25,8 @@ import {
 import { AsyncBoundary } from "@/components/patterns/async-state";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
 import { GlossaryLink } from "@/components/patterns/revenue-driver-glossary";
+import { useDriverCauses } from "@/lib/v2/driver-causes";
+import { BaselineTransitionNote, useBaselineFromMonth } from "@/components/patterns/baseline-note";
 
 interface CalcComponent {
   label: string;
@@ -115,9 +117,22 @@ const DEEP_EVIDENCE_FROM_VERSION = 7;
 const WATERFALL_CAUSE_ORDER = [
   "NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
   "EXCLUDED_CHANGE", "CLAWBACK",
-  "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME",
+  "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "DEAL_SIZE",
   "MARKET", "NET_FLOW", "MIX",
 ];
+
+/** FIX_SPEC_R8 C — the account-comparison inputs stored on account drivers.
+ * All rendered, never recomputed: the lists and per-account revenue land in
+ * inputs_json at attribution time. */
+interface AccountDriverInputs {
+  accounts_present_only_in_to_month?: string[];
+  accounts_present_only_in_from_month?: string[];
+  to_month_revenue_by_account?: Record<string, number>;
+  from_month_revenue_by_account?: Record<string, number>;
+  account_absence_months?: number;
+  classification_rule?: string;
+}
+const ACCOUNT_DRIVER_CAUSES = new Set(["NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED"]);
 const causeOrder = (cause: string): number => {
   const i = WATERFALL_CAUSE_ORDER.indexOf(cause);
   return i === -1 ? WATERFALL_CAUSE_ORDER.length : i;
@@ -187,6 +202,9 @@ function ReconciliationWaterfall({
   focusCause?: string;
 }) {
   const [showHow, setShowHow] = useState(false);
+  // FIX_SPEC_R8 A3 — bar labels are stored display_names, never id literals.
+  // Step labels stay cause_ids internally (focus matching); translated at render.
+  const { name: causeName } = useDriverCauses();
   let running = data.from_revenue;
   const cols: { label: string; lo: number; hi: number; kind: "anchor" | "up" | "down"; amount: number }[] = [
     { label: "From", lo: 0, hi: data.from_revenue, kind: "anchor", amount: data.from_revenue },
@@ -253,9 +271,9 @@ function ReconciliationWaterfall({
                   className={`mt-1 truncate text-[9.5px] uppercase tracking-[0.3px] ${
                     focused ? "font-semibold text-v2-navy" : "text-v2-muted"
                   }`}
-                  title={c.label}
+                  title={c.kind === "anchor" ? c.label : causeName(c.label)}
                 >
-                  {c.label.replace(/_/g, "-")}
+                  {c.kind === "anchor" ? c.label : causeName(c.label)}
                   {focused ? " ◂" : ""}
                 </span>
               </div>
@@ -333,6 +351,126 @@ function gsqlCallText(queryName: string, params: Record<string, unknown>): strin
   return `RUN QUERY ${queryName}(\n${lines.join("\n")}\n)`;
 }
 
+/** FIX_SPEC_R8 C — account comparison for account drivers (New/Lost Account,
+ * Baseline Period). Two side-by-side ranked lists straight from the driver's
+ * stored inputs_json: which accounts were active in only one of the two
+ * months, each one's revenue in the month where it was active, top 20 with a
+ * total and a link into Transactions. Rendering only — nothing is recomputed. */
+function AccountComparisonPanel({
+  inputs,
+  causeId,
+  fromMonthId,
+  toMonthId,
+  groupLabel,
+  onOpenTransactions,
+}: {
+  inputs: AccountDriverInputs;
+  causeId: string;
+  fromMonthId: string;
+  toMonthId: string;
+  groupLabel: string;
+  onOpenTransactions: (accounts: string[], monthId: string) => void;
+}) {
+  const TOP_N = 20;
+  const buildList = (
+    accounts: string[] | undefined,
+    revenue: Record<string, number> | undefined,
+  ) => {
+    const rows = (accounts ?? []).map((a) => ({ account: a, revenue: revenue?.[a] }));
+    rows.sort((a, b) => Math.abs(b.revenue ?? 0) - Math.abs(a.revenue ?? 0));
+    const total = rows.reduce((s, r) => s + (r.revenue ?? 0), 0);
+    return { rows, shown: rows.slice(0, TOP_N), total };
+  };
+  const fromList = buildList(
+    inputs.accounts_present_only_in_from_month,
+    inputs.from_month_revenue_by_account,
+  );
+  const toList = buildList(
+    inputs.accounts_present_only_in_to_month,
+    inputs.to_month_revenue_by_account,
+  );
+  const rule =
+    inputs.classification_rule ??
+    (inputs.account_absence_months
+      ? `Accounts with no activity for ${inputs.account_absence_months} consecutive months ` +
+        `(ACCOUNT_ABSENCE_MONTHS=${inputs.account_absence_months}), evaluated at advisor ` +
+        "level across recurring product lines"
+      : null);
+
+  const renderSide = (
+    title: string,
+    list: { rows: { account: string; revenue?: number }[]; shown: { account: string; revenue?: number }[]; total: number },
+    monthId: string,
+  ) => (
+    <div className="rounded-[3px] border border-v2-border-subtle px-3 py-2.5">
+      <div className="mb-1.5 text-[11px] font-semibold text-v2-text">{title}</div>
+      {list.rows.length === 0 ? (
+        <p className="py-1 text-[11.5px] text-v2-muted">None.</p>
+      ) : (
+        <>
+          <table className="w-full border-collapse text-[11.5px]">
+            <thead>
+              <tr className="bg-v2-header-bg text-left">
+                <th className="px-2 py-[5px] text-[10px] font-semibold uppercase tracking-[0.5px]">Account</th>
+                <th className="num px-2 py-[5px] text-right text-[10px] font-semibold uppercase tracking-[0.5px]">
+                  Revenue ({monthShort(monthId)})
+                </th>
+                <th className="px-2 py-[5px] text-[10px] font-semibold uppercase tracking-[0.5px]">Product group</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.shown.map((r) => (
+                <tr key={r.account} className="border-b border-v2-border-subtle">
+                  <td className="px-2 py-[5px] font-mono text-[11px]">{r.account}</td>
+                  <td className={`num px-2 py-[5px] text-right ${(r.revenue ?? 0) < 0 ? "text-v2-negative" : ""}`}>
+                    {r.revenue === undefined ? "—" : fmtMoney(r.revenue)}
+                  </td>
+                  <td className="px-2 py-[5px]">{groupLabel}</td>
+                </tr>
+              ))}
+              <tr className="bg-v2-total-bg font-semibold">
+                <td className="px-2 py-[5px]">Total — {list.rows.length} account{list.rows.length === 1 ? "" : "s"}</td>
+                <td className={`num px-2 py-[5px] text-right ${list.total < 0 ? "text-v2-negative" : ""}`}>
+                  {fmtMoney(list.total)}
+                </td>
+                <td className="px-2 py-[5px]" />
+              </tr>
+            </tbody>
+          </table>
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-[10.5px] italic text-v2-faint">
+              Showing {list.shown.length} of {list.rows.length}, ranked by revenue
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenTransactions(list.rows.map((r) => r.account), monthId)}
+              className="text-[11px] font-semibold text-v2-link hover:underline"
+            >
+              Open these accounts in Transactions ›
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <SubPanel title="Account comparison — which accounts drove this">
+      {rule && (
+        <p className="mb-2 text-[11.5px] leading-relaxed text-v2-text">
+          Classification rule: {rule}.
+          {causeId === "BASELINE_LIMITED" &&
+            " These accounts could not be confirmed as genuinely new or lost — the loaded data does not span enough months on one side of this transition."}
+        </p>
+      )}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {renderSide(`Accounts active in ${monthShort(fromMonthId)} only`, fromList, fromMonthId)}
+        {renderSide(`Accounts active in ${monthShort(toMonthId)} only`, toList, toMonthId)}
+      </div>
+    </SubPanel>
+  );
+}
+
 export function EvidenceModal({
   versionId,
   advisorId,
@@ -354,6 +492,14 @@ export function EvidenceModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { name: rawCauseName, byId: causeById } = useDriverCauses();
+  // Seeded ids get their stored display_name; compound/descriptive entries in
+  // the attribution order (e.g. "VOLUME/DEAL_SIZE (…)") render as written.
+  const causeName = (cause: string) => (causeById[cause] ? rawCauseName(cause) : cause);
+  // FIX_SPEC_R8 B — baseline transition identified from data (earliest loaded
+  // month), never a hardcoded month.
+  const baselineFromMonth = useBaselineFromMonth();
+  const isBaselineTransition = !!baselineFromMonth && fromMonthId === baselineFromMonth;
   // S-A2/S-A3 — ONE scope per modal: the clicked driver's product group.
   // `drivers` holds that GROUP's ordered driver set and paging moves through
   // it only; `allDrivers` keeps the whole transition (needed to rebuild the
@@ -616,6 +762,21 @@ export function EvidenceModal({
     );
   };
 
+  // FIX_SPEC_R8 C — parsed account-comparison inputs; present only on account
+  // drivers, so the panel renders for those and never elsewhere.
+  const accountInputs = useMemo<AccountDriverInputs | null>(() => {
+    if (!driver || !ACCOUNT_DRIVER_CAUSES.has(driver.cause_id)) return null;
+    return parseJson<AccountDriverInputs>(driver.inputs_json, {});
+  }, [driver]);
+
+  const openAccountsInTransactions = (accounts: string[], monthId: string) => {
+    onClose();
+    const group = groupSegment === "__TOTAL__" ? "" : groupSegment;
+    router.push(
+      `/transactions?advisor=${encodeURIComponent(advisorId)}&month=${encodeURIComponent(monthId)}&group=${encodeURIComponent(group)}&accounts=${encodeURIComponent(accounts.join(","))}`,
+    );
+  };
+
   const fromLabel = fromMonthId ? monthShort(fromMonthId) : "From";
   const toLabel = toMonthId ? monthShort(toMonthId) : "To";
 
@@ -701,6 +862,9 @@ export function EvidenceModal({
             )}
             {evidence && (
               <div className="space-y-7">
+                {/* FIX_SPEC_R8 B2 — the baseline transition is shown, clearly
+                    labelled, never hidden. */}
+                {isBaselineTransition && <BaselineTransitionNote fromMonthId={fromMonthId} />}
                 {/* 1 — Finding */}
                 <section>
                   <SectionHeader
@@ -867,6 +1031,18 @@ export function EvidenceModal({
                     </SubPanel>
                   )}
 
+                  {/* FIX_SPEC_R8 C — account comparison, account drivers only */}
+                  {accountInputs && (
+                    <AccountComparisonPanel
+                      inputs={accountInputs}
+                      causeId={causeSegment}
+                      fromMonthId={fromMonthId}
+                      toMonthId={toMonthId}
+                      groupLabel={groupLabel}
+                      onOpenTransactions={openAccountsInTransactions}
+                    />
+                  )}
+
                   {/* R4-2 — Attribution order (no double-counting) */}
                   {calc.attribution && (
                     <SubPanel
@@ -885,7 +1061,7 @@ export function EvidenceModal({
                                     : "bg-v2-sub-bg text-v2-faint"
                               }`}
                             >
-                              {cause.replace(/_/g, "-")}
+                              {causeName(cause)}
                             </span>
                           </span>
                         ))}
@@ -894,7 +1070,7 @@ export function EvidenceModal({
                         <p className="mt-2 text-[11px] text-v2-muted">
                           Already claimed by earlier steps:{" "}
                           {calc.attribution.earlier_claims
-                            .map((c) => `${c.cause.replace(/_/g, "-")} ${fmtMoney(c.amount)}`)
+                            .map((c) => `${causeName(c.cause)} ${fmtMoney(c.amount)}`)
                             .join(", ")}
                           . Each transaction is attributed once, in this fixed order — later steps
                           cannot re-claim it.

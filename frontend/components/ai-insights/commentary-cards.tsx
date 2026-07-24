@@ -16,6 +16,11 @@ import {
   JudgeBadge,
 } from "@/components/patterns/ai-generated-chip";
 import { CauseTag, ProvenanceBadge } from "@/components/patterns/provenance-badge";
+import {
+  BaselineTag,
+  BaselineTransitionNote,
+  useBaselineFromMonth,
+} from "@/components/patterns/baseline-note";
 import { GlossaryLink } from "@/components/patterns/revenue-driver-glossary";
 import type {
   CommentaryBullet,
@@ -266,10 +271,14 @@ function TransitionViews({
 
   // S-A4 — keys are slot-scoped so an accidental duplicate selection can
   // never produce two children with the same key.
-  // R5 D2 / R6 A3 — transitions at EITHER edge of the loaded range cannot fully
-  // apply the account-presence persistence test (not enough loaded months
-  // before the first / after the last), so they may carry BASELINE_LIMITED.
-  const baselineFrom = sorted.length ? sorted[0].from_month_id : null;
+  // FIX_SPEC_R8 B — THE baseline transition is the one whose from-month is the
+  // earliest loaded month (identified from data via GQ-002; the commentary
+  // rows' earliest from-month is the fallback while months load). It gets the
+  // full "Baseline period" label. Separately (R5 D2 / R6 A3), transitions at
+  // EITHER edge of the loaded range cannot fully apply the account-presence
+  // persistence test, so they may carry BASELINE_LIMITED and get the edge note.
+  const earliestLoaded = useBaselineFromMonth();
+  const baselineFrom = earliestLoaded ?? (sorted.length ? sorted[0].from_month_id : null);
   const lastFrom = sorted.length ? sorted[sorted.length - 1].from_month_id : null;
   const card = (row: CommentaryRow, slotKey: string | number = "s") => (
     <TransitionCard
@@ -280,7 +289,8 @@ function TransitionViews({
       versionMeta={versionMeta}
       evaluation={evaluationFor(row)}
       onOpenEvidence={onOpenEvidence}
-      isBaselineTransition={row.from_month_id === baselineFrom || row.from_month_id === lastFrom}
+      isBaselineTransition={row.from_month_id === baselineFrom}
+      isEdgeTransition={row.from_month_id === baselineFrom || row.from_month_id === lastFrom}
     />
   );
 
@@ -378,6 +388,7 @@ function TransitionCard({
   evaluation,
   onOpenEvidence,
   isBaselineTransition = false,
+  isEdgeTransition = false,
 }: {
   row: CommentaryRow;
   totals: MonthlyTotals | null;
@@ -385,7 +396,10 @@ function TransitionCard({
   versionMeta: CommentaryVersion | null;
   evaluation: CommentaryEvaluation | null;
   onOpenEvidence: (req: EvidenceRequest) => void;
+  /** FIX_SPEC_R8 B — the FIRST transition in the loaded data (no prior period). */
   isBaselineTransition?: boolean;
+  /** Either edge of the loaded range (persistence test not fully applicable). */
+  isEdgeTransition?: boolean;
 }) {
   const up = row.headline.trim().startsWith("▲");
   const bullets = parseBullets(row);
@@ -399,7 +413,10 @@ function TransitionCard({
     <div className="flex flex-col overflow-hidden rounded-[3px] border border-v2-border">
       <div className={`px-4 py-3 ${up ? "bg-v2-positive-bg" : "bg-v2-negative-bg"}`}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11.5px] text-v2-text">{transitionLabel}</span>
+          <span className="flex items-center gap-1.5 text-[11.5px] text-v2-text">
+            {transitionLabel}
+            {isBaselineTransition && <BaselineTag />}
+          </span>
           <span className="flex shrink-0 items-center gap-1.5">
             <AiGeneratedChip
               model={versionMeta?.model}
@@ -441,14 +458,20 @@ function TransitionCard({
               Source · Driver
             </span>
           </div>
+          {/* FIX_SPEC_R8 B2 — THE baseline transition is shown, clearly
+              labelled with the full baseline-period note. */}
+          {isBaselineTransition && (
+            <BaselineTransitionNote fromMonthId={row.from_month_id} className="mt-2" />
+          )}
           {/* R5 D2 / R6 A3 — at the edges of the loaded range the account-
               presence persistence test cannot be fully applied: say so. */}
-          {(isBaselineTransition || bullets.some((b) => b.cause_id === "BASELINE_LIMITED")) && (
+          {!isBaselineTransition &&
+            (isEdgeTransition || bullets.some((b) => b.cause_id === "BASELINE_LIMITED")) && (
             <div className="mt-2 rounded-[3px] bg-v2-header-bg px-3 py-2 text-[10.5px] text-v2-muted">
               This transition sits at the edge of the loaded data range, so account openings /
               closures cannot be confirmed on one side of it (the test needs consecutive quiet
               months beyond the transition). Unconfirmed account movement in recurring product
-              lines is reported as “Baseline period limit”, never as accounts opened or closed.
+              lines is reported as “Baseline Period”, never as accounts opened or closed.
             </div>
           )}
           <div className="divide-y divide-v2-border-subtle">

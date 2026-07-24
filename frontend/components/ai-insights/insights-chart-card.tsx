@@ -11,6 +11,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { v2 } from "@/components/design-system/design-tokens";
+import { useBaselineFromMonth } from "@/components/patterns/baseline-note";
 import type { MonthlyTotals, RevenueChangeRow } from "@/lib/api/v2";
 import { fmtChange, fmtMoney, monthShort } from "@/lib/v2/format";
 
@@ -124,6 +125,7 @@ function ChartSvg({
   selectedTo?: string;
   onSelectTransition?: (toMonthId: string) => void;
 }) {
+  const baselineFromMonth = useBaselineFromMonth();
   const innerW = Math.max(0, width - MARGIN.left - MARGIN.right);
   const innerH = CHART_HEIGHT - MARGIN.top - MARGIN.bottom;
   const n = monthIds.length;
@@ -144,8 +146,13 @@ function ChartSvg({
     up: boolean;
     toId: string;
     selected: boolean;
+    baseline: boolean;
   }
   const pills: Pill[] = [];
+
+  // FIX_SPEC_R8 B2 — the arrow leaving the earliest loaded month is the
+  // baseline transition: labelled on its pill, never hidden.
+  const baselineFrom = baselineFromMonth ?? monthIds[0];
 
   // T5-3 — each connector arrow is CLICKABLE: clicking selects its transition
   // and focuses the driver section below in Single mode. A wide invisible hit
@@ -162,15 +169,17 @@ function ChartSvg({
     const y1 = y(monthTotal(fromId)) - 26;
     const y2 = y(monthTotal(toId)) - 26;
     const label = fmtChange(change.change_amt, change.change_pct);
+    const isBaseline = fromId === baselineFrom;
     const showPill = x2 - x1 >= MIN_GAP_FOR_PILL;
-    if (showPill) pills.push({ left: (x1 + x2) / 2, text: label, up, toId, selected });
+    if (showPill)
+      pills.push({ left: (x1 + x2) / 2, text: label, up, toId, selected, baseline: isBaseline });
     return (
       <g
         key={toId}
         onClick={onSelectTransition ? () => onSelectTransition(toId) : undefined}
         style={onSelectTransition ? { cursor: "pointer" } : undefined}
         role={onSelectTransition ? "button" : undefined}
-        aria-label={`Focus transition ending ${toId}: ${label}`}
+        aria-label={`Focus transition ending ${toId}: ${label}${isBaseline ? " (baseline period — attribution indicative)" : ""}`}
       >
         {/* invisible wide hit area */}
         <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={18} />
@@ -251,7 +260,14 @@ function ChartSvg({
           type="button"
           onClick={onSelectTransition ? () => onSelectTransition(p.toId) : undefined}
           disabled={!onSelectTransition}
-          title={onSelectTransition ? "Click to focus this transition below" : undefined}
+          title={
+            p.baseline
+              ? "Baseline period — the first transition in the loaded data has no prior period for account comparison; driver attribution is indicative." +
+                (onSelectTransition ? " Click to focus this transition below." : "")
+              : onSelectTransition
+                ? "Click to focus this transition below"
+                : undefined
+          }
           className="absolute whitespace-nowrap rounded-full border px-3 py-0.5 text-[11.5px] font-semibold disabled:cursor-default"
           style={{
             left: p.left,
@@ -265,6 +281,14 @@ function ChartSvg({
           }}
         >
           {p.text}
+          {p.baseline && (
+            <span
+              className="ml-1.5 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase"
+              style={{ color: "#B7791F", backgroundColor: "#FDF6E7" }}
+            >
+              Baseline
+            </span>
+          )}
         </button>
       ))}
     </>

@@ -31,12 +31,15 @@ You will be given ALREADY-COMPUTED revenue drivers as JSON. Your job is language
 - A driver flagged data_source DUMMY or ASSUMED must be described as unavailable/placeholder, never as an established fact.
 - A driver with cause BASELINE_LIMITED reflects a limit of the loaded data range: too few months are loaded on one side of this transition to confirm whether accounts were genuinely opened or closed. Say that account-level attribution is unavailable for this transition for that reason. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.
 - NEW_ACCOUNT / LOST_ACCOUNT refer to accounts in recurring product lines with confirmed billing absence/appearance over consecutive months; describe them as accounts that stopped/started billing in recurring product lines — never as clients leaving or joining the practice.
+- Refer to each driver by its given cause_display_name.
+- If the input has "baseline_transition": true, this is the FIRST transition in the loaded data: there is no prior period to compare account activity against, so the driver attribution is indicative, not confirmed. Your narrative MUST open by stating that limitation (that the from-month is the first month in the loaded data and attribution for this transition is indicative). Describe drivers factually as movements in the data; NEVER narrate them as confirmed business events (client decisions, wins, losses, trends). If no defensible narrative is possible beyond the figures, say so plainly instead of inventing causes.
 Respond with ONLY a JSON object:
 {"narrative_text": "<one flowing paragraph for the transition>",
  "bullet_texts": {"<driver_id>": "<one plain-business-language sentence explaining that driver>"}}"""
 
 _CAUSE_FALLBACK = {
     "VOLUME": "Transaction volume changed at broadly similar rates.",
+    "DEAL_SIZE": "The average transaction value changed while the transaction count stayed similar.",
     "ONE_TIME": "One-time items in one month did not repeat in the other.",
     "ELIGIBILITY": "Revenue moved between credited and non-credited reason codes month over month.",
     "LATE_PROCESSING": "Revenue excluded by the 90-day processing rule changed between the months.",
@@ -70,6 +73,7 @@ def _driver_payload(d: dict) -> dict:
         "rank": d["rank"],
         "product_group": d["group_name"],
         "cause": d["cause_id"],
+        "cause_display_name": d.get("cause_display_name") or d["cause_id"],
         "direction": d["direction"],
         "contribution": fmt_money_k(d["contribution_amt"]),
         "contribution_exact": fmt_money(d["contribution_amt"]),
@@ -89,6 +93,7 @@ def narrate(revenue_output: dict, llm) -> dict:
     """Commentary output contract from the revenue_agent output. `llm` is the
     active LLM client (claude or mock)."""
     top = [d for d in revenue_output["drivers"]][:BULLET_COUNT]
+    is_baseline = bool(revenue_output.get("is_baseline_transition"))
     payload = {
         "transition": f"{_month_name(revenue_output['from_month'])} -> {_month_name(revenue_output['to_month'])}",
         "total_change": fmt_money(revenue_output["change_amt"]),
@@ -97,6 +102,14 @@ def narrate(revenue_output: dict, llm) -> dict:
         "to_revenue": fmt_money(revenue_output["to_revenue"]),
         "drivers": [_driver_payload(d) for d in top],
     }
+    if is_baseline:
+        # FIX_SPEC_R8 B4 — the model must state the limitation, never narrate
+        # baseline noise as business events.
+        payload["baseline_transition"] = True
+        payload["baseline_note"] = (
+            f"{_month_name(revenue_output['from_month'])} is the first month in the "
+            "loaded data; there is no prior period for account comparison, so driver "
+            "attribution for this transition is indicative.")
     llm_model = "unavailable"
     narrative = ""
     bullet_texts: dict[str, str] = {}
@@ -114,11 +127,17 @@ def narrate(revenue_output: dict, llm) -> dict:
     if not narrative:
         llm_model = f"{llm_model} (deterministic fallback)"
         direction = "up" if revenue_output["change_amt"] >= 0 else "down"
-        parts = [
+        parts = []
+        if is_baseline:
+            parts.append(
+                f"{_month_name(revenue_output['from_month'])} is the first month in the "
+                "loaded data, so there is no prior period to compare account activity "
+                "against — driver attribution for this transition is indicative.")
+        parts.append(
             f"Credited revenue moved {direction} {fmt_money(revenue_output['change_amt'])} "
             f"({fmt_pct(revenue_output['change_pct'])[1:-1] if revenue_output['change_pct'] < 0 else fmt_pct(revenue_output['change_pct'])}) "
             f"from {_month_name(revenue_output['from_month'])} to {_month_name(revenue_output['to_month'])}."
-        ]
+        )
         for d in top[:3]:
             parts.append(f"{d['group_name']} contributed {fmt_money_k(d['contribution_amt'])} "
                          f"({_CAUSE_FALLBACK.get(d['cause_id'], d['cause_id']).lower().rstrip('.')}).")

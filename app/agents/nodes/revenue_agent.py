@@ -46,6 +46,17 @@ def analyze_transition(advisor_id: str, from_month: str, to_month: str) -> dict:
         g.get("group_id"): g.get("group_name")
         for g in revenue.product_hierarchy()["groups"]
     }
+    cause_names = {
+        c.get("cause_id"): c.get("display_name") or c.get("cause_name")
+        for c in revenue.driver_causes()["causes"]
+    }
+
+    # FIX_SPEC_R8 B1/B4 — the baseline transition is the one starting at the
+    # earliest LOADED month (from data, never hardcoded). Commentary must state
+    # that limitation instead of narrating baseline noise as business events.
+    loaded_months = sorted(
+        str(m.get("month_id")) for m in revenue.months()["months"] if m.get("month_id"))
+    is_baseline_transition = bool(loaded_months) and from_month == loaded_months[0]
 
     raw_drivers = drivers_svc.change_drivers(advisor_id, from_month, to_month, 10000)["drivers"]
     drivers = []
@@ -60,6 +71,9 @@ def analyze_transition(advisor_id: str, from_month: str, to_month: str) -> dict:
             "group_id": d.get("group_id"),
             "group_name": group_names.get(d.get("group_id"), "Total" if d.get("group_id") == TOTAL_GROUP else d.get("group_id")),
             "cause_id": d.get("cause_id"),
+            # Operator-editable display name (FIX_SPEC_R8 A) — the model's
+            # vocabulary follows the stored metadata, never a hardcoded name.
+            "cause_display_name": cause_names.get(d.get("cause_id")) or d.get("cause_id"),
             "contribution_amt": _num(d.get("contribution_amt")),
             "contribution_pct": _num(d.get("contribution_pct")),
             "direction": d.get("direction"),
@@ -81,6 +95,7 @@ def analyze_transition(advisor_id: str, from_month: str, to_month: str) -> dict:
         "txn_count": txn_count,
         "reconciled": abs(residual) <= RECONCILE_TOLERANCE,
         "residual": residual,
+        "is_baseline_transition": is_baseline_transition,
         "drivers": sorted(drivers, key=lambda d: d["rank"]),
     }
 
