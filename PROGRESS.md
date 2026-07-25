@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T17:30:00Z
-Current phase: ROUND 11 (FIX_SPEC_R11.md) — COMPLETE (operator acceptance pending: live reinstall of GQ-009/010/018/019 + advisor_sid schema additions, real-hierarchy run incl. ALTI class confirmation, per-advisor/async behaviour on cdao — docs/ROUND11_ACCEPTANCE.md)
-Resume from: — (all P tasks DONE)
+Last updated: 2026-07-25T18:00:00Z
+Current phase: ROUND 12 (FIX_SPEC_R12.md) — per-role LLM config + auto-fallback
+Resume from: Q-A
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -17,6 +17,7 @@ Resume from: — (all P tasks DONE)
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
+| 12 | 2026-07-25 | | round 12 fresh start (FIX_SPEC_R12.md) | per-role LLM config (WRITER_/JUDGE_/ASSISTANT_) + auto-fallback; LLM plumbing only |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -234,6 +235,12 @@ Resume from: — (all P tasks DONE)
 | P-D3 | R11 | standing principle documented: new use cases ship with sample data | DONE | b14799f | CLAUDE.md rule 10 + SOLUTION_GUIDE Round-11 standing rule |
 | P-E1 | R11 | verify R10 Env Health LLM section | DONE | (verify) | live check: writer/judge/assistant all model-found; no regression, nothing rebuilt |
 | P-F1 | R11 | docs/ROUND11_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived ddf1172..HEAD; + ROUND11_ACCEPTANCE.md + BUILD_REPORT §17 |
+| Q-A | R12 | per-role keys (WRITER_/JUDGE_/ASSISTANT_ × MODE/MODEL/DEPLOYMENT/API_VERSION) + .env.example; shared role-resolution helper | IN_PROGRESS | | started 2026-07-25T18:00Z |
+| Q-B | R12 | client builder accepts api_version/deployment overrides; all three roles use the helper+builder | TODO | | |
+| Q-C | R12 | auto-fallback to default agent LLM on role-config failure; served path recorded (config/fallback/unavailable) per role | TODO | | |
+| Q-D | R12 | Env Health shows each role's effective config + reachability + "will fall back" state | TODO | | |
+| Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | TODO | | |
+| Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |

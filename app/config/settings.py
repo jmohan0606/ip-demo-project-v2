@@ -158,6 +158,25 @@ class Settings(BaseSettings):
     judge_model: str = Field(default="", alias="JUDGE_MODEL")
     judge_enabled: bool = Field(default=True, alias="JUDGE_ENABLED")
 
+    # --- R12 — per-role LLM config (FIX_SPEC_R12 A). All optional; empty = inherit
+    # the active mode's value PER FIELD, so all-empty is exactly the pre-R12
+    # behaviour. Azure/cdao route by DEPLOYMENT NAME; the model id goes in the
+    # request; some models need their own api_version — the three can all differ
+    # (a bare JUDGE_MODEL=gpt-4o-mini 404'd because it could not carry them).
+    # Client-mode keys: WRITER_CLIENT_MODE / JUDGE_CLIENT_MODE below; the
+    # assistant's client-mode key is the EXISTING ASSISTANT_LLM_MODE (R7).
+    # Resolution lives in ONE place: app/llm/roles.resolve_role_config().
+    writer_client_mode: str = Field(default="", alias="WRITER_CLIENT_MODE")
+    writer_model: str = Field(default="", alias="WRITER_MODEL")
+    writer_deployment: str = Field(default="", alias="WRITER_DEPLOYMENT")
+    writer_api_version: str = Field(default="", alias="WRITER_API_VERSION")
+    judge_client_mode: str = Field(default="", alias="JUDGE_CLIENT_MODE")
+    judge_deployment: str = Field(default="", alias="JUDGE_DEPLOYMENT")
+    judge_api_version: str = Field(default="", alias="JUDGE_API_VERSION")
+    assistant_model: str = Field(default="", alias="ASSISTANT_MODEL")
+    assistant_deployment: str = Field(default="", alias="ASSISTANT_DEPLOYMENT")
+    assistant_api_version: str = Field(default="", alias="ASSISTANT_API_VERSION")
+
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],
     # client artifactory only; guarded import). Auth comes from the ambient PCL AWS login session
