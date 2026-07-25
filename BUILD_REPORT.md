@@ -1163,3 +1163,57 @@ real group driver; scoped conversation + visible guardrail block on cdao;
 commentary regeneration on cdao_openai (never-empty panel); judge on the
 working model and the unavailable state on a bad JUDGE_MODEL; glossary order
 after reseed.
+
+## 16. Round 10 (FIX_SPEC_R10.md, 2026-07-25) — TAXONOMY, ELIGIBILITY, NEW DRIVERS
+
+**What changed.** A foundation round: (A) the recurring/non-recurring product
+taxonomy was re-seeded VERBATIM to the client's corrected hierarchy
+(`app/v2/revenue/taxonomy.py` — the single canonical source; the prior
+taxonomy came from a wrong Figma screen); classification now keys on a
+product's POSITION in that hierarchy (path-scoped ids `rec_*`/`nonrec_*__*`),
+never on a name — Annuities, Mutual funds and Cash management exist on BOTH
+sides and a name match was exactly the bug. (B) The eligibility rule was
+replaced: credited = reason code NULL/empty/`__NONE__` ONLY; every `9…` code
+is non-credited except the untouched excluded set (9R/98/99/9H/9X/XX); 91/92/9L
+flipped Credited→Non-Credited, so THE CREDITED TOTAL CHANGES BY DESIGN. The
+evidence ladder's `less excluded` line now shows its reason-code breakdown.
+(C) Two reclassification drivers: INHERITANCE (9G) and HOUSEHOLD (9E), computed
+FIRST as carve-outs of the eligibility effect, with ELIGIBILITY redefined as
+the movement of all OTHER codes — the three sum exactly to −(Δ non-credited);
+provenance DERIVED; the ~6-month cooling-period approximation is noted in code
+(no inheritance effective date exists in the extract). (D) CLAWBACK is scoped
+to Annuities / Insurance / Life by hierarchy position; reversals elsewhere
+reconcile unlabelled. (E) Env Health gained an "LLM connectivity" section —
+writer/judge/assistant rows, models-lookup only (never a generation), with the
+judge's "model not found in subscription" 404 surfaced before a run. (F) The
+new causes are seeded (display_order 4/5, before the ELIGIBILITY remainder)
+and the glossary renders them in order; no frontend driver-name literals.
+
+**Commits.** 8225cbe (A) · 0ce93ae (B) · 8218f0e (C) · de0f7ea (D) ·
+bbe5dca (E) · wrap commit (docs + commentary v21 + assistant fixture ids).
+
+**Verified here (fixtures + sample + local tier — NOT real data):**
+verify_taxonomy 33/33 (incl. a fixture with a recurring AND a non-recurring
+Annuities product) · verify_eligibility 25/25 (91 flip proven) ·
+verify_new_drivers (9G flip → INHERITANCE +800; 9E flip → HOUSEHOLD; partition
+exact; MIX clean) · verify_clawback_scope 12/12 (Equities reversal unlabelled;
+LIFE|* gate) · verify_attribution PASS · verify_anomalies PASS ·
+verify_commentary_retry 10/10 · verify_judge 9/9 · verify_assistant 101/101 ·
+verify_end_to_end OVERALL PASS (19 causes, recon $0.00, MIX ≤13.9%, glossary
+sorted 1..19) · commentary v21 published 6/6 (0 blocked; v1–v20 preserved) ·
+tsc clean · capture_evidence 15/15 screens zero console errors · judge-404
+path proven LIVE (JUDGE_MODEL=gpt-4o-mini → "model not found in subscription").
+
+**Operator-pending (docs/ROUND10_ACCEPTANCE.md):** real-hierarchy path
+resolution (dual-name lines STOP the build if ambiguous), credited totals vs
+iComp after the 91/92/9L flip, INHERITANCE/HOUSEHOLD sanity on a known
+account, the ASSUMED `LIFE` product-code identifier, cdao-side LLM
+connectivity rows, live reseed of the changed data seeds + commentary
+regeneration.
+
+**Decisions taken while blocked:** unknown product lines default to
+NON_RECURRING loudly (absence from every recurring path is a position
+decision; recurring is the gating class); the quarterly TIMING story moved to
+MAC (A1 has no Alternatives line); the "Life" product code could not be
+confirmed against the operator-local real hierarchy — recorded as a data gap,
+never guessed silently.

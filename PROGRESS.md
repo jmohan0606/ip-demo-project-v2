@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T07:00:00Z
-Current phase: ROUND 10 (FIX_SPEC_R10.md) — taxonomy, eligibility, new drivers
-Resume from: T-A1
+Last updated: 2026-07-25T14:00:00Z
+Current phase: ROUND 10 (FIX_SPEC_R10.md) — COMPLETE (operator acceptance pending: real-hierarchy path resolution, credited totals vs iComp after the 91/92/9L flip, LIFE product-code identifier, cdao LLM connectivity, live reseed + commentary regeneration — docs/ROUND10_ACCEPTANCE.md)
+Resume from: — (all T tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -15,7 +15,7 @@ Resume from: T-A1
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
-| 10 | 2026-07-25 | | round 10 fresh start | FIX_SPEC_R10.md: A taxonomy → B eligibility → C new drivers → D chargeback → E LLM health → F glossary/verify |
+| 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -216,9 +216,9 @@ Resume from: T-A1
 | T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | DONE | 8218f0e | -(Δ nc 9E); ELIGIBILITY excludes 9G/9E — three sum exactly to -(Δ total nc) |
 | T-C3 | R10 | attribution order + reconciliation with new drivers | DONE | 8218f0e | before ELIGIBILITY remainder; verify_new_drivers PASS; recon $0.00; MIX clean |
 | T-D1 | R10 | CLAWBACK scoped to Annuities/Insurance/Life (real hierarchy names confirmed) | DONE | de0f7ea | scope by hierarchy position (taxonomy.clawback_group_ids); verify_clawback_scope 12/12; DATA GAP: 'Life' product code = assumed 'LIFE' — real hierarchy operator-local (see Decisions) |
-| T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | TODO | | |
-| T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | TODO | | |
-| T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | DONE | bbe5dca | models.retrieve/list only; judge 404 -> "model not found in subscription" proven live; card red on any non-mock-judge UNAVAILABLE |
+| T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | DONE | 8218f0e | display_name/description/computation seeded; display_order 4/5 before ELIGIBILITY; e2e asserts sorted 1..19; frontend literal-free (grep: only a V1 search icon label matches "Household") |
+| T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived c1b0f72..HEAD; + ROUND10_ACCEPTANCE.md + BUILD_REPORT §16; commentary v21 additive |
 
 ## Decisions
 | When | Decision | Why |
