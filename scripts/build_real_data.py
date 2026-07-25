@@ -151,6 +151,15 @@ def build_dimensions(hier_rows: list[dict], adv_rows: list[dict]) -> dict:
         recurring class changes driver behaviour (account-presence gating), so
         absence from every recurring path in A1 is the conservative, honest
         default. Every such line is printed and must be reviewed.
+
+    R11 A2 — only grid_type = PRODUCT_TYPE rows reach the taxonomy. The real
+    hierarchy also carries NON_CREDITED_REVENUE (Small Households, Personal
+    Accounts, Transferred Accounts) and PAY_TYPE_SUMMARY (Grid, Referral 25%
+    payout, Incentive non-eligible, LOA) rows: reason/pay-type rows, not
+    products. They are filtered out BEFORE classification (so they can never
+    trip the ambiguity guard) but their product codes still register under a
+    grid-type holding line — transactions reference them and the
+    CREDITED_GRID_TYPES config already keeps them OUT_OF_GRID of credited.
     """
     lines_seen: dict[str, tuple[str, str]] = {}   # line_id -> (name, class_id)
     groups_seen: dict[str, tuple[str, str]] = {}  # group_id -> (name, line_id)
@@ -163,11 +172,29 @@ def build_dimensions(hier_rows: list[dict], adv_rows: list[dict]) -> dict:
     for gid, gname, lid, _o in taxonomy.groups():
         groups_seen[gid] = (gname, lid)
 
+    non_product_rows: list[tuple[str, str, str]] = []  # (grid_type, line, group)
     for r in hier_rows:
         line_name = r["level_one_product"] or "Unclassified"
         group_name = r["level_two_product"] or "Unclassified"
+        grid_type = (r["grid_type"] or taxonomy.PRODUCT_GRID_TYPE).strip().upper()
+        if grid_type != taxonomy.PRODUCT_GRID_TYPE:
+            # R11 A2: reason/pay-type row — never classify it as a product.
+            # Register the product under a holding line named for its grid
+            # type so its transactions keep a home (OUT_OF_GRID by config).
+            non_product_rows.append((grid_type, line_name, group_name))
+            line_id = f"nongrid_{slug(grid_type)}"
+            group_id = f"{line_id}__{slug(line_name)}"
+            lines_seen.setdefault(line_id, (grid_type.replace("_", " ").title(), "NON_RECURRING"))
+            groups_seen.setdefault(group_id, (line_name, line_id))
+            product_id = f"{r['product_code']}|{r['sub_product_code']}"
+            if product_id not in seen_products:
+                seen_products.add(product_id)
+                products.append((product_id, r["product_code"], r["sub_product_code"],
+                                 f"{r['product_code']} {r['sub_product_code']}".strip(),
+                                 group_id, r["grid_type"] or "PRODUCT_TYPE"))
+            continue
         try:
-            hit = taxonomy.resolve_path(line_name, group_name)
+            hit = taxonomy.resolve_path(line_name, group_name, grid_type=grid_type)
         except taxonomy.AmbiguousPathError as exc:
             ambiguous.append(str(exc))
             continue
@@ -198,6 +225,13 @@ def build_dimensions(hier_rows: list[dict], adv_rows: list[dict]) -> dict:
              "name does not identify the side. Classifying by name would silently "
              "corrupt every driver (FIX_SPEC_R10 A2). Paths:\n  - "
              + "\n  - ".join(ambiguous))
+    if non_product_rows:
+        print(f"\nINFO — {len(non_product_rows)} non-PRODUCT_TYPE hierarchy row(s) "
+              "excluded from taxonomy classification (R11 A2 — reason/pay-type rows, "
+              "not products; OUT_OF_GRID of credited by CREDITED_GRID_TYPES config):",
+              file=sys.stderr)
+        for grid, l1, l2 in sorted(set(non_product_rows)):
+            print(f"  - grid_type={grid}: ({l1!r}, {l2!r})", file=sys.stderr)
     if unknown_lines:
         print("\nWARNING — product lines NOT in the corrected client hierarchy (A1); "
               "classified NON_RECURRING by absence from every recurring path. Review "

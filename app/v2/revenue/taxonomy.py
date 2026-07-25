@@ -86,6 +86,12 @@ HIERARCHY: list[tuple[str, str, list[str]]] = [
         "Donor-advised funds",
         "Defined contribution advisory",
     ]),
+    # FIX_SPEC_R11 A1 — present in the real pcr.product_hierarchy
+    # (level_one = level_two = "Alternative Investments", code ALTI) but absent
+    # from the round-10 A1 transcription. Classification ASSUMED NON_RECURRING
+    # pending client confirmation; revisit if the client places it under
+    # recurring (that would change account-presence driver gating for it).
+    (NON_RECURRING, "Alternative Investments", []),
 ]
 
 # Names appearing on BOTH sides of the hierarchy (A2). A hierarchy path whose
@@ -217,7 +223,23 @@ class AmbiguousPathError(ValueError):
     the caller must STOP and report (FIX_SPEC_R10 A2), never default."""
 
 
-def resolve_path(level_one: str, level_two: str = "") -> dict | None:
+# FIX_SPEC_R11 A2 — only rows with this grid_type are PRODUCTS. The real
+# hierarchy also carries grid_type = NON_CREDITED_REVENUE (Small Households,
+# Personal Accounts, Transferred Accounts) and PAY_TYPE_SUMMARY (Grid,
+# Referral 25% payout, Incentive non-eligible, LOA): reason/pay-type rows,
+# never recurring/non-recurring products. Callers must filter them out
+# BEFORE classification.
+PRODUCT_GRID_TYPE = "PRODUCT_TYPE"
+
+
+class NonProductGridRowError(ValueError):
+    """A non-PRODUCT_TYPE grid row reached the taxonomy — a caller bug
+    (FIX_SPEC_R11 A2). The row must be filtered out before classification,
+    never classified as a product."""
+
+
+def resolve_path(level_one: str, level_two: str = "", *,
+                 grid_type: str | None = None) -> dict | None:
     """Classify a hierarchy path from the extract into the A1 taxonomy.
 
     Returns {class_id, line_id, group_id, line_name, group_name, known_group}
@@ -225,7 +247,20 @@ def resolve_path(level_one: str, level_two: str = "") -> dict | None:
     the honest default and must do so LOUDLY). Raises AmbiguousPathError when
     the line name exists on BOTH sides of A1 and the group does not pin the
     side down — classification by name alone is exactly the round-10 bug.
+
+    R11 A2: resolve_path may only be called for grid_type = PRODUCT_TYPE rows.
+    Pass the row's grid_type whenever the caller has one — a non-PRODUCT_TYPE
+    row reaching here is a caller bug and is refused LOUDLY (logged to stderr
+    + NonProductGridRowError), never misclassified as a product.
     """
+    if grid_type is not None and str(grid_type).strip().upper() != PRODUCT_GRID_TYPE:
+        import sys
+        msg = (f"BUG (FIX_SPEC_R11 A2): resolve_path called for a non-PRODUCT_TYPE "
+               f"hierarchy row: grid_type={grid_type!r}, path=({level_one!r}, "
+               f"{level_two!r}). These are reason/pay-type rows, not products — "
+               f"filter them out before classification.")
+        print(msg, file=sys.stderr)
+        raise NonProductGridRowError(msg)
     l1, l2 = _norm(level_one), _norm(level_two)
     hit = _PAIR.get((l1, l2))
     if hit:

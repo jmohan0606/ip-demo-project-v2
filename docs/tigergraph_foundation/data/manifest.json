@@ -88,7 +88,7 @@
         "line_id",
         "data_source"
       ],
-      "expected_rows": 12,
+      "expected_rows": 13,
       "workflow_generated": false
     },
     {
@@ -107,7 +107,7 @@
         "group_id",
         "data_source"
       ],
-      "expected_rows": 34,
+      "expected_rows": 35,
       "workflow_generated": false
     },
     {
@@ -584,7 +584,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 34,
+      "expected_rows": 35,
       "workflow_generated": false
     },
     {
@@ -597,7 +597,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 12,
+      "expected_rows": 13,
       "workflow_generated": false
     },
     {

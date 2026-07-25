@@ -11,3 +11,4 @@ nonrec_structured_products,Structured products,9,REAL
 nonrec_insurance,Insurance,10,REAL
 nonrec_lending,Lending,11,REAL
 nonrec_referrals_and_revenue_share,Referrals and revenue share,12,REAL
+nonrec_alternative_investments,Alternative Investments,13,REAL
