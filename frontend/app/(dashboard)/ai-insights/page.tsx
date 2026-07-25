@@ -15,6 +15,7 @@ import type { EvidenceRequest } from "@/components/ai-insights/types";
 import { EvidenceModal } from "@/components/evidence/evidence-modal";
 import { useV2Context } from "@/components/layout/v2-shell";
 import { AsyncBoundary, CardSkeleton } from "@/components/patterns/async-state";
+import { JobProgressOverlay, useAsyncJob } from "@/components/patterns/job-progress";
 import {
   type CommentaryEvaluation,
   type CommentaryRow,
@@ -33,12 +34,11 @@ export default function AiInsightsPage() {
   const [chartKey, setChartKey] = useState(0);
 
   const [versions, setVersions] = useState<CommentaryVersion[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState(""); // "" = latest PUBLISHED (backend resolves)
+  const [selectedVersion, setSelectedVersion] = useState(""); // "" = latest PUBLISHED for this advisor (backend resolves)
   const [commentary, setCommentary] = useState<CommentaryRow[] | null>(null);
   const [resolvedVersion, setResolvedVersion] = useState("");
   const [commentaryError, setCommentaryError] = useState<string | null>(null);
   const [commentaryKey, setCommentaryKey] = useState(0);
-  const [busy, setBusy] = useState(false);
 
   // R5-4 — judge evaluations for the resolved version (advisory badges).
   const [evaluations, setEvaluations] = useState<CommentaryEvaluation[]>([]);
@@ -80,13 +80,18 @@ export default function AiInsightsPage() {
     return () => { active = false; };
   }, [ready, advisorId, fromMonth, toMonth, chartKey, reportTier]);
 
-  // Versions list (also refetched after Regenerate).
+  // Versions list — R11 B1: per-advisor (the selected advisor's versions plus
+  // legacy global ones). Refetched after Regenerate and on advisor change.
   const fetchVersions = useCallback(() => {
-    v2Api.versions()
+    if (!advisorId) return;
+    v2Api.versions(advisorId)
       .then((v) => setVersions(v.versions))
       .catch(() => setVersions([]));
-  }, []);
+  }, [advisorId]);
   useEffect(() => { fetchVersions(); }, [fetchVersions]);
+  // Advisor switch: back to "latest for this advisor" — a version id selected
+  // for another advisor would not be in this advisor's list.
+  useEffect(() => { setSelectedVersion(""); }, [advisorId]);
 
   // Commentary for the selected version — retrieved, never generated here.
   useEffect(() => {
@@ -121,20 +126,24 @@ export default function AiInsightsPage() {
     return () => { active = false; };
   }, [resolvedVersion, commentaryKey]);
 
-  const regenerate = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await v2Api.generate();
+  // R11 C — async Regenerate with a progress overlay. On completion the page
+  // auto-refreshes to the new latest version (no manual reload); reopening
+  // the screen mid-run rejoins the running job.
+  const job = useAsyncJob(
+    v2Api.generateStatus,
+    useCallback(() => {
       fetchVersions();
       setSelectedVersion(""); // jump to the new latest PUBLISHED version
       setCommentaryKey((k) => k + 1);
-    } catch (e: unknown) {
-      setCommentaryError(e instanceof Error ? e.message : "Generation failed.");
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, fetchVersions]);
+    }, [fetchVersions]),
+  );
+  const regenerateThis = useCallback(() => {
+    if (advisorId) job.start(() => v2Api.generate(advisorId));
+  }, [advisorId, job]);
+  const regenerateAll = useCallback(() => {
+    job.start(() => v2Api.generate(""));
+  }, [job]);
+  const busy = job.running;
 
   return (
     <div className="space-y-4">
@@ -169,7 +178,8 @@ export default function AiInsightsPage() {
             resolvedVersion={resolvedVersion}
             evaluations={evaluations}
             onSelectVersion={setSelectedVersion}
-            onRegenerate={() => void regenerate()}
+            onRegenerateThis={regenerateThis}
+            onRegenerateAll={regenerateAll}
             busy={busy}
             onOpenEvidence={setModal}
             viewMode={viewMode}
@@ -211,6 +221,13 @@ export default function AiInsightsPage() {
           validated before publication — the model never produces or alters a number.
         </p>
       </div>
+
+      {/* R11 C2 — non-blocking progress overlay for the async Regenerate. */}
+      <JobProgressOverlay
+        job={job}
+        title="Generating commentary"
+        doneLabel="Commentary regenerated — showing the latest version"
+      />
 
       {modal && advisorId && (
         <EvidenceModal

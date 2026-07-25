@@ -69,7 +69,8 @@ export function CommentaryCards({
   resolvedVersion,
   evaluations = [],
   onSelectVersion,
-  onRegenerate,
+  onRegenerateThis,
+  onRegenerateAll,
   busy,
   onOpenEvidence,
   viewMode = "single",
@@ -86,7 +87,10 @@ export function CommentaryCards({
   /** R5-4 — judge evaluations for the resolved version (advisory badges). */
   evaluations?: CommentaryEvaluation[];
   onSelectVersion: (versionId: string) => void;
-  onRegenerate: () => void;
+  /** R11 B3 — two clearly-labelled scopes: the dropdown-selected advisor only,
+   * or every advisor (each still getting its OWN per-advisor version). */
+  onRegenerateThis: () => void;
+  onRegenerateAll: () => void;
   busy: boolean;
   onOpenEvidence: (req: EvidenceRequest) => void;
   /** T5-2 — Single transition (default) / Compare two / All transitions. */
@@ -146,15 +150,26 @@ export function CommentaryCards({
               ))}
           </select>
           {/* T7-1 — main action gets the primary navy fill; exports are
-              secondary outline. Hover/focus/disabled states styled. */}
+              secondary outline. R11 B3 — TWO buttons, scope always explicit:
+              the old single "Regenerate" silently ran ALL advisors. */}
           <button
             type="button"
-            onClick={onRegenerate}
+            onClick={onRegenerateThis}
             disabled={busy}
+            title={`Regenerate commentary for ${advisor?.advisor_name || advisorId} only — other advisors keep their current versions`}
             className="flex h-7 items-center gap-1.5 rounded-[3px] bg-v2-navy px-3 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshCw className={`h-3 w-3 ${busy ? "animate-spin" : ""}`} />
-            {busy ? "Generating…" : "Regenerate"}
+            {busy ? "Generating…" : "Regenerate (this advisor)"}
+          </button>
+          <button
+            type="button"
+            onClick={onRegenerateAll}
+            disabled={busy}
+            title="Regenerate every advisor — each advisor gets its own new version (use after a fresh data load)"
+            className="h-7 rounded-[3px] border border-v2-navy bg-white px-2.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
+          >
+            Regenerate all
           </button>
           {/* T6-3 — two clearly-labelled exports: stored-data CSV + print PDF. */}
           <button
@@ -193,14 +208,24 @@ export function CommentaryCards({
       {sorted.length === 0 ? (
         <div className="mt-6 flex flex-col items-center gap-3 py-8">
           <p className="text-[11.5px] text-v2-muted">No commentary generated for this advisor yet.</p>
-          <button
-            type="button"
-            onClick={onRegenerate}
-            disabled={busy}
-            className="h-7 rounded-[3px] bg-v2-navy px-3.5 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark disabled:opacity-60"
-          >
-            {busy ? "Generating…" : "Generate commentary"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onRegenerateThis}
+              disabled={busy}
+              className="h-7 rounded-[3px] bg-v2-navy px-3.5 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark disabled:opacity-60"
+            >
+              {busy ? "Generating…" : "Generate (this advisor)"}
+            </button>
+            <button
+              type="button"
+              onClick={onRegenerateAll}
+              disabled={busy}
+              className="h-7 rounded-[3px] border border-v2-navy bg-white px-3 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg disabled:border-v2-border disabled:text-v2-faint"
+            >
+              Generate all advisors
+            </button>
+          </div>
         </div>
       ) : (
         <TransitionViews

@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useV2Context } from "@/components/layout/v2-shell";
 import { AsyncBoundary } from "@/components/patterns/async-state";
 import { AiGeneratedChip } from "@/components/patterns/ai-generated-chip";
+import { JobProgressOverlay, useAsyncJob } from "@/components/patterns/job-progress";
 import { type AnomaliesResponse, type AnomalyRow, type AnomalyScan, v2Api } from "@/lib/api/v2";
 import { fmtMoney, monthShort } from "@/lib/v2/format";
 import { useDriverCauses } from "@/lib/v2/driver-causes";
@@ -56,21 +57,25 @@ function actionFor(a: AnomalyRow): { label: string; href: string } {
 }
 
 export default function AnomaliesPage() {
-  const { advisors, loaded, reportTier } = useV2Context();
+  const { advisors, advisorId, advisor, loaded, reportTier } = useV2Context();
 
   const [data, setData] = useState<AnomaliesResponse | null>(null);
   const [scans, setScans] = useState<AnomalyScan[]>([]);
-  const [selectedScan, setSelectedScan] = useState(""); // "" = latest
+  const [selectedScan, setSelectedScan] = useState(""); // "" = latest for this advisor
   const [transition, setTransition] = useState(""); // "" = all, else "from|to"
   const [error, setError] = useState<string | null>(null);
   const [fetchKey, setFetchKey] = useState(0);
-  const [busy, setBusy] = useState(false);
+
+  // R11 B2 — the screen is scoped to the advisor selected in the context bar:
+  // anomalies AND the scan selector show that advisor's history (plus legacy
+  // global scans). Advisor switch resets to "latest for this advisor".
+  useEffect(() => { setSelectedScan(""); setTransition(""); }, [advisorId]);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !advisorId) return;
     let active = true;
     setError(null);
-    Promise.all([v2Api.anomalies("", selectedScan), v2Api.anomalyScans()])
+    Promise.all([v2Api.anomalies(advisorId, selectedScan), v2Api.anomalyScans(advisorId)])
       .then(([a, s]) => {
         if (!active) return;
         setData(a);
@@ -81,22 +86,24 @@ export default function AnomaliesPage() {
         if (active) setError(e instanceof Error ? e.message : "Failed to load anomalies.");
       });
     return () => { active = false; };
-  }, [loaded, selectedScan, fetchKey, reportTier]);
+  }, [loaded, advisorId, selectedScan, fetchKey, reportTier]);
 
-  const rescan = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await v2Api.anomalyScan();
+  // R11 C — async Rescan with a progress overlay; on completion the page
+  // refreshes to the new latest scan automatically (no manual reload).
+  const job = useAsyncJob(
+    v2Api.anomalyScanStatus,
+    useCallback(() => {
       setSelectedScan(""); // jump to the new latest scan
       setFetchKey((k) => k + 1);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Scan failed.");
-    } finally {
-      setBusy(false);
-    }
-  }, [busy]);
+    }, []),
+  );
+  const rescanThis = useCallback(() => {
+    if (advisorId) job.start(() => v2Api.anomalyScan(advisorId));
+  }, [advisorId, job]);
+  const rescanAll = useCallback(() => {
+    job.start(() => v2Api.anomalyScan(""));
+  }, [job]);
+  const busy = job.running;
 
   const advisorName = useCallback(
     (sid: string) => advisors.find((a) => a.advisor_sid === sid)?.advisor_name || sid,
@@ -142,8 +149,8 @@ export default function AnomaliesPage() {
             <h1 className="text-[17px] font-bold text-v2-text">Revenue Anomalies</h1>
             <p className="mt-0.5 text-[12px] text-v2-muted">
               {scan?.scan_id
-                ? `The system reviewed ${scan.advisors_reviewed} advisors across ${scan.transitions_reviewed} month-over-month transitions and flagged ${scan.flagged_count} items for attention.`
-                : "No scan has been run yet — use Re-scan to run the first one."}
+                ? `Scan ${scan.scan_id} · ${scan.advisor_sid ? `advisor ${advisorName(String(scan.advisor_sid))}` : `${scan.advisors_reviewed} advisors (legacy all-advisor scan)`} · ${scan.transitions_reviewed} month-over-month transitions reviewed · ${scan.flagged_count} flagged. Showing ${advisor?.advisor_name || advisorId}.`
+                : "No scan has been run yet for this advisor — use Rescan to run the first one."}
             </p>
           </div>
           <select
@@ -163,20 +170,32 @@ export default function AnomaliesPage() {
             value={selectedScan}
             onChange={(e) => setSelectedScan(e.target.value)}
           >
-            <option value="">Latest scan</option>
+            <option value="">Latest scan (this advisor)</option>
             {scans.map((s) => (
               <option key={s.scan_id} value={s.scan_id}>
-                {s.scan_id} · {s.started_at?.slice(0, 10)} · {s.flagged_count} flagged
+                {s.scan_id} · {s.advisor_sid || "all advisors (legacy)"} · {s.started_at?.slice(0, 10)} · {s.flagged_count} flagged
               </option>
             ))}
           </select>
+          {/* R11 B3 — TWO buttons, scope always explicit: the old single
+              "Re-scan" silently ran ALL advisors. */}
           <button
             type="button"
-            onClick={rescan}
+            onClick={rescanThis}
             disabled={busy}
+            title={`Scan ${advisor?.advisor_name || advisorId} only — other advisors keep their current scans`}
             className="flex h-7 items-center gap-1.5 rounded-[3px] bg-v2-navy px-3 text-[11.5px] font-semibold text-white hover:bg-v2-navy-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:opacity-60"
           >
-            ⟳ {busy ? "Scanning…" : "Re-scan"}
+            ⟳ {busy ? "Scanning…" : "Rescan (this advisor)"}
+          </button>
+          <button
+            type="button"
+            onClick={rescanAll}
+            disabled={busy}
+            title="Scan every advisor — each advisor gets its own new scan (use after a fresh data load)"
+            className="h-7 rounded-[3px] border border-v2-navy bg-white px-2.5 text-[11.5px] font-semibold text-v2-navy hover:bg-v2-sub-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-v2-navy disabled:cursor-not-allowed disabled:border-v2-border disabled:text-v2-faint"
+          >
+            Rescan all
           </button>
         </div>
       </div>
@@ -274,6 +293,13 @@ export default function AnomaliesPage() {
           </p>
         </div>
       </AsyncBoundary>
+
+      {/* R11 C2 — non-blocking progress overlay for the async Rescan. */}
+      <JobProgressOverlay
+        job={job}
+        title="Scanning for anomalies"
+        doneLabel="Scan complete — showing the latest scan"
+      />
     </div>
   );
 }

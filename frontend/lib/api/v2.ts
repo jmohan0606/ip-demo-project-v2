@@ -146,6 +146,9 @@ export interface CommentaryRow {
 export interface CommentaryVersion {
   version_id: string;
   version_no: number;
+  /** R11 B1 — the advisor this version is scoped to; "" = legacy pre-R11
+   * global version (covers every advisor). */
+  advisor_sid: string;
   generated_at: string;
   model: string;
   prompt_version: string;
@@ -240,12 +243,42 @@ export interface AnomalyRow {
 
 export interface AnomalyScan {
   scan_id: string;
+  /** R11 B2 — the advisor this scan is scoped to; "" = legacy global scan. */
+  advisor_sid: string;
   started_at: string;
   advisors_reviewed: number;
   transitions_reviewed: number;
   flagged_count: number;
   thresholds_json: string;
   status: string;
+}
+
+/** R11 C1 — async job status for Regenerate / Rescan (GET .../status).
+ * The job keeps running if the browser closes; polling rejoins it. */
+export interface JobStatus {
+  state: "idle" | "starting" | "running" | "completed" | "failed";
+  job_id?: string;
+  kind?: "commentary" | "anomaly_scan";
+  scope?: string; // advisor_sid or "ALL"
+  phase?: string;
+  advisor_current?: string;
+  advisor_index?: number;
+  advisor_total?: number;
+  versions?: string[];
+  scans?: string[];
+  summary?: { version_ids?: string[]; scan_ids?: string[] } & Record<string, unknown>;
+  error?: string;
+  started_at?: string;
+  finished_at?: string;
+}
+
+/** Response of the async POST that starts a job (R11 C1/C3). */
+export interface JobStart {
+  started?: boolean;
+  already_running?: boolean;
+  job_id?: string;
+  state?: string;
+  scope?: string;
 }
 
 export interface AnomaliesResponse {
@@ -278,12 +311,18 @@ export const v2Api = {
   commentary: (advisorId: string, versionId = "") =>
     apiClient.get<{ commentaries: CommentaryRow[]; resolved_version: string; served_by_tier: number; empty_state: string | null }>(
       `/api/v2/insights/commentary?advisor_id=${advisorId}&version_id=${versionId}`),
-  versions: () =>
-    apiClient.get<{ versions: CommentaryVersion[]; served_by_tier: number }>("/api/v2/insights/versions"),
+  versions: (advisorId = "") =>
+    apiClient.get<{ versions: CommentaryVersion[]; served_by_tier: number }>(
+      `/api/v2/insights/versions?advisor_id=${encodeURIComponent(advisorId)}`),
   evaluations: (versionId: string) =>
     apiClient.get<{ evaluations: CommentaryEvaluation[]; served_by_tier: number }>(
       `/api/v2/insights/evaluations?version_id=${encodeURIComponent(versionId)}`),
-  generate: (notes = "") => apiClient.post<Record<string, unknown>>(`/api/v2/insights/generate?notes=${encodeURIComponent(notes)}`),
+  // R11 C1 — async: returns a job id immediately; poll generateStatus().
+  // advisorId "" = regenerate ALL advisors (each gets its own version).
+  generate: (advisorId = "", notes = "") =>
+    apiClient.post<JobStart>(
+      `/api/v2/insights/generate?advisor_id=${encodeURIComponent(advisorId)}&notes=${encodeURIComponent(notes)}`),
+  generateStatus: () => apiClient.get<JobStatus>("/api/v2/insights/generate/status"),
 
   evidence: (driverId: string, versionId = "") =>
     apiClient.get<{ evidence: EvidenceRecord[]; served_by_tier: number }>(
@@ -303,10 +342,15 @@ export const v2Api = {
   anomalies: (advisorId = "", scanId = "", severity = "", limit = 500) =>
     apiClient.get<AnomaliesResponse>(
       `/api/v2/anomalies?advisor_id=${encodeURIComponent(advisorId)}&scan_id=${encodeURIComponent(scanId)}&severity=${encodeURIComponent(severity)}&result_limit=${limit}`),
-  anomalyScans: () =>
-    apiClient.get<{ scans: AnomalyScan[]; served_by_tier: number }>("/api/v2/anomalies/scans"),
-  anomalyScan: (notes = "") =>
-    apiClient.post<Record<string, unknown>>(`/api/v2/anomalies/scan?notes=${encodeURIComponent(notes)}`),
+  anomalyScans: (advisorId = "") =>
+    apiClient.get<{ scans: AnomalyScan[]; served_by_tier: number }>(
+      `/api/v2/anomalies/scans?advisor_id=${encodeURIComponent(advisorId)}`),
+  // R11 C1 — async: returns a job id immediately; poll anomalyScanStatus().
+  // advisorId "" = rescan ALL advisors (each gets its own scan).
+  anomalyScan: (advisorId = "", notes = "") =>
+    apiClient.post<JobStart>(
+      `/api/v2/anomalies/scan?advisor_id=${encodeURIComponent(advisorId)}&notes=${encodeURIComponent(notes)}`),
+  anomalyScanStatus: () => apiClient.get<JobStatus>("/api/v2/anomalies/scan/status"),
 
   adapterStatus: () =>
     apiClient.get<{ modes: { graph_client_mode: string; llm_client_mode: string; data_set: string; commentary_mode: string } }>(
