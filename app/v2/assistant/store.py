@@ -51,13 +51,21 @@ def _csv_append(file_rel: str, rows: list[dict]) -> None:
     """Append to the workflow CSV so the local tier survives a restart. The
     header row is authoritative (written by the dataset builder). Conversation
     updates append a fresh full row — the store loads by primary id, so the
-    last row wins (same additive semantics as anomaly scans)."""
+    last row wins (same additive semantics as anomaly scans).
+
+    R9 C3 — a missing file is CREATED (header from the full row the store
+    writes), never skipped: silently dropping the local copy of a turn — a
+    guardrail-blocked one especially — would make it vanish from the
+    transcript when the local tier serves the read."""
     if not rows:
         return
     path = get_settings().resolved_data_set_dir / file_rel
     if not path.exists():
-        _log.warning("workflow CSV missing, skipping local append: %s", path)
-        return
+        _log.warning("workflow CSV missing — creating it so the turn is never "
+                     "dropped from the local tier: %s", path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", newline="", encoding="utf-8") as f:
+            csv.writer(f, lineterminator="\n").writerow(list(rows[0].keys()))
     with path.open(newline="", encoding="utf-8-sig") as f:
         header = next(csv.reader(f))
     with path.open("a", newline="", encoding="utf-8") as f:

@@ -45,12 +45,15 @@ function GuardrailChip({ message }: { message: MessageRow }) {
     .map((f) => `${f.category.replace(/_/g, " ").toLowerCase()} · ${f.severity}`)
     .filter((t) => !seen.has(t) && seen.add(t))
     .join(", ");
+  // R9 C3 — category and severity are shown IN the chip (demoable at a
+  // glance), never the matched pattern (guardrail_json only ever carries
+  // category/severity/action).
   return (
     <span
       className="inline-block whitespace-nowrap rounded-full bg-v2-header-bg px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.3px] text-v2-navy"
       title={label || "guardrail"}
     >
-      ⛉ Guardrail
+      ⛉ Guardrail{label ? ` — ${label}` : ""}
     </span>
   );
 }

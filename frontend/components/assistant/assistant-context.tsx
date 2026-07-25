@@ -155,6 +155,33 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
       void refreshConversations();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "The assistant could not answer.");
+      // R9 C3 — a turn is NEVER silently dropped: even when the server call
+      // fails, the user's message and an honest error reply stay visible in
+      // the transcript (local-only rows; clearly not persisted).
+      const stamp = Date.now();
+      setMessages((prev) => [
+        ...prev,
+        {
+          message_id: `local-error-${stamp}-user`,
+          conversation_id: conversationId,
+          seq: prev.length + 1,
+          role: "USER",
+          text,
+          status: "OK",
+          guardrail_status: "PASS",
+          created_at: new Date().toISOString(),
+        } as MessageRow,
+        {
+          message_id: `local-error-${stamp}-assistant`,
+          conversation_id: conversationId,
+          seq: prev.length + 2,
+          role: "ASSISTANT",
+          text: "Something went wrong sending this message — it was not processed or saved. Please try again.",
+          status: "NO_DATA",
+          guardrail_status: "PASS",
+          created_at: new Date().toISOString(),
+        } as MessageRow,
+      ]);
     } finally {
       setSending(false);
     }
