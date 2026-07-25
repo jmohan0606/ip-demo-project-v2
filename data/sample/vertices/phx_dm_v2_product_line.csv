@@ -1,8 +1,13 @@
 line_id,line_name,display_order,data_source
-managed,Managed,1,REAL
-trails,Trails,2,REAL
-structured_products,Structured Products,3,REAL
-alternative_investments,Alternative Investments,4,REAL
-equities_and_options,Equities and Options,5,REAL
-cash_management,Cash Management,6,REAL
-annuities,Annuities,7,REAL
+rec_managed,Managed,1,REAL
+rec_trails,Trails,2,REAL
+rec_cash_management,Cash management,3,REAL
+nonrec_cash_management,Cash management,4,REAL
+nonrec_annuities,Annuities,5,REAL
+nonrec_mutual_funds,Mutual funds,6,REAL
+nonrec_equities_and_options,Equities and options,7,REAL
+nonrec_fixed_income,Fixed income,8,REAL
+nonrec_structured_products,Structured products,9,REAL
+nonrec_insurance,Insurance,10,REAL
+nonrec_lending,Lending,11,REAL
+nonrec_referrals_and_revenue_share,Referrals and revenue share,12,REAL

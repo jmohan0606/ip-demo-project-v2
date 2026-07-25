@@ -20,8 +20,11 @@ from app.v2.revenue.aggregation import ADJUSTMENT, ONE_TIME, RECURRING, TOTAL_GR
 
 logger = logging.getLogger(__name__)
 
-# Groups billed quarterly (TIMING candidates). Sample + known client hierarchy.
-QUARTERLY_BILLED_GROUPS = {"alternative_investments", "alternatives"}
+# Groups billed quarterly (TIMING candidates). R10: the corrected hierarchy
+# (FIX_SPEC_R10 A1) has no Alternative Investments line; MAC (Trails) carries
+# the quarterly-billing story. The legacy ids stay so pre-R10 fixtures in
+# scripts/verify_attribution.py keep proving the TIMING step.
+QUARTERLY_BILLED_GROUPS = {"rec_trails__mac", "alternative_investments", "alternatives"}
 
 # Causes whose contribution is DUMMY until a data source exists.
 DUMMY_CAUSES = ("MARKET", "NET_FLOW")

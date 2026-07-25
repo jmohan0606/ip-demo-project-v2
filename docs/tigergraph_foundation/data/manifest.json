@@ -88,7 +88,7 @@
         "line_id",
         "data_source"
       ],
-      "expected_rows": 7,
+      "expected_rows": 12,
       "workflow_generated": false
     },
     {
@@ -107,7 +107,7 @@
         "group_id",
         "data_source"
       ],
-      "expected_rows": 9,
+      "expected_rows": 34,
       "workflow_generated": false
     },
     {
@@ -128,7 +128,7 @@
         "product_id",
         "data_source"
       ],
-      "expected_rows": 10,
+      "expected_rows": 13,
       "workflow_generated": false
     },
     {
@@ -239,7 +239,7 @@
         "txn_id",
         "data_source"
       ],
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -271,7 +271,7 @@
         "mpr_id",
         "data_source"
       ],
-      "expected_rows": 64,
+      "expected_rows": 91,
       "workflow_generated": false
     },
     {
@@ -319,7 +319,7 @@
         "change_id",
         "data_source"
       ],
-      "expected_rows": 55,
+      "expected_rows": 73,
       "workflow_generated": false
     },
     {
@@ -344,7 +344,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 128,
+      "expected_rows": 152,
       "workflow_generated": false
     },
     {
@@ -571,7 +571,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 10,
+      "expected_rows": 13,
       "workflow_generated": false
     },
     {
@@ -584,7 +584,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 9,
+      "expected_rows": 34,
       "workflow_generated": false
     },
     {
@@ -597,7 +597,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 7,
+      "expected_rows": 12,
       "workflow_generated": false
     },
     {
@@ -610,7 +610,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -623,7 +623,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -636,7 +636,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -649,7 +649,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -662,7 +662,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 229,
+      "expected_rows": 256,
       "workflow_generated": false
     },
     {
@@ -675,7 +675,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 64,
+      "expected_rows": 91,
       "workflow_generated": false
     },
     {
@@ -688,7 +688,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 64,
+      "expected_rows": 91,
       "workflow_generated": false
     },
     {
@@ -701,7 +701,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 64,
+      "expected_rows": 91,
       "workflow_generated": false
     },
     {
@@ -740,7 +740,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 55,
+      "expected_rows": 73,
       "workflow_generated": false
     },
     {
@@ -753,7 +753,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 49,
+      "expected_rows": 67,
       "workflow_generated": false
     },
     {
@@ -766,7 +766,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 55,
+      "expected_rows": 73,
       "workflow_generated": false
     },
     {
@@ -779,7 +779,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 55,
+      "expected_rows": 73,
       "workflow_generated": false
     },
     {
@@ -792,7 +792,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 128,
+      "expected_rows": 152,
       "workflow_generated": false
     },
     {
@@ -805,7 +805,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 128,
+      "expected_rows": 152,
       "workflow_generated": false
     },
     {
@@ -818,7 +818,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 116,
+      "expected_rows": 140,
       "workflow_generated": false
     },
     {

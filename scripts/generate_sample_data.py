@@ -19,7 +19,7 @@ ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
   ELIGIBILITY   SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
                 household) in Jun — revenue moves credited -> non-credited
-  TIMING        alternatives bill quarterly: Apr and Jun rows, none in May
+  TIMING        MAC (Trails) bills quarterly: Apr and Jun rows, none in May
   FEE_RATE      SMPL002 managed UMA rate steps 82 -> 88 bps in Jun
   DISCOUNT      SMPL003 managed rows gain concession_type=Discount in Jun
   BILLABLE_DAYS May has 21 business days vs Apr 22 / Jun 22 (recurring groups)
@@ -63,6 +63,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.v2.dataset.builder import ReconciliationError, build_dataset
 from app.v2.revenue import eligibility as elig
+from app.v2.revenue import taxonomy
 from app.v2.revenue.aggregation import EligibilityContext, derive_rev_nature
 
 OUT = Path("data/sample")
@@ -79,50 +80,40 @@ ADVISORS = [
      "branch_cd": "SMPLBR2", "standard_id": "SMPL003", "data_source": "REAL"},
 ]
 
-CLASSES = [
-    {"class_id": "RECURRING", "class_name": "Recurring", "display_order": 1, "data_source": "REAL"},
-    {"class_id": "NON_RECURRING", "class_name": "Non-recurring", "display_order": 2, "data_source": "REAL"},
-]
-
-# line_id, line_name, class, order
-LINES = [
-    ("managed", "Managed", "RECURRING", 1),
-    ("trails", "Trails", "RECURRING", 2),
-    ("structured_products", "Structured Products", "NON_RECURRING", 3),
-    ("alternative_investments", "Alternative Investments", "NON_RECURRING", 4),
-    ("equities_and_options", "Equities and Options", "NON_RECURRING", 5),
-    ("cash_management", "Cash Management", "NON_RECURRING", 6),
-    ("annuities", "Annuities", "NON_RECURRING", 7),
-]
-
-# group_id, group_name, line_id, order
-GROUPS = [
-    ("unified_managed_account", "Unified Managed Account", "managed", 1),
-    ("jpmcap", "JPMCAP", "managed", 2),
-    ("advisory", "Advisory", "managed", 3),
-    ("mutual_fund_trails", "Mutual Fund Trails", "trails", 4),
-    ("structured_products", "Structured Products", "structured_products", 5),
-    ("alternative_investments", "Alternative Investments", "alternative_investments", 6),
-    ("equities", "Equities", "equities_and_options", 7),
-    ("cash_management", "Cash Management", "cash_management", 8),
-    ("annuities", "Annuities", "annuities", 9),
-]
+# FIX_SPEC_R10 A — the taxonomy is seeded VERBATIM from the canonical module
+# (app/v2/revenue/taxonomy.py), never redeclared here. The full A1 dimension
+# set is written even where the sample has no product in a group.
+CLASSES = taxonomy.classes()
+LINES = taxonomy.lines()
+GROUPS = taxonomy.groups()
 
 # product_id -> (product_cd, product_sub_cd, product_name, group_id, grid_type)
+# Group ids are PATH-SCOPED (class -> line -> group) per FIX_SPEC_R10 A2. The
+# sample deliberately exercises the dual-name cases on BOTH sides:
+#   Mutual funds     rec_trails__mutual_funds        vs  nonrec_mutual_funds__mutual_funds
+#   Annuities        rec_trails__annuities           vs  nonrec_annuities__variable
+#   Cash management  rec_cash_management__money_market_funds
+#                                                    vs  nonrec_cash_management__brokered_cds
 # UMA|PAYS is a PAY_TYPE_SUMMARY row: extracted (grid no longer filtered at
 # extraction, R1-4/R1-5) but OUT_OF_GRID under the default CREDITED_GRID_TYPES
 # config — relaxing the config makes it count, with no code change.
 PRODUCTS = [
-    ("UMA|FEE", "UMA", "FEE", "UMA Advisory Fee", "unified_managed_account", "PRODUCT_TYPE"),
-    ("JPMCAP|FEE", "JPMCAP", "FEE", "JPMCAP Program Fee", "jpmcap", "PRODUCT_TYPE"),
-    ("ADV|FEE", "ADV", "FEE", "Advisory Fee", "advisory", "PRODUCT_TYPE"),
-    ("MFT|12B1", "MFT", "12B1", "Mutual Fund 12b-1 Trail", "mutual_fund_trails", "PRODUCT_TYPE"),
-    ("STRP|SYND", "STRP", "SYND", "Structured Product Syndicate", "structured_products", "PRODUCT_TYPE"),
-    ("ALTS|QFEE", "ALTS", "QFEE", "Alternatives Quarterly Fee", "alternative_investments", "PRODUCT_TYPE"),
-    ("EQ|COMM", "EQ", "COMM", "Equity Commission", "equities", "PRODUCT_TYPE"),
-    ("CASH|SWP", "CASH", "SWP", "Cash Sweep Revenue", "cash_management", "PRODUCT_TYPE"),
-    ("ANNU|COMM", "ANNU", "COMM", "Annuity Commission", "annuities", "PRODUCT_TYPE"),
-    ("UMA|PAYS", "UMA", "PAYS", "UMA Pay-Type Summary", "unified_managed_account", "PAY_TYPE_SUMMARY"),
+    ("UMA|FEE", "UMA", "FEE", "UMA Advisory Fee", "rec_managed__unified_managed_account", "PRODUCT_TYPE"),
+    ("JPMCAP|FEE", "JPMCAP", "FEE", "JPMCAP Program Fee", "rec_managed__jpmcap", "PRODUCT_TYPE"),
+    ("ADV|FEE", "ADV", "FEE", "Advisory Fee", "rec_managed__advisory", "PRODUCT_TYPE"),
+    ("MFT|12B1", "MFT", "12B1", "Mutual Fund 12b-1 Trail", "rec_trails__mutual_funds", "PRODUCT_TYPE"),
+    ("ANNU|TRL", "ANNU", "TRL", "Annuity Trail", "rec_trails__annuities", "PRODUCT_TYPE"),
+    ("MAC|QFEE", "MAC", "QFEE", "MAC Quarterly Fee", "rec_trails__mac", "PRODUCT_TYPE"),
+    ("STRP|SYND", "STRP", "SYND", "Structured Product Syndicate",
+     "nonrec_structured_products__structured_products", "PRODUCT_TYPE"),
+    ("EQ|COMM", "EQ", "COMM", "Equity Commission", "nonrec_equities_and_options__equities", "PRODUCT_TYPE"),
+    ("CASH|SWP", "CASH", "SWP", "Cash Sweep Revenue",
+     "rec_cash_management__money_market_funds", "PRODUCT_TYPE"),
+    ("CASH|CD", "CASH", "CD", "Brokered CD Commission",
+     "nonrec_cash_management__brokered_cds", "PRODUCT_TYPE"),
+    ("MF|COMM", "MF", "COMM", "Mutual Fund Commission", "nonrec_mutual_funds__mutual_funds", "PRODUCT_TYPE"),
+    ("ANNU|COMM", "ANNU", "COMM", "Annuity Commission", "nonrec_annuities__variable", "PRODUCT_TYPE"),
+    ("UMA|PAYS", "UMA", "PAYS", "UMA Pay-Type Summary", "rec_managed__unified_managed_account", "PAY_TYPE_SUMMARY"),
 ]
 
 PRODUCT_GRID = {p[0]: p[5] for p in PRODUCTS}
@@ -290,11 +281,29 @@ def build_transactions() -> list[dict]:
                     txns.append(_mk_txn(adv, m, "STRP|SYND", accounts[0], 12 + k,
                                         round(9800 + ai * 1500 + k * 900, 2),
                                         file_key="twhs", description="SYNDICATE ALLOCATION"))
-            # Alternatives — quarterly billing: Apr and Jun only (TIMING).
+            # MAC — quarterly billing: Apr and Jun only (TIMING). R10: the old
+            # taxonomy's Alternative Investments line does not exist in the
+            # corrected hierarchy; the quarterly-billing story moves to MAC
+            # (Trails), which is in QUARTERLY_BILLED_GROUPS.
             if m in ("202604", "202606"):
-                txns.append(_mk_txn(adv, m, "ALTS|QFEE", accounts[1], 15,
+                txns.append(_mk_txn(adv, m, "MAC|QFEE", accounts[1], 15,
                                     round(6200 + ai * 800, 2), rate_bps=120.0, file_key="ace",
                                     description=f"QUARTERLY BILLING M{int(m[4:6]):02d}-2026"))
+            # R10 A — dual-name products on BOTH sides of the hierarchy, so the
+            # fixture proves position-based classification: a recurring
+            # Annuities trail (Trails -> Annuities) alongside the non-recurring
+            # Annuity Commission below; a non-recurring Mutual Fund Commission
+            # (top-level Mutual funds) alongside the recurring 12b-1 trail; a
+            # non-recurring Brokered CD alongside the recurring cash sweep.
+            txns.append(_mk_txn(adv, m, "ANNU|TRL", accounts[4], 22,
+                                round(560 + ai * 90, 2), rate_bps=0.0, file_key="l_a_btr",
+                                description="ANNUITY TRAIL"))
+            txns.append(_mk_txn(adv, m, "MF|COMM", accounts[2], 16,
+                                round(340 + ai * 45, 2), file_key="ace",
+                                description="MUTUAL FUND COMMISSION"))
+            txns.append(_mk_txn(adv, m, "CASH|CD", accounts[7], 19,
+                                round(210 + ai * 30, 2), file_key="ace",
+                                description="BROKERED CD COMMISSION"))
             # Equities — VOLUME swings: 8 -> 5 -> 11 trades (+ advisor offset).
             # The first trade each month is 91 (equity below minimum): still
             # credited, but incentive-INeligible — the badge is visible with no

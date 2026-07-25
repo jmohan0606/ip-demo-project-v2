@@ -25,9 +25,10 @@ never a silent partial build.
 
 ## What it computes
 
-Dimensions from the hierarchy/advisor extracts (product_line = distinct
-level_one_product, product_group = distinct level_two_product, class =
-Managed/Trails -> RECURRING per EXTRACTION_SPEC §4), transactions mapped per
+Dimensions seeded from the canonical A1 taxonomy (app/v2/revenue/taxonomy.py,
+FIX_SPEC_R10 A); each extract row's (level_one_product, level_two_product)
+path resolves into that hierarchy — recurring vs non-recurring is decided by
+POSITION, never by name. Transactions are mapped per
 EXTRACTION_SPEC (post_split_credited_amt -> credited_amt, rev_nature derived,
 reason_cd -> revenue_eligibility via the reason-code seed, days_to_process
 computed, posting_month_id = trade month ASSUMED), then the shared builder
@@ -55,6 +56,7 @@ from app.v2.dataset.builder import ReconciliationError, build_dataset
 from app.v2.drivers.attribution import AttributionError
 from app.v2.calendar import month_rows
 from app.v2.revenue import eligibility as elig
+from app.v2.revenue import taxonomy
 from app.v2.revenue.aggregation import EligibilityContext, derive_rev_nature
 
 MANIFEST = Path("docs/tigergraph_foundation/data/manifest.json")
@@ -85,10 +87,10 @@ RAW_CONTRACT: dict[str, dict] = {
     },
 }
 
-# Recurring vs non-recurring class: Recurring = product lines Managed and
-# Trails; everything else Non-recurring (EXTRACTION_SPEC §4 — inferred from
-# the client mockup, flagged for confirmation).
-RECURRING_LINE_NAMES = {"managed", "trails"}
+# R10 A — recurring vs non-recurring is decided by the product's POSITION in
+# the corrected client hierarchy (app/v2/revenue/taxonomy.py), keyed on the
+# (level_one_product, level_two_product) path from the extract — NEVER by a
+# name match (Annuities / Mutual funds / Cash management exist on both sides).
 
 
 def fail(msg: str) -> "sys.NoReturn":
@@ -133,17 +135,53 @@ def slug(name: str) -> str:
 
 def build_dimensions(hier_rows: list[dict], adv_rows: list[dict]) -> dict:
     """product_line / product_group / product / class structures in the exact
-    tuple shapes the shared builder takes, from the raw hierarchy extract."""
-    lines_seen: dict[str, str] = {}    # line_id -> display name
+    tuple shapes the shared builder takes.
+
+    R10 A — the dimensions are seeded VERBATIM from the canonical A1 taxonomy
+    (app/v2/revenue/taxonomy.py). Each extract row's
+    (level_one_product, level_two_product) PATH resolves into that taxonomy:
+
+      * known (line, group) pair  -> its A1 position (class comes with it)
+      * unknown group under a known single-class line -> a group created under
+        that line (class from the line's position)
+      * a DUAL-NAME line (Annuities / Mutual funds / Cash management) whose
+        group does not pin down the side -> STOP (AmbiguousPathError): never
+        classify by name (FIX_SPEC_R10 A2)
+      * an entirely unknown line -> created as NON_RECURRING, LOUDLY: the
+        recurring class changes driver behaviour (account-presence gating), so
+        absence from every recurring path in A1 is the conservative, honest
+        default. Every such line is printed and must be reviewed.
+    """
+    lines_seen: dict[str, tuple[str, str]] = {}   # line_id -> (name, class_id)
     groups_seen: dict[str, tuple[str, str]] = {}  # group_id -> (name, line_id)
+    unknown_lines: dict[str, str] = {}
+    ambiguous: list[str] = []
     products: list[tuple] = []
     seen_products: set[str] = set()
+    for lid, lname, cls, _o in taxonomy.lines():
+        lines_seen[lid] = (lname, cls)
+    for gid, gname, lid, _o in taxonomy.groups():
+        groups_seen[gid] = (gname, lid)
+
     for r in hier_rows:
         line_name = r["level_one_product"] or "Unclassified"
         group_name = r["level_two_product"] or "Unclassified"
-        line_id, group_id = slug(line_name), slug(group_name)
-        lines_seen.setdefault(line_id, line_name)
-        groups_seen.setdefault(group_id, (group_name, line_id))
+        try:
+            hit = taxonomy.resolve_path(line_name, group_name)
+        except taxonomy.AmbiguousPathError as exc:
+            ambiguous.append(str(exc))
+            continue
+        if hit is None:
+            # Line unknown to A1 — conservative NON_RECURRING, reported loudly.
+            line_id = f"nonrec_{slug(line_name)}"
+            group_id = f"{line_id}__{slug(group_name)}"
+            unknown_lines.setdefault(line_id, line_name)
+            lines_seen.setdefault(line_id, (line_name, "NON_RECURRING"))
+            groups_seen.setdefault(group_id, (group_name, line_id))
+        else:
+            line_id, group_id = hit["line_id"], hit["group_id"]
+            if not hit["known_group"]:
+                groups_seen.setdefault(group_id, (group_name, line_id))
         product_id = f"{r['product_code']}|{r['sub_product_code']}"
         if product_id in seen_products:
             continue
@@ -154,14 +192,29 @@ def build_dimensions(hier_rows: list[dict], adv_rows: list[dict]) -> dict:
                          f"{r['product_code']} {r['sub_product_code']}".strip(),
                          group_id, r["grid_type"] or "PRODUCT_TYPE"))
 
-    classes = [
-        {"class_id": "RECURRING", "class_name": "Recurring", "display_order": 1},
-        {"class_id": "NON_RECURRING", "class_name": "Non-recurring", "display_order": 2},
-    ]
-    lines = [(lid, lname, "RECURRING" if lid in RECURRING_LINE_NAMES else "NON_RECURRING", i)
-             for i, (lid, lname) in enumerate(sorted(lines_seen.items()), start=1)]
-    groups = [(gid, gname, line_id, i)
-              for i, (gid, (gname, line_id)) in enumerate(sorted(groups_seen.items()), start=1)]
+    if ambiguous:
+        fail("AMBIGUOUS HIERARCHY PATHS — the corrected taxonomy places these line "
+             "names under BOTH recurring and non-recurring, and the extract's group "
+             "name does not identify the side. Classifying by name would silently "
+             "corrupt every driver (FIX_SPEC_R10 A2). Paths:\n  - "
+             + "\n  - ".join(ambiguous))
+    if unknown_lines:
+        print("\nWARNING — product lines NOT in the corrected client hierarchy (A1); "
+              "classified NON_RECURRING by absence from every recurring path. Review "
+              "with the client and extend app/v2/revenue/taxonomy.py if any is "
+              "recurring:", file=sys.stderr)
+        for lid, lname in sorted(unknown_lines.items()):
+            print(f"  - {lname!r} -> {lid}", file=sys.stderr)
+
+    classes = taxonomy.classes()
+    a1_line_order = {lid: o for lid, _n, _c, o in taxonomy.lines()}
+    a1_group_order = {gid: o for gid, _n, _l, o in taxonomy.groups()}
+    lines = [(lid, name, cls, a1_line_order.get(lid, 900 + i))
+             for i, (lid, (name, cls)) in enumerate(sorted(lines_seen.items()))]
+    lines.sort(key=lambda t: t[3])
+    groups = [(gid, name, line_id, a1_group_order.get(gid, 900 + i))
+              for i, (gid, (name, line_id)) in enumerate(sorted(groups_seen.items()))]
+    groups.sort(key=lambda t: t[3])
 
     advisors = []
     for r in sorted(adv_rows, key=lambda x: x["advisor_sid"]):

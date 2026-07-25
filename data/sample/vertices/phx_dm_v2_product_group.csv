@@ -1,10 +1,35 @@
 group_id,group_name,display_order,data_source
-unified_managed_account,Unified Managed Account,1,REAL
-jpmcap,JPMCAP,2,REAL
-advisory,Advisory,3,REAL
-mutual_fund_trails,Mutual Fund Trails,4,REAL
-structured_products,Structured Products,5,REAL
-alternative_investments,Alternative Investments,6,REAL
-equities,Equities,7,REAL
-cash_management,Cash Management,8,REAL
-annuities,Annuities,9,REAL
+rec_managed__unified_managed_account,Unified Managed Account,1,REAL
+rec_managed__jpmcap,JPMCAP,2,REAL
+rec_managed__advisory,Advisory,3,REAL
+rec_managed__mutual_funds_advisory_portfolio,Mutual funds advisory portfolio,4,REAL
+rec_managed__customized_bond_portfolio,Customized bond portfolio,5,REAL
+rec_trails__mutual_funds,Mutual funds,6,REAL
+rec_trails__annuities,Annuities,7,REAL
+rec_trails__mac,MAC,8,REAL
+rec_trails__529,529,9,REAL
+rec_cash_management__money_market_funds,Money market funds,10,REAL
+rec_cash_management__premium_deposits,Premium Deposits,11,REAL
+nonrec_cash_management__brokered_cds,Brokered CDs,12,REAL
+nonrec_annuities__fixed,Fixed,13,REAL
+nonrec_annuities__variable,Variable,14,REAL
+nonrec_mutual_funds__mutual_funds,Mutual funds,15,REAL
+nonrec_equities_and_options__equities,Equities,16,REAL
+nonrec_equities_and_options__equity_syndicate,Equity Syndicate,17,REAL
+nonrec_equities_and_options__options,Options,18,REAL
+nonrec_fixed_income__corporate_bonds,Corporate bonds,19,REAL
+nonrec_fixed_income__municipal_bonds,Municipal bonds,20,REAL
+nonrec_fixed_income__government_bonds,Government bonds,21,REAL
+nonrec_fixed_income__fixed_syndicate,Fixed Syndicate,22,REAL
+nonrec_fixed_income__other,Other,23,REAL
+nonrec_structured_products__structured_products,Structured products,24,REAL
+nonrec_insurance__insurance,Insurance,25,REAL
+nonrec_lending__securities_based_lending,Securities-based lending,26,REAL
+nonrec_lending__margin,Margin,27,REAL
+nonrec_lending__fully_paid_lending,Fully Paid Lending,28,REAL
+nonrec_referrals_and_revenue_share__situational_partnership,Situational partnership,29,REAL
+nonrec_referrals_and_revenue_share__private_bank_referral,Private Bank referral,30,REAL
+nonrec_referrals_and_revenue_share__everyday_401k,Everyday 401K,31,REAL
+nonrec_referrals_and_revenue_share__other,Other,32,REAL
+nonrec_referrals_and_revenue_share__donor_advised_funds,Donor-advised funds,33,REAL
+nonrec_referrals_and_revenue_share__defined_contribution_advisory,Defined contribution advisory,34,REAL
