@@ -35,10 +35,17 @@ export interface LlmConnectivityRow {
   role: string;
   provider: string;
   model: string;
+  /** R12 D — the role's effective deployment name (Azure/cdao route by it). */
+  deployment?: string;
+  /** R12 D — the role's effective api_version. */
+  api_version?: string;
   source?: string;
   status: "model-found" | "reachable" | "unavailable";
   check?: string;
   error: string | null;
+  /** R12 D — present when a configured role is unreachable: what it will
+   *  auto-fall back to at run time (default agent LLM). */
+  fallback?: string;
 }
 
 export interface EnvHealthReport {

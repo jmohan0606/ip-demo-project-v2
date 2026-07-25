@@ -252,11 +252,14 @@ export function EnvHealthWorkspace() {
             </HealthCard>
           )}
 
-          {/* R10 E — LLM connectivity per role: provider, resolved model and the
-              cheapest reachability check (models lookup, never a generation).
-              A bad JUDGE_MODEL (e.g. a 404ing deployment) shows red HERE before
-              a commentary run. The mock-mode judge row is unavailable by design
-              and does not redden the card. */}
+          {/* R10 E / R12 D — LLM connectivity per role: the EFFECTIVE config
+              (mode, model, deployment, api_version — per-role WRITER_/JUDGE_/
+              ASSISTANT_ keys resolved per-field against the active mode) and the
+              cheapest reachability check for that config (models lookup, never a
+              generation). A bad role config (e.g. a 404ing deployment) shows red
+              HERE before a run, with the "will fall back" note saying what the
+              role will actually run on. The mock-mode judge row is unavailable
+              by design and does not redden the card. No secrets ever shown. */}
           {report?.llm_connectivity && report.llm_connectivity.length > 0 && (
             <HealthCard
               title="LLM connectivity"
@@ -273,7 +276,7 @@ export function EnvHealthWorkspace() {
                 <table className="w-full border-collapse text-[11.5px]">
                   <thead>
                     <tr className="bg-v2-header-bg text-left">
-                      {["Role", "Provider / mode", "Resolved model", "Status", "Check"].map((h) => (
+                      {["Role", "Provider / mode", "Effective model", "Deployment", "api_version", "Status", "Check"].map((h) => (
                         <th key={h} className="px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.5px]">
                           {h}
                         </th>
@@ -286,6 +289,8 @@ export function EnvHealthWorkspace() {
                         <td className="px-3 py-[6px] font-semibold">{r.role}</td>
                         <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.provider || "—"}</td>
                         <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.model || "—"}</td>
+                        <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.deployment || "—"}</td>
+                        <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.api_version || "—"}</td>
                         <td className="px-3 py-[6px]">
                           <span
                             className={
@@ -301,6 +306,9 @@ export function EnvHealthWorkspace() {
                         </td>
                         <td className="px-3 py-[6px] text-[10.5px] text-v2-muted">
                           {r.error ?? r.check ?? "—"}
+                          {r.fallback && (
+                            <div className="mt-[2px] font-medium text-v2-warn">{r.fallback}</div>
+                          )}
                         </td>
                       </tr>
                     ))}
