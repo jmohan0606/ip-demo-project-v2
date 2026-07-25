@@ -1375,3 +1375,59 @@ DDL. Verified: new `scripts/verify_glossary_order.py` 7/7 (incl. a simulated
 STRING-typed lexicographic tier-1 result restored to 1..19); e2e OVERALL PASS
 (glossary sorted 1..19, reconciliation $0.00); attribution / anomalies /
 per_advisor 33/33 / role_llm 32/32 all PASS; `tsc --noEmit` clean.
+
+## 19. Round 13 (FIX_SPEC_R13.md, 2026-07-25) — CDAO GPT-5 COMPATIBILITY
+
+Small surgical round: make the cdao client GPT-5-compatible (gpt-5.x incl.
+mini/nano) across the main LLM and all three roles. LLM plumbing only — no
+computed figure touched; reconciliation stays $0.00. All switches are
+config-driven; the model name is never inspected.
+
+**A — api_version omitted when empty (2772d3f).** `build_cdao_openai_client`
+now calls `openai_azure_client(workspace_id=...)` WITHOUT the api_version
+argument when the effective api_version is empty/None/blank; non-empty passes
+exactly as before (GPT-4 intact). The per-role builder and the embedding
+adapter funnel through the same function, so "role override empty AND
+CDAO_API_VERSION empty ⇒ omitted" holds everywhere. Empty config is the
+operator's GPT-5 signal.
+
+**B — temperature, default 1 (712aea1).** New `CDAO_TEMPERATURE` (main LLM)
+and `WRITER_/JUDGE_/ASSISTANT_TEMPERATURE` (float, default 1 — GPT-5 rejects
+< 1). `RoleLLMConfig` gains `temperature`; it is always present so it NEVER
+counts toward R12 `configured_fields` (all-empty role config stays
+byte-identical to R12). Threaded through `build_llm_client` into both
+chat-completions adapters (`RealLLMClient`, `CdaoOpenAILLMClient`), the
+judge's legacy R9 E path and the assistant chain's primary link; the
+unconfigured writer keeps the main singleton (CDAO_TEMPERATURE).
+
+**C — max_tokens removed (8569ff6).** Removed from both chat-completions
+creates (the spec's line ~200/202 is `RealLLMClient.generate` — both Azure
+OpenAI chat-completions adapters carry identical GPT-5 constraints, so B+C
+apply to both; decision recorded in PROGRESS). No token cap reintroduced. The
+Anthropic `messages.create` keeps its required `max_tokens=1024` — asserted to
+be the only one left in `app/llm/client.py`.
+
+**D — Env Health per-role probe on the corrected path (1eaee0b).** The
+UNAVAILABLE role rows came from the probe building the client the old way. It
+now constructs through the same corrected path (api_version omitted when
+empty, temperature from config) and, on cdao only, probes with a minimal
+one-word `chat.completions.create` (no max_tokens, output discarded) — the
+only check that proves a GPT-5 deployment actually serves completions.
+Non-cdao modes keep the R10 cheap models lookup. Read-only, no secrets.
+
+**Verification (fixtures — cdao unreachable here).** New
+`scripts/verify_gpt5_compat.py`: 34/34 PASS via a fake `cdao` module capturing
+construction and create kwargs — empty api_version ⇒ workspace_id-only;
+non-empty passed; temperature (default 1, per-role override honoured) + NO
+max_tokens on main + writer + judge + assistant + real-mode adapter; Anthropic
+unchanged; probe on the corrected path; JUDGE_MODEL-alone /
+ASSISTANT_LLM_MODE-alone still non-R12. Regression re-run all PASS:
+role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101,
+glossary_order 7/7, taxonomy, eligibility, new_drivers, clawback_scope,
+per_advisor 33/33, anomalies, e2e (reconciliation $0.00 on all three sample
+advisors); frontend `tsc --noEmit` clean; .env.example ↔ settings cross-check
+136/136 keys.
+
+**Operator (real cdao):** docs/ROUND13_ACCEPTANCE.md — GPT-5 deployments with
+empty `*_API_VERSION` show all three roles green in Env Health; a GPT-4 role
+with an api_version set still works; commentary/judge/assistant run end-to-end.
