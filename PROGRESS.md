@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T14:00:00Z
-Current phase: ROUND 10 (FIX_SPEC_R10.md) — COMPLETE (operator acceptance pending: real-hierarchy path resolution, credited totals vs iComp after the 91/92/9L flip, LIFE product-code identifier, cdao LLM connectivity, live reseed + commentary regeneration — docs/ROUND10_ACCEPTANCE.md)
-Resume from: — (all T tasks DONE)
+Last updated: 2026-07-25T16:00:00Z
+Current phase: ROUND 11 (FIX_SPEC_R11.md) — IN PROGRESS
+Resume from: P-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -16,6 +16,7 @@ Resume from: — (all T tasks DONE)
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
+| 11 | 2026-07-25 | | round 11 fresh start (FIX_SPEC_R11.md) | A taxonomy patch → B per-advisor scope/versions → C async + overlay → D sample completeness → E env-health verify |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -219,6 +220,20 @@ Resume from: — (all T tasks DONE)
 | T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | DONE | bbe5dca | models.retrieve/list only; judge 404 -> "model not found in subscription" proven live; card red on any non-mock-judge UNAVAILABLE |
 | T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | DONE | 8218f0e | display_name/description/computation seeded; display_order 4/5 before ELIGIBILITY; e2e asserts sorted 1..19; frontend literal-free (grep: only a V1 search icon label matches "Household") |
 | T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived c1b0f72..HEAD; + ROUND10_ACCEPTANCE.md + BUILD_REPORT §16; commentary v21 additive |
+| P-A1 | R11 | taxonomy: add Alternative Investments (non-recurring, assumption noted) | TODO | | |
+| P-A2 | R11 | only PRODUCT_TYPE rows reach resolve_path; guard + loud log otherwise | TODO | | |
+| P-B1 | R11 | commentary versions per-advisor (advisor_sid on version, propagated, supersede within advisor) | TODO | | |
+| P-B2 | R11 | anomaly scans per-advisor | TODO | | |
+| P-B3 | R11 | two buttons each (this advisor / all) on both screens, clearly labelled | TODO | | |
+| P-B4 | R11 | per-advisor selectors; other advisors unaffected by single regenerate | TODO | | |
+| P-C1 | R11 | async workflows + status endpoint (build on existing _status) | TODO | | |
+| P-C2 | R11 | progress overlay on both screens; auto-refresh to new version on completion | TODO | | |
+| P-C3 | R11 | poll not hang; mid-run reopen rejoins | TODO | | |
+| P-D1 | R11 | backfill sample data for every use case (9G/9E flip, dual Annuities, clawback, mixed acct, each anomaly, eligibility flip, clean transitions) | TODO | | |
+| P-D2 | R11 | sample reconciliation $0.00; per-scenario comments in the generator | TODO | | |
+| P-D3 | R11 | standing principle documented: new use cases ship with sample data | TODO | | |
+| P-E1 | R11 | verify R10 Env Health LLM section | TODO | | |
+| P-F1 | R11 | docs/ROUND11_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
