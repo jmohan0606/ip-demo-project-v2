@@ -1217,3 +1217,87 @@ decision; recurring is the gating class); the quarterly TIMING story moved to
 MAC (A1 has no Alternatives line); the "Life" product code could not be
 confirmed against the operator-local real hierarchy — recorded as a data gap,
 never guessed silently.
+
+## 17. Round 11 (FIX_SPEC_R11.md, 2026-07-25) — PER-ADVISOR SCOPE, ASYNC PROGRESS, TAXONOMY PATCH, SAMPLE COMPLETENESS
+
+**Commits:** `360b19a` (A: ALTI + PRODUCT_TYPE gate) → `d41cda6` (B/C backend:
+per-advisor versions/scans + async) → `95877ec` (B/C frontend: two-button scope
++ overlay) → `b14799f` (D: sample completeness + fixes) → wrap.
+
+### Verified HERE (fixtures + local tier + sample set)
+
+- **A — taxonomy.** `Alternative Investments` (ALTI) added as a NON_RECURRING
+  leaf — **classification ASSUMED pending client confirmation** (code comment
+  marks it). `resolve_path` now refuses non-`PRODUCT_TYPE` rows loudly
+  (`NonProductGridRowError` + stderr); `build_real_data` filters
+  NON_CREDITED_REVENUE / PAY_TYPE_SUMMARY rows BEFORE classification and
+  registers their products under `nongrid_*` holding lines (OUT_OF_GRID by
+  config) so no reason/pay-type name can ever become a product line.
+  `verify_taxonomy` [7]: a 42-path fixture of the real hierarchy's distinct
+  paths — every PRODUCT_TYPE path classifies with no stop, all 7 non-product
+  rows excluded. 13 lines / 35 groups seeded.
+- **B — per-advisor versions & scans.** `advisor_sid` added to
+  `phx_dm_v2_commentary_version` and `phx_dm_v2_anomaly_scan`, propagated
+  DDL → schema_catalog + loading job → manifest → both builders → both tiers.
+  Every run creates versions/scans scoped to ONE advisor; "supersede prior
+  PUBLISHED" applies WITHIN an advisor; legacy pre-R11 global rows
+  (advisor_sid "") stay PUBLISHED until a regenerate-all gives every advisor a
+  newer scoped version. `version_id`/`version_no` remain globally unique
+  (decision: collision-free ids, totally-ordered history; "A on v24 while B on
+  v23" satisfies the independence requirement). GQ-009/010/018/019 updated in
+  BOTH tiers (byte-identical envelopes) — **NEEDS LIVE REINSTALL**.
+  `verify_per_advisor` 33/33 PASS incl. B4 (figures byte-identical around a
+  single-advisor run).
+- **C — async + overlay.** `start_generation()` / `start_scan()` run in daemon
+  threads building on the existing `_status` dict: POST returns a job id
+  immediately; GET status reports phase + "advisor N of M" + new version/scan
+  ids on completion; polling is GET-only and a POST during a run returns the
+  running job (never re-triggers); jobs survive the browser closing. Frontend:
+  shared `useAsyncJob` + non-blocking `JobProgressOverlay` on AI Insights and
+  Anomalies; auto-refresh to the new latest version/scan on completion;
+  failures stay visible until dismissed; reopening mid-run rejoins. TWO
+  clearly-labelled buttons per screen (this advisor / all). Proven headless in
+  a real browser (async rescan through the UI, zero console errors).
+- **D — sample completeness.** Sample extends to Apr–Jul 2026; a rescan-all
+  now fires ALL SIX anomaly rules; 92 + 9L join the reason codes (full
+  91/92/9L flip visible); INHERITANCE / HOUSEHOLD / CLAWBACK / mixed-account /
+  dual-Annuities stories retained; May→Jun MIX-clean for every advisor.
+  SMPL002 Jun→Jul is THE deliberately high-residual transition (~41% MIX:
+  asset-growth with no source data + a 9E-flip carve-out overlap) so
+  UNEXPLAINED_RESIDUAL is demonstrable — exempted by name and asserted >15%
+  in the suites. Commentary regenerated per-advisor: v22/v23/v24, 9/9
+  PUBLISHED, 221 evidence records, judge 6 PASS / 3 REVIEW; scans 003–005
+  committed as per-advisor demo scans (scan001/002 kept as legacy history).
+  Standing principle documented (CLAUDE.md rule 10 + SOLUTION_GUIDE).
+- **E — Env Health LLM section** verified live: writer / judge / assistant
+  rows all `model-found`; no regression, no rebuild.
+- **Suites:** taxonomy, attribution, eligibility, clawback-scope, new-drivers,
+  anomalies (+ --rescan), assistant 101/101, judge 9/9, commentary-retry
+  10/10, per-advisor 33/33, e2e — ALL PASS; reconciliation $0.00; 15/15
+  screenshots + passive walk zero console errors.
+
+### Defect found and fixed while verifying
+
+The assistant's no-invented-figures payload was keyed by figure LABEL; two
+figures sharing a label (one account, several same-product rows — first
+produced by the new July syndicate data) silently collapsed, making the
+guardrail REJECT honest figures. Keys are now uniquified in the service (and
+mirrored in `verify_assistant`); `figures_json` itself was always complete.
+
+### Decisions
+
+- Serial per-advisor iteration in regenerate-all / rescan-all (was a 4-wide
+  thread pool): keeps "advisor N of M" progress honest and each advisor's
+  version independent; acceptable at 10-advisor scale.
+- Committed sample now ships per-advisor versions/scans as the demo state;
+  the R6 "scan001 is the committed demo scan" decision is superseded — scans
+  001/002 remain as legacy-global history (additive, never deleted).
+- verify_end_to_end / verify_attribution assert "MIX < 15% everywhere EXCEPT
+  the named residual-demo transition, which must be > 15%" — the anomaly rule
+  is undemonstrable otherwise; the exemption is by exact (advisor, from, to).
+
+### Operator-pending (docs/ROUND11_ACCEPTANCE.md)
+
+Live reinstall of the 4 changed queries + schema attribute additions; real
+hierarchy classification run (incl. ALTI class confirmation with the client);
+per-advisor + async behaviour under real latency and cdao; sample rescan demo.

@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T16:00:00Z
-Current phase: ROUND 11 (FIX_SPEC_R11.md) — IN PROGRESS
-Resume from: P-A1
+Last updated: 2026-07-25T17:30:00Z
+Current phase: ROUND 11 (FIX_SPEC_R11.md) — COMPLETE (operator acceptance pending: live reinstall of GQ-009/010/018/019 + advisor_sid schema additions, real-hierarchy run incl. ALTI class confirmation, per-advisor/async behaviour on cdao — docs/ROUND11_ACCEPTANCE.md)
+Resume from: — (all P tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -16,7 +16,7 @@ Resume from: P-A1
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
-| 11 | 2026-07-25 | | round 11 fresh start (FIX_SPEC_R11.md) | A taxonomy patch → B per-advisor scope/versions → C async + overlay → D sample completeness → E env-health verify |
+| 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -222,18 +222,18 @@ Resume from: P-A1
 | T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived c1b0f72..HEAD; + ROUND10_ACCEPTANCE.md + BUILD_REPORT §16; commentary v21 additive |
 | P-A1 | R11 | taxonomy: add Alternative Investments (non-recurring, assumption noted) | DONE | 360b19a | ALTI leaf, NON_RECURRING assumed (comment); sample 13 lines/35 groups; verify_taxonomy [4b] |
 | P-A2 | R11 | only PRODUCT_TYPE rows reach resolve_path; guard + loud log otherwise | DONE | 360b19a | grid_type kwarg guard (NonProductGridRowError + stderr); build_real_data filters pre-classification, nongrid_* holding lines; verify_taxonomy [7] 42-path fixture |
-| P-B1 | R11 | commentary versions per-advisor (advisor_sid on version, propagated, supersede within advisor) | TODO | | |
-| P-B2 | R11 | anomaly scans per-advisor | TODO | | |
-| P-B3 | R11 | two buttons each (this advisor / all) on both screens, clearly labelled | TODO | | |
-| P-B4 | R11 | per-advisor selectors; other advisors unaffected by single regenerate | TODO | | |
-| P-C1 | R11 | async workflows + status endpoint (build on existing _status) | TODO | | |
-| P-C2 | R11 | progress overlay on both screens; auto-refresh to new version on completion | TODO | | |
-| P-C3 | R11 | poll not hang; mid-run reopen rejoins | TODO | | |
-| P-D1 | R11 | backfill sample data for every use case (9G/9E flip, dual Annuities, clawback, mixed acct, each anomaly, eligibility flip, clean transitions) | TODO | | |
-| P-D2 | R11 | sample reconciliation $0.00; per-scenario comments in the generator | TODO | | |
-| P-D3 | R11 | standing principle documented: new use cases ship with sample data | TODO | | |
-| P-E1 | R11 | verify R10 Env Health LLM section | TODO | | |
-| P-F1 | R11 | docs/ROUND11_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| P-B1 | R11 | commentary versions per-advisor (advisor_sid on version, propagated, supersede within advisor) | DONE | d41cda6 | full R8-A4b chain; supersede within advisor; legacy global "" until regenerate-all; version ids stay globally unique (decision) |
+| P-B2 | R11 | anomaly scans per-advisor | DONE | d41cda6 | advisor_sid on scan; per-advisor rows persisted additively; GQ-018/019 advisor-aware both tiers |
+| P-B3 | R11 | two buttons each (this advisor / all) on both screens, clearly labelled | DONE | 95877ec | "Regenerate/Rescan (this advisor)" navy + "… all" outline; tooltips state scope |
+| P-B4 | R11 | per-advisor selectors; other advisors unaffected by single regenerate | DONE | 95877ec | selectors filter to scoped+legacy; verify_per_advisor [2]/[3] proves B untouched, figures byte-identical |
+| P-C1 | R11 | async workflows + status endpoint (build on existing _status) | DONE | d41cda6 | start_generation/start_scan daemon threads on the SAME _status; job id + advisor N of M + result ids; POST during run returns running job |
+| P-C2 | R11 | progress overlay on both screens; auto-refresh to new version on completion | DONE | 95877ec | shared useAsyncJob + JobProgressOverlay; auto-select latest on done; failure persists until dismissed |
+| P-C3 | R11 | poll not hang; mid-run reopen rejoins | DONE | 95877ec | 1.5s GET-only poll; mount-time rejoin of running job; proven headless (browser rescan, 0 console errors) |
+| P-D1 | R11 | backfill sample data for every use case (9G/9E flip, dual Annuities, clawback, mixed acct, each anomaly, eligibility flip, clean transitions) | DONE | b14799f | July 2026 added; rescan-all fires ALL 6 rules; 92+9L present; May→Jun clean per advisor; SMPL002 Jun→Jul = crafted residual demo (exempted by name) |
+| P-D2 | R11 | sample reconciliation $0.00; per-scenario comments in the generator | DONE | b14799f | recon $0.00 asserted by builder + e2e; every crafted scenario commented with its use case |
+| P-D3 | R11 | standing principle documented: new use cases ship with sample data | DONE | b14799f | CLAUDE.md rule 10 + SOLUTION_GUIDE Round-11 standing rule |
+| P-E1 | R11 | verify R10 Env Health LLM section | DONE | (verify) | live check: writer/judge/assistant all model-found; no regression, nothing rebuilt |
+| P-F1 | R11 | docs/ROUND11_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived ddf1172..HEAD; + ROUND11_ACCEPTANCE.md + BUILD_REPORT §17 |
 
 ## Decisions
 | When | Decision | Why |
@@ -289,6 +289,15 @@ Resume from: P-A1
 | 2026-07-25 | R10 DATA GAP: the REAL raw_product_hierarchy.csv is operator-local — dual-name distinguishability is proven on the extract SHAPE ((level_one, level_two) path) and fixtures; if the client extract carries a dual-name line with a group A1 does not list, build_real_data STOPS with the exact paths | never guess by name (A2); the operator sees the ambiguous paths verbatim |
 
 | 2026-07-25 | R10 DATA GAP (D): the "Life" product-code identifier could not be verified against the real product hierarchy (operator-local); coded as case-insensitive product_cd == "LIFE" in taxonomy.CLAWBACK_PRODUCT_CODES with a code comment | spec D requires confirming identifiers against raw_product_hierarchy.csv — unavailable in this environment; the Annuities/Insurance group scope IS confirmed against the A1 hierarchy positions |
+
+| 2026-07-25 | R11: Alternative Investments (ALTI) classified NON_RECURRING as an ASSUMPTION pending client confirmation | FIX_SPEC_R11 A1; code comment in taxonomy.py marks the revisit point |
+| 2026-07-25 | R11: non-PRODUCT_TYPE hierarchy rows register their products under nongrid_* holding lines instead of being dropped | their transactions need a product home; CREDITED_GRID_TYPES config already keeps them OUT_OF_GRID; dropping them would default unknown products to PRODUCT_TYPE and wrongly credit them |
+| 2026-07-25 | R11: version_id/version_no remain GLOBALLY unique; per-advisor scope lives in advisor_sid only | collision-free ids, totally-ordered history, minimal ripple through commentary/evidence id formats; "A on v24 while B on v23" satisfies B1's independence requirement |
+| 2026-07-25 | R11: legacy global versions/scans (advisor_sid "") stay PUBLISHED/current until a regenerate-all supersedes them | a single-advisor run must not tear down the version other advisors still resolve to |
+| 2026-07-25 | R11: regenerate-all / rescan-all iterate advisors SERIALLY (was a 4-wide pool) | honest "advisor N of M" progress for the C2 overlay; each advisor's version independent; fine at 10-advisor scale |
+| 2026-07-25 | R11: SMPL002 Jun→Jul is a DELIBERATE >15%-MIX transition (asset growth with no source data + 9E carve-out overlap); e2e/attribution exempt exactly that key and assert >15% on it | UNEXPLAINED_RESIDUAL cannot be demonstrated on sample data any other way (the rule's threshold IS the MIX gate) |
+| 2026-07-25 | R11: committed sample demo state = per-advisor commentary v22–v24 + scans 003–005; scan001/002 kept as legacy-global history | supersedes the R6 "scan001 is the committed demo scan" decision; versions/scans are additive, never deleted |
+| 2026-07-25 | R11 DEFECT FIX: assistant figures payload keyed by label collapsed duplicate labels (several same-product rows on one account) and the guardrail rejected honest figures | keys uniquified in service + verify_assistant; figures_json was always complete; surfaced by the July syndicate rows |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
