@@ -10,9 +10,18 @@ ADVISORY ONLY (R5-3): deterministic guardrails remain the blocking gate. The
 caller must never publish or suppress commentary based on the judge — its
 verdict is surfaced for human attention and nothing else.
 
-If the judge model is unavailable (mock mode, missing API key, call/parse
-failure) the fallback is an honest REVIEW verdict with zero scores — never a
-fabricated PASS.
+If the judge model is unavailable (mock mode, missing API key, invalid
+JUDGE_MODEL, call/parse failure) the fallback is an honest REVIEW verdict with
+UNAVAILABLE scores (stored as the -1.0 sentinel, rendered as "unavailable" /
+"—", NEVER 0.00 — a 0.00 reads as a terrible real score; R9 E) and never a
+fabricated PASS. Publication is never affected either way.
+
+R9 E — the judge runs through the SAME LLM client/adapters the other agents
+use (build_llm_client: mock|claude|real|cdao_openai|azure), never a separate
+hardcoded deployment. JUDGE_MODEL selects its model within the active mode;
+empty means the mode's own default model (claude mode keeps the R5 different-
+model default), so an operator can always point the judge at the proven
+working model and still demo.
 """
 from __future__ import annotations
 
@@ -43,29 +52,42 @@ Respond with ONLY a JSON object, no prose before or after:
  "clarity_score": <0-1>, "verdict": "PASS|REVIEW|FAIL", "reasoning": "<short paragraph>"}"""
 
 
-def get_judge_llm():
-    """The judge's LLM client, on settings.judge_model — a DIFFERENT model than
-    the writer. Returns None when no real judge model can run in this mode
-    (mock, or any non-claude transport): judge_commentary then produces the
-    deterministic REVIEW fallback."""
-    settings = get_settings()
-    if settings.llm_client_mode.lower() != "claude":
-        return None
-    try:
-        from app.llm.client import ClaudeLLMClient
+# R9 E — sentinel for "the judge could not run". Stored in the DOUBLE score
+# columns (schema unchanged) and rendered as "unavailable" / "—", never 0.00.
+SCORE_UNAVAILABLE = -1.0
 
-        return ClaudeLLMClient(model_override=settings.judge_model)
+
+def get_judge_llm():
+    """The judge's LLM client — the SAME multi-mode adapters the other agents
+    use (R9 E), on JUDGE_MODEL when set. Empty JUDGE_MODEL = the active mode's
+    default model, except claude mode which keeps the R5 different-model
+    default (claude-sonnet-5 vs the haiku writer). Returns None when no judge
+    can run (mock mode, construction failure): judge_commentary then produces
+    the honest UNAVAILABLE fallback."""
+    settings = get_settings()
+    mode = settings.llm_client_mode.lower()
+    if mode == "mock":
+        return None
+    model = (settings.judge_model or "").strip()
+    if not model and mode == "claude":
+        model = "claude-sonnet-5"  # R5: a different model than the writer
+    try:
+        from app.llm.client import build_llm_client
+
+        return build_llm_client(mode, model_override=model or None)
     except Exception as exc:  # noqa: BLE001 — judge is advisory; never blocks the run
-        _log.warning("judge LLM unavailable (%s); using REVIEW fallback", exc)
+        _log.warning("judge LLM unavailable (%s); using UNAVAILABLE fallback", exc)
         return None
 
 
 def _fallback(why: str, judge_model: str) -> dict:
+    """Honest UNAVAILABLE state (R9 E): scores carry the -1.0 sentinel so no
+    reader can mistake 'the judge could not run' for a 0.00 score."""
     return {
-        "faithfulness_score": 0.0,
+        "faithfulness_score": SCORE_UNAVAILABLE,
         "hallucination_flag": False,
-        "completeness_score": 0.0,
-        "clarity_score": 0.0,
+        "completeness_score": SCORE_UNAVAILABLE,
+        "clarity_score": SCORE_UNAVAILABLE,
         "verdict": "REVIEW",
         "reasoning": f"Judge unavailable ({why}) — human review recommended",
         "judge_model": judge_model,

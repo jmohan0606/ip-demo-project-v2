@@ -929,15 +929,22 @@ export function EvidenceModal({
                               Independent review
                             </span>
                             <JudgeVerdictPill verdict={evaluation.verdict} />
+                            {/* R9 E — a negative score is the UNAVAILABLE
+                                sentinel: the judge could not run. Render "—",
+                                never 0.00 (which reads as a failing score). */}
                             <span className="text-[11px] text-v2-muted">
-                              Faithfulness {evaluation.faithfulness_score.toFixed(2)} · Judge{" "}
-                              {evaluation.judge_model}
+                              {evaluation.faithfulness_score < 0
+                                ? "Faithfulness — (unavailable)"
+                                : `Faithfulness ${evaluation.faithfulness_score.toFixed(2)}`}{" "}
+                              · Judge {evaluation.judge_model}
                             </span>
-                            <AiGeneratedChip
-                              model={evaluation.judge_model}
-                              promptVersion={version?.prompt_version}
-                              versionId={versionId}
-                            />
+                            {evaluation.faithfulness_score >= 0 && (
+                              <AiGeneratedChip
+                                model={evaluation.judge_model}
+                                promptVersion={version?.prompt_version}
+                                versionId={versionId}
+                              />
+                            )}
                           </div>
                           <p className="mt-1.5 text-[11.5px] leading-relaxed text-v2-text">
                             {evaluation.reasoning}

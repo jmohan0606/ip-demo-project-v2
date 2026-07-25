@@ -148,9 +148,14 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-haiku-4-5-20251001", alias="ANTHROPIC_MODEL")
-    # LLM-as-judge (FIX_SPEC R5): runs on a DIFFERENT model than the writer,
-    # advisory only — deterministic guardrails remain the blocking gate.
-    judge_model: str = Field(default="claude-sonnet-5", alias="JUDGE_MODEL")
+    # LLM-as-judge (FIX_SPEC R5, R9 E): advisory only — deterministic
+    # guardrails remain the blocking gate. The judge runs through the SAME
+    # adapter as the other agents (the active LLM_CLIENT_MODE); JUDGE_MODEL
+    # selects its model within that mode. Empty = the mode's own default model
+    # (claude mode defaults to claude-sonnet-5, a different model than the
+    # haiku writer). Set it to the proven working model when a specific
+    # deployment is unavailable in the client subscription.
+    judge_model: str = Field(default="", alias="JUDGE_MODEL")
     judge_enabled: bool = Field(default=True, alias="JUDGE_ENABLED")
 
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---

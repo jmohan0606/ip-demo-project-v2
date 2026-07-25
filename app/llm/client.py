@@ -169,7 +169,7 @@ class RealLLMClient:
     """Azure OpenAI-backed client — what runs at the client site. Uses the exact
     same assembled prompts as ClaudeLLMClient so cutover is env-only."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_override: str | None = None) -> None:
         settings = get_settings()
         if not settings.azure_openai_endpoint or not settings.azure_openai_api_key:
             raise LLMClientError(
@@ -182,7 +182,9 @@ class RealLLMClient:
             api_key=settings.azure_openai_api_key,
             api_version=settings.azure_openai_api_version,
         )
-        self.deployment = settings.azure_openai_deployment
+        # R9 E — model_override lets a second role (the judge) run on a
+        # different deployment via the SAME adapter (JUDGE_MODEL config).
+        self.deployment = model_override or settings.azure_openai_deployment
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:
@@ -346,14 +348,16 @@ class CdaoOpenAILLMClient:
     cdao authenticates from that ambient AWS session, not from code/.env credentials.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, model_override: str | None = None) -> None:
         settings = get_settings()
         # Construct once (shared cdao client builder); reused for every generate() call.
         self._client = build_cdao_openai_client(
             api_version=settings.cdao_api_version,
             workspace_id=settings.cdao_workspace_id,
         )
-        self.model = settings.cdao_model
+        # R9 E — model_override lets a second role (the judge) run on a
+        # different model via the SAME adapter (JUDGE_MODEL config).
+        self.model = model_override or settings.cdao_model
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:
@@ -379,6 +383,29 @@ class CdaoOpenAILLMClient:
         return {"mode": "cdao_openai", "model": f"cdao:{self.model}"}
 
 
+def build_llm_client(mode: str, model_override: str | None = None) -> LLMClient:
+    """Construct a client for `mode` through the SAME adapters get_llm_client
+    uses (R9 E) — no separate hardcoded transports anywhere. `model_override`
+    lets a second role (the LLM-as-judge) run on a different model/deployment
+    in the SAME mode; None keeps the mode's configured default. `azure`
+    (SmartSDK) has no per-call model override — the override is ignored there
+    (the SDK model is fixed at construction from its own settings)."""
+    mode = mode.lower()
+    if mode == "mock":
+        return MockLLMClient()
+    if mode == "claude":
+        return ClaudeLLMClient(model_override=model_override)
+    if mode == "real":
+        return RealLLMClient(model_override=model_override)
+    if mode == "cdao_openai":
+        return CdaoOpenAILLMClient(model_override=model_override)
+    if mode == "azure":
+        return AzureOpenAILLMClient()
+    raise LLMClientError(
+        f"Unknown LLM_CLIENT_MODE '{mode}' (expected mock|claude|real|cdao_openai|azure)"
+    )
+
+
 _llm_client: LLMClient | None = None
 
 
@@ -391,21 +418,7 @@ def get_llm_client() -> LLMClient:
     """
     global _llm_client
     if _llm_client is None:
-        mode = get_settings().llm_client_mode.lower()
-        if mode == "mock":
-            _llm_client = MockLLMClient()
-        elif mode == "claude":
-            _llm_client = ClaudeLLMClient()
-        elif mode == "real":
-            _llm_client = RealLLMClient()
-        elif mode == "cdao_openai":
-            _llm_client = CdaoOpenAILLMClient()
-        elif mode == "azure":
-            _llm_client = AzureOpenAILLMClient()
-        else:
-            raise LLMClientError(
-                f"Unknown LLM_CLIENT_MODE '{mode}' (expected mock|claude|real|cdao_openai|azure)"
-            )
+        _llm_client = build_llm_client(get_settings().llm_client_mode)
     return _llm_client
 
 

@@ -201,8 +201,8 @@ Resume from: N-A
 | N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | DONE | 1b8f980 | advisor_sid on vertex + full chain; binding outranks screen; cross-advisor declines; GQ-020 attr filter both tiers; chat-CSV header migration; verify [10] 6 checks, 90/90 PASS |
 | N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | DONE | be8e827 | shell passes month list -> adjacent seed; resolve() snaps screen spans; driver_detail matches both months; span_decompose per-transition labels; verify [11] 6 checks, 96/96 PASS |
 | N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | DONE | c3e6864 | chip renders category·severity; missing chat CSV auto-created; failed send keeps turn visible locally; verify [12] 5 checks incl. transcript endpoint; 101/101 PASS |
-| N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | IN_PROGRESS | | started 2026-07-25 |
-| N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | TODO | | |
+| N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | DONE | b2778ba | prompt v1.2 w/ examples; COMMENTARY_MAX_ATTEMPTS=3 retry in supervisor; PUBLISHED_FALLBACK status + non-AI marking; verify_commentary_retry 10/10; live v20 = 5 PUBLISHED + 1 FALLBACK, 0 BLOCKED |
+| N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | IN_PROGRESS | | started 2026-07-25 |
 | N-F | R9 | glossary ordered by display_order | TODO | | |
 | N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
