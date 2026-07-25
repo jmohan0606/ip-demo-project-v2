@@ -376,8 +376,17 @@ def main() -> int:
     for r in driver_rows:
         if r["cause_id"] == "MIX":
             mix_sum[tuple(r["driver_id"].split("|")[:3])] += float(r["contribution_amt"])
-    worst_s = max(abs(mix_sum.get(k, 0.0)) / abs(v) * 100 for k, v in totals.items())
-    check("sample: MIX < 15% on every transition", worst_s < 15.0, f"worst {worst_s:.1f}%")
+    # R11 D — SMPL002 Jun->Jul is the crafted UNEXPLAINED_RESIDUAL demo
+    # transition (MIX deliberately > 15% so the anomaly rule is demonstrable
+    # on sample data); it is exempt here and asserted >15% instead.
+    RESIDUAL_DEMO = ("SMPL002", "202606", "202607")
+    worst_s = max(abs(mix_sum.get(k, 0.0)) / abs(v) * 100
+                  for k, v in totals.items() if k != RESIDUAL_DEMO)
+    check("sample: MIX < 15% on every transition (except the crafted residual demo)",
+          worst_s < 15.0, f"worst {worst_s:.1f}%")
+    demo_pct = abs(mix_sum.get(RESIDUAL_DEMO, 0.0)) / abs(totals[RESIDUAL_DEMO]) * 100
+    check("sample: crafted residual-demo transition carries MIX > 15%",
+          demo_pct > 15.0, f"{demo_pct:.1f}%")
     bad_sample = sorted({r["group_id"] for r in driver_rows
                          if r["cause_id"] in ("NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED")
                          and group_class.get(r["group_id"]) != "RECURRING"})

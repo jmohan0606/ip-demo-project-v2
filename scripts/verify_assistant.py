@@ -147,8 +147,12 @@ def check_figures(svc) -> None:
         ok = m["status"] == want_status
         detail = f"status {m['status']}"
         if ok and m.get("figures_json"):
-            figures = {f["label"]: [f["value"], f["formatted"]]
-                       for f in json.loads(m["figures_json"])}
+            # R11 — labels may repeat (same account+product, several rows);
+            # uniquify keys exactly as the service does so none is dropped.
+            figures: dict = {}
+            for i, f in enumerate(json.loads(m["figures_json"])):
+                key = f["label"] if f["label"] not in figures else f"{f['label']} #{i}"
+                figures[key] = [f["value"], f["formatted"]]
             v = validate_anomaly_text(figures, {}, [m["text"]])
             ok, detail = v["passed"], str(v["blocked_reason"])
         check(f"figures: {question[:44]!r}", ok, detail)

@@ -1,1 +1,12 @@
 conversation_id,advisor_sid,title,created_at,last_message_at,message_count,scope_json,data_source
+2de88476d8e6,SMPL001,Why did revenue drop in June?,2026-07-25 15:21:19,2026-07-25 15:21:19,0,,DERIVED
+2de88476d8e6,SMPL001,Why did revenue drop in June?,2026-07-25 15:21:19,2026-07-25 15:21:19,1,,DERIVED
+2de88476d8e6,SMPL001,Why did revenue drop in June?,2026-07-25 15:21:19,2026-07-25 15:21:19,2,,DERIVED
+2de88476d8e6,SMPL001,Why did revenue drop in June?,2026-07-25 15:21:19,2026-07-25 15:21:19,3,,DERIVED
+2de88476d8e6,SMPL001,Why did revenue drop in June?,2026-07-25 15:21:19,2026-07-25 15:21:19,4,,DERIVED
+37bb41f3d98b,SMPL001,Which accounts drove it?,2026-07-25 15:21:38,2026-07-25 15:21:38,0,,DERIVED
+37bb41f3d98b,SMPL001,Which accounts drove it?,2026-07-25 15:21:38,2026-07-25 15:21:38,1,,DERIVED
+37bb41f3d98b,SMPL001,Which accounts drove it?,2026-07-25 15:21:38,2026-07-25 15:21:38,2,,DERIVED
+287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,0,,DERIVED
+287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,1,,DERIVED
+287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,2,,DERIVED

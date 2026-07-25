@@ -99,15 +99,16 @@ def main() -> int:  # noqa: PLR0915 — verification narrative reads top-to-bott
     A, B = advisors[0], advisors[1]
 
     # ---------------------------------------------------------- [1] baseline
-    print("[1] baseline: legacy global versions resolve for every advisor")
+    # Baseline-agnostic (the committed sample may carry legacy global versions,
+    # per-advisor ones, or both): record what each advisor resolves to now.
+    print("[1] baseline: every advisor resolves to a PUBLISHED version")
     base_versions = versions()
     published = [v for v in base_versions if v.get("status") == "PUBLISHED"]
     check("baseline has PUBLISHED version(s)", bool(published), str(len(base_versions)))
-    legacy_global = all(not str(v.get("advisor_sid") or "") for v in base_versions)
-    check("all baseline versions are legacy global (advisor_sid '')", legacy_global)
     base_resolved = {adv: resolved_version(adv) for adv in advisors}
-    check("every advisor resolves to the same legacy global version",
-          len(set(base_resolved.values())) == 1, str(base_resolved))
+    check("every advisor resolves to a version", all(base_resolved.values()),
+          str(base_resolved))
+    had_legacy_published = any(not str(v.get("advisor_sid") or "") for v in published)
 
     # -------------------------------------- [2] single-advisor regenerate (A)
     print(f"[2] regenerate ONE advisor ({A}) — B untouched")
@@ -128,10 +129,11 @@ def main() -> int:  # noqa: PLR0915 — verification narrative reads top-to-bott
           resolved_version(B) == base_resolved[B],
           f"{resolved_version(B)} != {base_resolved[B]}")
     check("B's commentary rows are untouched", commentary_rows(B) == b_rows_before)
-    legacy_still = [v for v in versions() if not str(v.get("advisor_sid") or "")
-                    and v.get("status") == "PUBLISHED"]
-    check("legacy global version STAYS PUBLISHED after a single-advisor run",
-          bool(legacy_still), "legacy global was superseded by a single-advisor run")
+    if had_legacy_published:
+        legacy_still = [v for v in versions() if not str(v.get("advisor_sid") or "")
+                        and v.get("status") == "PUBLISHED"]
+        check("legacy global version STAYS PUBLISHED after a single-advisor run",
+              bool(legacy_still), "legacy global was superseded by a single-advisor run")
     check("A's version list does NOT contain other advisors' scoped versions",
           all(str(v.get("advisor_sid") or "") in ("", A) for v in va))
 
@@ -157,25 +159,23 @@ def main() -> int:  # noqa: PLR0915 — verification narrative reads top-to-bott
         check(f"{adv} resolves to its own new version", resolved_version(adv) == scoped[adv],
               f"{resolved_version(adv)} != {scoped[adv]}")
     legacy_after = [v for v in versions() if not str(v.get("advisor_sid") or "")]
-    check("legacy global versions all SUPERSEDED after regenerate-all",
-          legacy_after and all(v.get("status") != "PUBLISHED" for v in legacy_after))
+    check("no legacy global version remains PUBLISHED after regenerate-all",
+          all(v.get("status") != "PUBLISHED" for v in legacy_after))
     per_b = versions(B)
     check("B's selector list = B-scoped + legacy versions only",
           all(str(v.get("advisor_sid") or "") in ("", B) for v in per_b))
+    created = set(summary_all["version_ids"]) | {new_vid}
     check("no run produced a global (advisor_sid '') version",
-          all(str(v.get("advisor_sid") or "") == ""
-              for v in versions() if v.get("version_id") not in
-              set(summary_all["version_ids"]) | {new_vid}) and
           all(str(v.get("advisor_sid") or "")
-              for v in versions() if v.get("version_id") in
-              set(summary_all["version_ids"]) | {new_vid}))
+              for v in versions() if v.get("version_id") in created))
 
     # ---------------------------------------------------- [5] anomaly scans
     print("[5] anomaly scans are per-advisor the same way")
     svc = V2AnomalyService()
     base_scans = svc.scans()["scans"]
-    check("baseline demo scan is legacy global",
-          base_scans and all(not str(s.get("advisor_sid") or "") for s in base_scans),
+    check("baseline scan history exists and every advisor resolves a latest scan",
+          bool(base_scans) and all(svc.anomalies(adv, "")["scan_id_used"]
+                                   for adv in advisors),
           str([s.get("scan_id") for s in base_scans]))
     b_latest_before = svc.anomalies(B, "")["scan_id_used"]
     scan_summary = detection.run_scan(notes="r11 verify single", advisor_id=A)

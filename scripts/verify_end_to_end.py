@@ -30,20 +30,30 @@ def main() -> int:
         check(f"reconciliation {adv}", r["all_reconcile"],
               str({k: v["discrepancy"] for k, v in r["transitions"].items()}))
 
+    # R11 B1 — versions are PER-ADVISOR: exactly one PUBLISHED version per
+    # advisor (legacy global versions are all SUPERSEDED after a
+    # regenerate-all). "Latest" is resolved per advisor below.
     versions = c.store.all_vertices("phx_dm_v2_commentary_version")
-    published = [v for v, a in versions.items() if a.get("status") == "PUBLISHED"]
-    check("exactly one PUBLISHED version", len(published) == 1, str(sorted(versions)))
-    latest = published[0] if published else None
+    published = {v: a for v, a in versions.items() if a.get("status") == "PUBLISHED"}
+    pub_by_advisor = {}
+    for v, a in published.items():
+        pub_by_advisor.setdefault(str(a.get("advisor_sid") or ""), []).append(v)
+    check("exactly one PUBLISHED version per advisor (no global one left)",
+          set(pub_by_advisor) == set(advisors)
+          and all(len(v) == 1 for v in pub_by_advisor.values()),
+          str(pub_by_advisor))
+    latest_for = {adv: vs[0] for adv, vs in pub_by_advisor.items()}
+    latest_ids = set(latest_for.values())
 
     drivers = set(c.store.all_vertices("phx_dm_v2_revenue_driver"))
     evidence = c.store.all_vertices("phx_dm_v2_evidence")
     ev_drivers = {a["driver_id"] for a in evidence.values()
-                  if str(a.get("evidence_id", "")).endswith(f"|{latest}")}
+                  if str(a.get("evidence_id", "")).split("|")[-1] in latest_ids}
     check("every driver has latest-version evidence", drivers <= ev_drivers,
           f"{len(drivers)} drivers")
 
     rows = [a for a in c.store.all_vertices("phx_dm_v2_commentary").values()
-            if a["version_id"] == latest]
+            if a["version_id"] == latest_for.get(str(a.get("advisor_sid")))]
     cited = {b["driver_id"] for a in rows if a.get("bullets_json")
              for b in json.loads(a["bullets_json"])}
     check("all cited drivers have evidence", cited <= ev_drivers, f"{len(cited)} cited")
@@ -53,7 +63,7 @@ def main() -> int:
 
     rev = V2RevenueService()
     sample = [a for a in evidence.values()
-              if str(a.get("evidence_id", "")).endswith(f"|{latest}")
+              if str(a.get("evidence_id", "")).split("|")[-1] in latest_ids
               and a["gsql_query_name"] == "get_product_revenue_change"][:10]
     mismatch = 0
     for a in sample:
@@ -98,15 +108,27 @@ def main() -> int:
         if a.get("group_id") == "__TOTAL__":
             tot_by_tr[(a["advisor_sid"], a["from_month_id"], a["to_month_id"])] = \
                 float(a.get("change_amt") or 0)
+    # R11 D — the sample deliberately crafts ONE high-residual transition
+    # (SMPL002 Jun->Jul) so the UNEXPLAINED_RESIDUAL anomaly rule is
+    # demonstrable on sample data: by the rule's definition its MIX share MUST
+    # exceed the 15% threshold. That named transition is exempt here and
+    # asserted >15% instead; every other transition stays clean.
+    RESIDUAL_DEMO = ("SMPL002", "202606", "202607")
     mix_lines, mix_large = [], []
+    demo_pct = 0.0
     for k in sorted(tot_by_tr):
         total = tot_by_tr[k]
         pct = abs(mix_by_tr.get(k, 0.0)) / abs(total) * 100 if total else 0.0
         mix_lines.append(f"{'|'.join(k)} MIX {mix_by_tr.get(k, 0.0):.2f} = {pct:.1f}% of {total:.2f}")
-        if pct >= 15.0:
+        if k == RESIDUAL_DEMO:
+            demo_pct = pct
+        elif pct >= 15.0:
             mix_large.append(mix_lines[-1])
     print("  MIX share per transition:\n   ", "\n    ".join(mix_lines))
-    check("MIX residual < 15% of every transition's change", not mix_large, str(mix_large))
+    check("MIX residual < 15% of every transition's change "
+          "(except the crafted UNEXPLAINED_RESIDUAL demo)", not mix_large, str(mix_large))
+    check("crafted residual-demo transition SMPL002 202606->202607 carries MIX > 15% "
+          "(the UNEXPLAINED_RESIDUAL rule needs it)", demo_pct > 15.0, f"{demo_pct:.1f}%")
 
     # T1-6: OUT_OF_GRID must be near-empty and fully explained. grid_type is a
     # static product attribute and CREDITED_GRID_TYPES fixed config, so

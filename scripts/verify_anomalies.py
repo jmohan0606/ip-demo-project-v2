@@ -173,16 +173,24 @@ def main() -> int:
         print("\n— additive re-scan —")
         before = {s["scan_id"]: svc.anomalies(scan_id=str(s["scan_id"]))["anomalies"]
                   for s in scans}
+        # R11 B2 — a rescan-all now creates ONE scan PER ADVISOR (scan_ids).
         summary = det.run_scan("verify_anomalies additive re-scan")
-        new_id = summary["scan_id"]
+        new_ids = summary["scan_ids"]
         after_scans = [s["scan_id"] for s in svc.scans()["scans"]]
-        check("re-scan created a NEW scan_id", new_id not in before and new_id in after_scans,
-              new_id)
+        check("re-scan created NEW per-advisor scan_ids",
+              new_ids and all(i not in before and i in after_scans for i in new_ids),
+              str(new_ids))
+        check("each new scan is scoped to exactly one distinct advisor",
+              len({s["advisor_sid"] for s in summary["scans"]}) == len(summary["scans"])
+              and all(s["advisor_sid"] for s in summary["scans"]),
+              str(summary["scans"]))
         intact = all(svc.anomalies(scan_id=sid)["anomalies"] == rows
                      for sid, rows in before.items())
         check("prior scans remain retrievable and unchanged", intact, str(list(before)))
-        latest = svc.anomalies()["scan_id_used"]
-        check("scan_id='' resolves to the newest scan", latest == new_id, latest)
+        for s in summary["scans"]:
+            latest = svc.anomalies(s["advisor_sid"], "")["scan_id_used"]
+            check(f"scan_id='' resolves to {s['advisor_sid']}'s newest scan",
+                  latest == s["scan_id"], latest)
     else:
         print("\n(skipping live re-scan — pass --rescan to run it)")
 

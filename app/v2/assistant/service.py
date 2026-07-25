@@ -267,7 +267,15 @@ class AssistantService:
             # verbatim, never re-narrated (CLAUDE.md §7).
             return answer.text, False, "stored-commentary", "", []
 
-        figures_payload = {f["label"]: [f["value"], f["formatted"]] for f in answer.figures}
+        # R11 D exposed a collision: two figures may share a label (e.g. one
+        # account with several same-product transactions), and a label-keyed
+        # dict silently DROPPED all but one — making the guardrail reject
+        # honest figures. Uniquify colliding keys; the validator only reads
+        # the values.
+        figures_payload: dict = {}
+        for i, f in enumerate(answer.figures):
+            key = f["label"] if f["label"] not in figures_payload else f"{f['label']} #{i}"
+            figures_payload[key] = [f["value"], f["formatted"]]
         prompt = json.dumps({
             "question": question,
             "context": {k: v for k, v in resolved.items() if k not in ("sources",)},

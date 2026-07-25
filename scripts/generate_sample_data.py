@@ -3,7 +3,12 @@
 Writes data/sample/{vertices,edges}/*.csv and the ingestion manifest
 (docs/tigergraph_foundation/data/manifest.json). Deterministic (seeded), and
 OBVIOUSLY synthetic: 3 advisors named "Sample Advisor One/Two/Three", ids
-SMPL001..003, months Apr/May/Jun 2026.
+SMPL001..003, months Apr/May/Jun/Jul 2026.
+
+STANDING PRINCIPLE (FIX_SPEC_R11 D): every use case the app supports must be
+demonstrable on THIS sample data set — a new feature ships with sample data
+that exercises it. Each crafted scenario below carries a comment naming the
+use case it demonstrates; preserve them when editing.
 
 The transaction set is engineered so every driver cause is exercised (R6: the
 account-presence rule is now "recurring-class groups only, after
@@ -12,8 +17,9 @@ ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
                 -> fires on May->Jun
   LOST_ACCOUNT  SMPLACCT-x110 contributes ONLY in April (quiet May+Jun confirmed)
                 -> fires on Apr->May
-  BASELINE_LIMITED SMPLACCT-x104 stops after May; only one loaded month follows,
-                so the 2-month absence test cannot be evaluated -> May->Jun
+  BASELINE_LIMITED SMPLACCT-x104 stops after Jun (R11: July added); only one
+                loaded month follows, so the 2-month absence test cannot be
+                evaluated -> Jun->Jul
   (persistence proof) SMPLACCT-x111 skips May and returns in Jun — intermittent,
                 NOT lost and NOT new; no account driver may fire for it
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
@@ -36,9 +42,27 @@ ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
   MIX           the remainder of every decomposition
   MARKET / NET_FLOW emitted as DUMMY zero-contribution drivers (no source data)
 
-Reason-code coverage (R1-11) — every eligibility path is visible in the UI:
+R11 D — July 2026 added so every ANOMALY RULE is demonstrable on a sample
+Rescan while May->Jun stays MIX-clean (<15%) for every advisor:
+  LARGE_SWING            SMPL001 Jul: syndicate wave (~$62k one-time) -> total
+                         swing > 25% and > $50k on Jun->Jul
+  CLAWBACK_CONCENTRATION SMPL003 Jul: annuity surrender chargebacks (~$13.5k)
+                         > 5x the trailing mean and > $10k floor
+  FEE_RATE_SHIFT         SMPL001 Jul: money-market sweep rate 18 -> 32 bps
+                         (> 10 bps on a recurring group)
+  UNEXPLAINED_RESIDUAL   SMPL002 Jul: many small equity trades (count up, deal
+                         size down) — the VOLUME x DEAL_SIZE cross-term lands
+                         in MIX > 15% of a modest total change. THE ONE
+                         deliberately non-clean transition (exempted in
+                         verify_end_to_end).
+  SINGLE_DRIVER_DOMINANCE + BASELINE_LIMITED_PRESENT already fire (scan001).
+
+Reason-code coverage (R1-11, R11 D adds 92 + 9L so the full 91/92/9L
+eligibility flip is visible in sample credited totals):
   __NONE__  the bulk of rows (Grid transactions, credited)
   91        equity-below-minimum rows (NON_CREDITED since R10 B)
+  92        mutual-fund-below-minimum rows, count varies by month (NON_CREDITED)
+  9L        SMPL003 full-month LOA on the Advisory fee in May (NON_CREDITED)
   9E        the HOUSEHOLD story above (non-credited)
   9G        SMPL002 inherited account trail — 9G Apr+May, credited from Jun
   9X        SMPL003's deleted trail booking (EXCLUDED — in no total at all)
@@ -72,7 +96,7 @@ from app.v2.revenue.aggregation import EligibilityContext, derive_rev_nature
 
 OUT = Path("data/sample")
 MANIFEST = Path("docs/tigergraph_foundation/data/manifest.json")
-MONTHS = ["202604", "202605", "202606"]
+MONTHS = ["202604", "202605", "202606", "202607"]
 RNG = random.Random(20260720)
 
 ADVISORS = [
@@ -121,7 +145,7 @@ PRODUCTS = [
 ]
 
 PRODUCT_GRID = {p[0]: p[5] for p in PRODUCTS}
-BILLABLE_DAYS = {"202604": 22, "202605": 21, "202606": 22}
+BILLABLE_DAYS = {"202604": 22, "202605": 21, "202606": 22, "202607": 22}
 
 REASONS = elig.reason_map()  # the seed — same rows written to reason_code.csv
 
@@ -191,9 +215,9 @@ def build_transactions() -> list[dict]:
     for ai, adv in enumerate(("SMPL001", "SMPL002", "SMPL003"), start=1):
         base = ai * 1000
         accounts = [f"SMPLACCT-{base + i}" for i in range(101, 109)]
-        # R6: stops after May — with only ONE loaded month following, the
-        # 2-month absence test cannot be evaluated, so this is the
-        # BASELINE_LIMITED story (fires on May->Jun), NOT a lost account.
+        # R6/R11: stops after JUNE — with only ONE loaded month (Jul) following,
+        # the 2-month absence test cannot be evaluated, so this is the
+        # BASELINE_LIMITED story (fires on Jun->Jul), NOT a lost account.
         bl_lost = f"SMPLACCT-{base + 104}"
         new = f"SMPLACCT-{base + 109}"        # first contributes Jun; quiet
         # Apr+May are both loaded, so NEW_ACCOUNT is confirmed on May->Jun
@@ -201,28 +225,37 @@ def build_transactions() -> list[dict]:
         for m in MONTHS:
             days = BILLABLE_DAYS[m]
             # Managed UMA — recurring fee per account, revenue scales with billable days.
-            # SMPL002 rate steps 82 -> 88 bps in Jun (FEE_RATE).
-            rate = 88.0 if (adv == "SMPL002" and m == "202606") else 82.0
+            # SMPL002 rate steps 82 -> 88 bps in Jun and stays there (FEE_RATE).
+            rate = 88.0 if (adv == "SMPL002" and m >= "202606") else 82.0
             for acct in accounts[:4]:
-                if acct == bl_lost and m == "202606":
+                if acct == bl_lost and m == "202607":
                     continue
                 fee = round((5200 + ai * 700 + int(acct[-1]) * 130) * days / 22 * rate / 82.0, 2)
                 disc = 0.0
                 concession = "None"
-                if adv == "SMPL003" and m == "202606" and acct in accounts[:2]:
-                    disc = round(fee * 0.12, 2)   # DISCOUNT appears in Jun
+                if adv == "SMPL003" and m >= "202606" and acct in accounts[:2]:
+                    disc = round(fee * 0.12, 2)   # DISCOUNT appears in Jun, persists
                     fee = round(fee - disc, 2)
                     concession = "Discount"
-                # ELIGIBILITY story: SMPL001's account crosses below the
-                # minimum-household threshold in Jun -> its fee goes 9E
-                # (non-credited); the account keeps trading, so it is an
-                # eligibility move, not a lost account.
-                reason = "9E" if (adv == "SMPL001" and m == "202606"
+                # HOUSEHOLD story (R10 C2 / R11 D — a 9E flip): SMPL001's
+                # account crosses below the minimum-household threshold in Jun
+                # -> its fee goes 9E (non-credited) and STAYS 9E; the account
+                # keeps trading, so it is an eligibility move, not a lost
+                # account. Fires the HOUSEHOLD driver on May->Jun only.
+                reason = "9E" if (adv == "SMPL001" and m >= "202606"
                                   and acct == small_household) else ""
+                # R11 D — part of the UNEXPLAINED_RESIDUAL story: SMPL002's
+                # x103 goes 9E in July WHILE the account keeps billing. The 9E
+                # carve-out (HOUSEHOLD) and the credited-pool decomposition
+                # overlap on this move, and the offset lands in MIX — pushing
+                # SMPL002 Jun->Jul over the 15% residual threshold (the one
+                # deliberately non-clean transition; see module docstring).
+                if adv == "SMPL002" and m == "202607" and acct == small_household:
+                    reason = "9E"
                 txns.append(_mk_txn(adv, m, "UMA|FEE", acct, 28, fee, rate_bps=rate,
                                     file_key="ace", concession=concession, discount=disc,
                                     split_pct=0.8 if ai == 2 else 1.0, reason=reason))
-            if new and m == "202606":
+            if new and m >= "202606":
                 txns.append(_mk_txn(adv, m, "UMA|FEE", new, 28,
                                     round(4100 + ai * 350, 2), rate_bps=rate, file_key="ace"))
             # R6 — LOST_ACCOUNT story: an account contributing ONLY in April.
@@ -260,9 +293,20 @@ def build_transactions() -> list[dict]:
                 txns.append(_mk_txn(adv, m, "UMA|PAYS", accounts[0], 28,
                                     round(20000 * days / 22, 2), rate_bps=0.0,
                                     file_key="ace", description="PAY TYPE SUMMARY"))
-            # JPMCAP + Advisory — steady recurring base.
+            # JPMCAP + Advisory — steady recurring base. EXCEPT: R11 D —
+            # UNEXPLAINED_RESIDUAL anomaly story: SMPL002's JPMCAP fee jumps
+            # ~+$4.2k in July with NO rate change, NO billable-days change, NO
+            # discount, NO timing pattern and the SAME account — the underlying
+            # cause is asset growth, for which the app has NO source data
+            # (MARKET / NET_FLOW are DUMMY), so no named driver may honestly
+            # claim it and it lands in MIX at > 15% of the transition change.
+            # This is THE ONE deliberately non-clean transition in the sample
+            # (SMPL002 Jun->Jul), exempted by name in verify_end_to_end; a
+            # sample Rescan flags UNEXPLAINED_RESIDUAL (HIGH) on it.
+            jpm_growth = 4200.0 if (adv == "SMPL002" and m == "202607") else 0.0
             txns.append(_mk_txn(adv, m, "JPMCAP|FEE", accounts[4], 27,
-                                round((3600 + ai * 400) * days / 22, 2), rate_bps=65.0, file_key="ace"))
+                                round((3600 + ai * 400) * days / 22 + jpm_growth, 2),
+                                rate_bps=65.0, file_key="ace"))
             txns.append(_mk_txn(adv, m, "ADV|FEE", accounts[5], 27,
                                 round((2900 + ai * 300) * days / 22, 2), rate_bps=58.0, file_key="ace"))
             # Mutual fund trails — recurring plus CLAWBACK reversals that vary.
@@ -271,19 +315,29 @@ def build_transactions() -> list[dict]:
             # R10 D: mutual-fund trail reversals are OUT of CLAWBACK scope —
             # they stay real negative revenue in the ordinary buckets and must
             # NOT produce a CLAWBACK driver (proven by verify_clawback_scope).
-            neg_rows = {"202604": 1, "202605": 2, "202606": 4}[m] + (ai - 1)
+            neg_rows = {"202604": 1, "202605": 2, "202606": 4, "202607": 3}[m] + (ai - 1)
             for k in range(neg_rows):
                 txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 26,
                                     -round(120 + 35 * k + ai * 10, 2), rate_bps=25.0,
                                     file_key="mf_12b1", description=f"MONTH M{int(m[4:6]):02d}-2026 REVERSAL"))
             # CLAWBACK story (R10 D — in scope): annuity trail reversals vary
             # month over month on the recurring Trails -> Annuities group.
-            neg_annu = {"202604": 1, "202605": 2, "202606": 3}[m]
+            neg_annu = {"202604": 1, "202605": 2, "202606": 3, "202607": 2}[m]
             for k in range(neg_annu):
                 txns.append(_mk_txn(adv, m, "ANNU|TRL", accounts[4], 23,
                                     -round(90 + 25 * k + ai * 8, 2), rate_bps=0.0,
                                     file_key="l_a_btr",
                                     description=f"MONTH M{int(m[4:6]):02d}-2026 ANNUITY REVERSAL"))
+            # R11 D — CLAWBACK_CONCENTRATION anomaly story: SMPL003's July
+            # carries annuity SURRENDER chargebacks (~$13.5k total) — in
+            # CLAWBACK scope (Trails -> Annuities, R10 D), far above both the
+            # $10k floor and 5x the trailing monthly mean of clawbacks, so a
+            # sample Rescan flags CLAWBACK_CONCENTRATION (HIGH) on Jun->Jul.
+            if adv == "SMPL003" and m == "202607":
+                for k, amt in enumerate((8200.0, 5300.0)):
+                    txns.append(_mk_txn(adv, m, "ANNU|TRL", accounts[4], 8 + k,
+                                        -amt, rate_bps=0.0, file_key="l_a_btr",
+                                        description="ANNUITY SURRENDER CHARGEBACK"))
             # 9G inherited account (R10 C1 — INHERITANCE story): SMPL002's
             # inherited trail is NON_CREDITED (9G) in Apr and May; the
             # inheritance cooling period ends in Jun, the 9G flag drops and
@@ -292,14 +346,28 @@ def build_transactions() -> list[dict]:
             if adv == "SMPL002":
                 txns.append(_mk_txn(adv, m, "MFT|12B1", f"SMPLACCT-{base + 110}", 25,
                                     800.0, rate_bps=25.0, file_key="mf_12b1",
-                                    reason="9G" if m != "202606" else "",
+                                    reason="9G" if m in ("202604", "202605") else "",
                                     description="INHERITED ACCOUNT TRAIL"))
-            # Structured products — ONE_TIME syndicate in May only.
+            # Structured products — ONE_TIME syndicate in May only. Because the
+            # May rows land on accounts[0] (which also bills recurring UMA),
+            # this is also the MIXED-ACCOUNT story (R9 one-time exclusion): a
+            # recurring account with one-time rows in the same month — the
+            # one-time path claims those rows; account drivers claim only the
+            # recurring ones.
             if m == "202605":
                 for k in range(3):
                     txns.append(_mk_txn(adv, m, "STRP|SYND", accounts[0], 12 + k,
-                                        round(9800 + ai * 1500 + k * 900, 2),
+                                        round(9800 + ai * 2500 + k * 1200, 2),
                                         file_key="twhs", description="SYNDICATE ALLOCATION"))
+            # R11 D — LARGE_SWING anomaly story: SMPL001's July syndicate wave
+            # (~$62k one-time) swings the Jun->Jul total by far more than the
+            # 25% / $50k thresholds, so a sample Rescan flags LARGE_SWING
+            # (MEDIUM). ONE_TIME claims the revenue, so it reconciles exactly.
+            if adv == "SMPL001" and m == "202607":
+                for k in range(4):
+                    txns.append(_mk_txn(adv, m, "STRP|SYND", accounts[0], 10 + k,
+                                        round(14200 + k * 1150, 2),
+                                        file_key="twhs", description="SYNDICATE ALLOCATION JULY"))
             # MAC — quarterly billing: Apr and Jun only (TIMING). R10: the old
             # taxonomy's Alternative Investments line does not exist in the
             # corrected hierarchy; the quarterly-billing story moves to MAC
@@ -327,12 +395,32 @@ def build_transactions() -> list[dict]:
             # The first trade each month is 91 (equity below minimum): still
             # credited, but incentive-INeligible — the badge is visible with no
             # revenue effect.
-            n_trades = {"202604": 8, "202605": 5, "202606": 11}[m] + (ai - 1) * 2
+            n_trades = {"202604": 8, "202605": 5, "202606": 9, "202607": 9}[m] + (ai - 1) * 2
             for k in range(n_trades):
                 txns.append(_mk_txn(adv, m, "EQ|COMM", accounts[5 + (k % 3)], 3 + (k * 2) % 24,
                                     round(140 + RNG.uniform(-25, 25), 2), file_key="ace",
                                     description="EQUITY TRADE COMMISSION",
                                     reason="91" if k == 0 else ""))
+            # R11 D — 92 (mutual-fund below minimum, NON_CREDITED since R10 B):
+            # count varies by month so the eligibility flip is VISIBLE in
+            # credited totals and feeds the ELIGIBILITY driver remainder.
+            n_92 = {"202604": 1, "202605": 2, "202606": 2, "202607": 2}[m]
+            for k in range(n_92):
+                txns.append(_mk_txn(adv, m, "MF|COMM", accounts[2], 11 + k,
+                                    round(95 + ai * 12 + k * 9, 2), file_key="ace",
+                                    description="MUTUAL FUND COMMISSION BELOW MINIMUM",
+                                    reason="92"))
+            # R11 D — 9L (full-month LOA, NON_CREDITED): SMPL003's Advisory fee
+            # for one account carries 9L in May only — a one-month leave that
+            # moves credited revenue out and back (ELIGIBILITY driver on both
+            # adjacent transitions).
+            if adv == "SMPL003":
+                txns.append(_mk_txn(adv, m, "ADV|FEE", accounts[5], 27,
+                                    round(640.0 * days / 22, 2), rate_bps=58.0,
+                                    file_key="ace",
+                                    description="ADVISORY FEE"
+                                                + (" (FULL MONTH LOA)" if m == "202605" else ""),
+                                    reason="9L" if m == "202605" else ""))
             # 9X deleted booking (EXCLUDED_CHANGE driver, FIX_SPEC_R3 T1-2): a
             # 500 MFT trail booking is credited in Apr, then deleted (9X) in
             # May; the deletion marker persists in Jun. Apr->May credited
@@ -345,11 +433,20 @@ def build_transactions() -> list[dict]:
                                     description="TRAIL BOOKING"
                                                 + (" (DELETED)" if deleted else ""),
                                     reason="9X" if deleted else ""))
-            # Cash management — steady.
+            # Cash management — steady, EXCEPT: R11 D — FEE_RATE_SHIFT anomaly
+            # story: SMPL001's money-market sweep rate steps 18 -> 32 bps in
+            # July (> the 10 bps threshold on a recurring group), revenue
+            # scaling with the rate, so a sample Rescan flags FEE_RATE_SHIFT
+            # (MEDIUM) on Jun->Jul and the FEE_RATE driver claims the move.
+            swp_rate = 32.0 if (adv == "SMPL001" and m == "202607") else 18.0
             txns.append(_mk_txn(adv, m, "CASH|SWP", accounts[7], 24,
-                                round(1450 + ai * 150, 2), rate_bps=18.0,
+                                round((1450 + ai * 150) * swp_rate / 18.0, 2), rate_bps=swp_rate,
                                 file_key="money_mkt", balance=round(950000 + ai * 120000, 2)))
-            # Annuities — ONE_TIME issuance for SMPL003 in Apr only.
+            # Annuities — ONE_TIME issuance for SMPL003 in Apr only. Together
+            # with the recurring ANNU|TRL rows above this proves DUAL-NAME
+            # classification live: a recurring Annuities product (Trails ->
+            # Annuities) AND a non-recurring one (Annuities -> Variable) both
+            # carrying sample revenue (R11 D).
             if adv == "SMPL003" and m == "202604":
                 txns.append(_mk_txn(adv, m, "ANNU|COMM", accounts[3], 9,
                                     7400.0, file_key="l_a_ancomm",

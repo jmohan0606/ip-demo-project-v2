@@ -220,6 +220,13 @@ months (Apr/May/Jun 2026) for ten advisors, extracted from the client's PostgreS
 9. **Do not touch V1.** Never modify anything under `docs/v1_patterns/`. Never import
    from it.
 
+10. **Every use case must be demonstrable on the SAMPLE data set** (standing principle,
+   FIX_SPEC_R11 D). When a feature is added, `data/sample/` (via
+   `scripts/generate_sample_data.py`) must be extended to exercise it — a feature that
+   only works on real data cannot be shown in a sample demo and is a gap. The generator
+   stays deterministic, sample reconciliation stays $0.00, and each crafted scenario
+   carries a comment naming the use case it demonstrates.
+
 ---
 
 ## 4. NAMING
