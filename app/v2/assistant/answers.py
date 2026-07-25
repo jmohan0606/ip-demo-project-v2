@@ -39,6 +39,9 @@ class AnswerData:
     status: str = "OK"
     no_data_reason: str = ""
     verbatim_stored: bool = False    # stored, already-validated model text (commentary)
+    # R9 D — stored DETERMINISTIC-fallback commentary: quoted verbatim (never
+    # re-narrated) but NOT model-authored, so it must not carry the AI chip.
+    stored_non_ai: bool = False
 
 
 def _num(value) -> float:
@@ -555,8 +558,12 @@ class AnswerEngine:
             return out
         # Verbatim retrieval of ALREADY-validated, versioned commentary
         # (generated in batch, never on read — CLAUDE.md §7). Not re-narrated,
-        # so its figures were validated at publication, not here.
+        # so its figures were validated at publication, not here. A
+        # PUBLISHED_FALLBACK row is the deterministic template — quoted the
+        # same way but never marked as AI wording (R9 D).
         out.verbatim_stored = True
+        if str(row.get("status")) == "PUBLISHED_FALLBACK":
+            out.stored_non_ai = True
         out.text = str(row.get("narrative_text") or row.get("headline") or "")
         out.facts["version_id"] = str(row.get("version_id") or "")
         out.suggestions = ["Why did revenue change?", "Which accounts drove it?",

@@ -136,7 +136,9 @@ export interface CommentaryRow {
   headline: string;
   narrative_text: string;
   bullets_json: string;
-  status: "PUBLISHED" | "BLOCKED";
+  // PUBLISHED_FALLBACK (R9 D): the deterministic template published after the
+  // model's wording failed COMMENTARY_MAX_ATTEMPTS validations — never AI-marked.
+  status: "PUBLISHED" | "PUBLISHED_FALLBACK" | "BLOCKED";
   blocked_reason: string;
   data_source: Provenance;
 }

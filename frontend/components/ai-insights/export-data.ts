@@ -102,7 +102,9 @@ export async function exportDriversData(opts: {
     const commentaryText =
       c.status === "BLOCKED"
         ? `[BLOCKED] ${c.blocked_reason || "validation failed"}`
-        : c.narrative_text;
+        : c.status === "PUBLISHED_FALLBACK"
+          ? `[DETERMINISTIC FALLBACK — not AI wording] ${c.narrative_text}`
+          : c.narrative_text;
     if (drivers.length === 0) {
       rows.push([...base, "—", "—", "—", "—", commentaryText]);
     }
@@ -168,7 +170,9 @@ export async function exportWalkData(opts: {
         ? "Baseline month — no prior period in the current data set."
         : commentary?.status === "BLOCKED"
           ? `[BLOCKED] ${commentary.blocked_reason || "validation failed"}`
-          : commentary?.narrative_text ?? "—",
+          : commentary?.status === "PUBLISHED_FALLBACK"
+            ? `[DETERMINISTIC FALLBACK — not AI wording] ${commentary.narrative_text}`
+            : commentary?.narrative_text ?? "—",
     ]);
   }
   rows.push([`# Commentary version: ${version ? `v${version.version_no} (${version.model})` : "n/a"}`]);

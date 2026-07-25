@@ -249,7 +249,8 @@ class AssistantService:
             guardrail_json=guardrail_json)
         return self._payload(conversation, user_message, assistant_message,
                              suggestions=answer.suggestions, links=answer.links,
-                             ai_generated=ai_generated or answer.verbatim_stored,
+                             ai_generated=(ai_generated or answer.verbatim_stored)
+                             and not answer.stored_non_ai,
                              evidence_driver_id=answer.evidence_driver_id,
                              served_by_tier=engine.served_by_tier,
                              redaction_note=gate.note)

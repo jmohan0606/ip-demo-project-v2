@@ -55,20 +55,75 @@ class SupervisorAgent(BaseAgent):
         )
         state.context.update({"advisor_id": advisor_id, "from_month": from_month,
                               "to_month": to_month, "version_id": version_id})
+        import logging
+
+        from app.agents.nodes.commentary_agent import deterministic_commentary
+        from app.config.settings import get_settings
+
+        log = logging.getLogger(__name__)
+
         state = RevenueAgent().run(state)
         if state.errors:
             return state
-        state = CommentaryAgent().run(state)
-        if state.errors:
-            return state
-        # Evidence must exist BEFORE validation can pass check 3, so assemble it
-        # first, then validate; a blocked transition still keeps its evidence.
-        state = ExplainabilityAgent().run(state)
-        if state.errors:
-            return state
-        evidence_ids = {e["driver_id"] for e in state.context.get("evidence", [])}
-        state.context["validation"] = validate_commentary(
-            state.context["revenue_output"], state.context["commentary"], evidence_ids)
+
+        # R9 D2 — bounded retry: a commentary that fails the guardrail is
+        # REGENERATED (a fresh model call each time) up to
+        # COMMENTARY_MAX_ATTEMPTS total attempts; every attempt is validated
+        # and every failure logged. Evidence is assembled once after the first
+        # generation (it derives from the computed drivers, not the wording)
+        # and must exist BEFORE validation can pass check 3; a blocked
+        # transition still keeps its evidence.
+        max_attempts = max(1, int(get_settings().commentary_max_attempts))
+        evidence_ids: set[str] = set()
+        attempts: list[dict] = []
+        validation: dict = {"passed": False, "blocked_reason": "not generated"}
+        for attempt in range(1, max_attempts + 1):
+            state = CommentaryAgent().run(state)
+            if state.errors:
+                return state
+            if attempt == 1:
+                state = ExplainabilityAgent().run(state)
+                if state.errors:
+                    return state
+                evidence_ids = {e["driver_id"] for e in state.context.get("evidence", [])}
+            validation = validate_commentary(
+                state.context["revenue_output"], state.context["commentary"], evidence_ids)
+            attempts.append({"attempt": attempt, "passed": validation["passed"],
+                             "blocked_reason": validation["blocked_reason"] or ""})
+            if validation["passed"]:
+                break
+            log.warning(
+                "commentary guardrail attempt %d/%d FAILED for %s %s->%s: %s%s",
+                attempt, max_attempts, advisor_id, from_month, to_month,
+                validation["blocked_reason"],
+                " — regenerating" if attempt < max_attempts else " — no attempts left",
+            )
+
+        # R9 D3 — never an empty panel: after the last failed attempt, publish
+        # the deterministic template (computed drivers only, no model wording),
+        # clearly marked as a fallback. It is validated too — the guardrail is
+        # never bypassed; a bad figure is never displayed.
+        if not validation["passed"]:
+            fallback = deterministic_commentary(state.context["revenue_output"])
+            fb_validation = validate_commentary(
+                state.context["revenue_output"], fallback, evidence_ids)
+            if fb_validation["passed"]:
+                state.context["commentary"] = fallback
+                state.context["fallback_reason"] = (
+                    f"model wording failed the guardrail {len(attempts)} time(s); "
+                    f"last reason: {attempts[-1]['blocked_reason']}")
+                validation = fb_validation
+                log.warning(
+                    "commentary for %s %s->%s published as DETERMINISTIC FALLBACK "
+                    "after %d failed attempt(s)",
+                    advisor_id, from_month, to_month, len(attempts))
+            else:
+                log.error(
+                    "deterministic fallback itself failed validation for %s %s->%s: %s "
+                    "— transition stays BLOCKED",
+                    advisor_id, from_month, to_month, fb_validation["blocked_reason"])
+        state.context["validation"] = validation
+        state.context["validation_attempts"] = attempts
         return state
 
     # ---- workflow B: read — retrieval only ---------------------------------

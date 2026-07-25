@@ -17,7 +17,10 @@ from app.agents.state.agent_state import AgentWorkflowState
 from app.v2.format import fmt_money, fmt_money_k, fmt_pct
 
 # v1.1 (R8): baseline-transition limitation rule + cause_display_name vocabulary.
-PROMPT_VERSION = "v1.1"
+# v1.2 (R9 D): explicit sign/format convention with correct/incorrect examples —
+# cdao_openai wrapped positive figures in parentheses, which the guardrail
+# rightly blocks (parentheses MEAN negative).
+PROMPT_VERSION = "v1.2"
 
 # Bullets shown per card (UI shows five drivers ranked by impact).
 BULLET_COUNT = 5
@@ -27,7 +30,11 @@ You will be given ALREADY-COMPUTED revenue drivers as JSON. Your job is language
 - Use ONLY figures that appear in the input JSON, copied VERBATIM in their given format (e.g. "($44.1k)", "(17.7%)").
 - NEVER introduce, adjust, round, re-round or infer a number. NEVER compute sums, differences, ratios or combined figures across drivers — if you want to describe a combination, use words ("together", "largely offset"), not a new number.
 - If a figure is not in the input, it must not appear in your output.
-- Negative amounts are written in parentheses, never with a minus sign. NEVER wrap a positive figure in parentheses — parentheses MEAN negative, so "(38.3%)" would misstate a rise as a fall. Copy each figure exactly as given, including or omitting parentheses exactly as the input does.
+- SIGN/FORMAT CONVENTION (critical): parentheses denote NEGATIVE values ONLY. Positive values are NEVER parenthesised. Copy each figure exactly as given, including or omitting parentheses exactly as the input does — never add parentheses the input does not have, never drop parentheses the input has.
+  CORRECT:   input "$12.3k"   -> you write "Managed contributed $12.3k"
+  CORRECT:   input "($44.1k)" -> you write "Structured Products contributed ($44.1k)"
+  INCORRECT: input "$12.3k"   -> you write "Managed contributed ($12.3k)"   <- this misstates a RISE as a FALL and will be rejected
+  INCORRECT: input "(17.7%)"  -> you write "17.7%"                          <- this misstates a fall as a rise and will be rejected
 - Use the client's product vocabulary exactly as given in the input.
 - A driver flagged data_source DUMMY or ASSUMED must be described as unavailable/placeholder, never as an established fact.
 - A driver with cause BASELINE_LIMITED reflects a limit of the loaded data range: too few months are loaded on one side of this transition to confirm whether accounts were genuinely opened or closed. Say that account-level attribution is unavailable for this transition for that reason. NEVER narrate it as accounts opened/closed, new business, client wins/losses or any other business event.
@@ -84,6 +91,59 @@ def _driver_payload(d: dict) -> dict:
     }
 
 
+def _deterministic_narrative(revenue_output: dict, top: list[dict], is_baseline: bool) -> str:
+    """Narrative built ONLY from computed figures and the fixed cause
+    vocabulary — no model wording anywhere. Passes the numeric guardrail by
+    construction (every figure is a computed one, negatives already
+    parenthesised by the formatters)."""
+    direction = "up" if revenue_output["change_amt"] >= 0 else "down"
+    parts = []
+    if is_baseline:
+        parts.append(
+            f"{_month_name(revenue_output['from_month'])} is the first month in the "
+            "loaded data, so there is no prior period to compare account activity "
+            "against — driver attribution for this transition is indicative.")
+    # The formatters carry the sign convention (rule 8): negatives arrive
+    # already parenthesised, positives never. No literal parentheses may be
+    # added around a figure here — "(55.4%)" for a rise is exactly the
+    # misstatement the guardrail blocks (R9 D).
+    parts.append(
+        f"Credited revenue moved {direction} {fmt_money(revenue_output['change_amt'])}, "
+        f"a change of {fmt_pct(revenue_output['change_pct'])}, "
+        f"from {_month_name(revenue_output['from_month'])} to {_month_name(revenue_output['to_month'])}."
+    )
+    for d in top[:3]:
+        parts.append(f"{d['group_name']} contributed {fmt_money_k(d['contribution_amt'])} "
+                     f"({_CAUSE_FALLBACK.get(d['cause_id'], d['cause_id']).lower().rstrip('.')}).")
+    return " ".join(parts)
+
+
+def deterministic_commentary(revenue_output: dict) -> dict:
+    """R9 D3 — the full commentary contract with NO model wording: headline,
+    narrative and bullet texts are assembled from the computed drivers and the
+    fixed cause vocabulary only. Published (clearly marked as a fallback) when
+    the model's wording fails the guardrail COMMENTARY_MAX_ATTEMPTS times, so
+    the panel is never empty and a bad figure is never displayed."""
+    top = [d for d in revenue_output["drivers"]][:BULLET_COUNT]
+    is_baseline = bool(revenue_output.get("is_baseline_transition"))
+    return {
+        "headline": build_headline(revenue_output),
+        "narrative_text": _deterministic_narrative(revenue_output, top, is_baseline),
+        "bullets": [{
+            "driver_id": d["driver_id"],
+            "direction": d["direction"],
+            "title": f"{d['group_name']} {fmt_money_k(d['contribution_amt'])}",
+            "text": _CAUSE_FALLBACK.get(d["cause_id"], ""),
+            "cause_id": d["cause_id"],
+            "group_id": d["group_id"],
+            "data_source": d["data_source"],
+        } for d in top],
+        "model": "deterministic-template (no model wording)",
+        "prompt_version": PROMPT_VERSION,
+        "is_fallback": True,
+    }
+
+
 def build_headline(revenue_output: dict) -> str:
     arrow = "▲" if revenue_output["change_amt"] >= 0 else "▼"
     return (f"{arrow} {fmt_money(revenue_output['change_amt'])}  "
@@ -127,22 +187,7 @@ def narrate(revenue_output: dict, llm) -> dict:
 
     if not narrative:
         llm_model = f"{llm_model} (deterministic fallback)"
-        direction = "up" if revenue_output["change_amt"] >= 0 else "down"
-        parts = []
-        if is_baseline:
-            parts.append(
-                f"{_month_name(revenue_output['from_month'])} is the first month in the "
-                "loaded data, so there is no prior period to compare account activity "
-                "against — driver attribution for this transition is indicative.")
-        parts.append(
-            f"Credited revenue moved {direction} {fmt_money(revenue_output['change_amt'])} "
-            f"({fmt_pct(revenue_output['change_pct'])[1:-1] if revenue_output['change_pct'] < 0 else fmt_pct(revenue_output['change_pct'])}) "
-            f"from {_month_name(revenue_output['from_month'])} to {_month_name(revenue_output['to_month'])}."
-        )
-        for d in top[:3]:
-            parts.append(f"{d['group_name']} contributed {fmt_money_k(d['contribution_amt'])} "
-                         f"({_CAUSE_FALLBACK.get(d['cause_id'], d['cause_id']).lower().rstrip('.')}).")
-        narrative = " ".join(parts)
+        narrative = _deterministic_narrative(revenue_output, top, is_baseline)
 
     bullets = []
     for d in top:

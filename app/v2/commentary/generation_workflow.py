@@ -190,8 +190,16 @@ def _run(notes: str = "") -> dict:
             commentary = state.context["commentary"]
             validation = state.context["validation"]
             evidence = state.context.get("evidence", [])
-            status = "PUBLISHED" if validation["passed"] else "BLOCKED"
-            if status == "BLOCKED":
+            fallback_reason = str(state.context.get("fallback_reason") or "")
+            # R9 D — three outcomes: PUBLISHED (model wording passed),
+            # PUBLISHED_FALLBACK (model wording failed COMMENTARY_MAX_ATTEMPTS
+            # times; the validated deterministic template publishes, clearly
+            # marked — the panel is never empty), BLOCKED (even the
+            # deterministic template failed — should never happen).
+            if validation["passed"]:
+                status = "PUBLISHED_FALLBACK" if fallback_reason else "PUBLISHED"
+            else:
+                status = "BLOCKED"
                 blocked += 1
                 _log.warning("commentary BLOCKED for %s %s->%s: %s",
                              advisor_id, from_m, to_m, validation["blocked_reason"])
@@ -202,7 +210,8 @@ def _run(notes: str = "") -> dict:
                 "narrative_text": commentary["narrative_text"],
                 "bullets_json": json.dumps(commentary["bullets"], sort_keys=True),
                 "status": status,
-                "blocked_reason": validation["blocked_reason"] or "",
+                "blocked_reason": (fallback_reason if status == "PUBLISHED_FALLBACK"
+                                   else validation["blocked_reason"] or ""),
                 "data_source": "DERIVED",
             })
             e_cfa.append({"from_id": commentary_id, "to_id": advisor_id})
@@ -267,6 +276,10 @@ def _run(notes: str = "") -> dict:
         "prompt_version": PROMPT_VERSION, "generated_at": generated_at,
         "advisors": len(advisors), "transitions": len(advisors) * len(transitions),
         "published": sum(1 for c in commentary_rows if c["status"] == "PUBLISHED"),
+        # R9 D — deterministic template published after the model's wording
+        # failed COMMENTARY_MAX_ATTEMPTS validations (panel never empty).
+        "published_fallback": sum(1 for c in commentary_rows
+                                  if c["status"] == "PUBLISHED_FALLBACK"),
         "blocked": blocked, "evidence_records": len(evidence_rows),
         # Advisory judge tally (R5) — informational only, never a gate.
         "judge": {

@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     data_set: str = Field(default="sample", alias="DATA_SET")  # sample | real
     # Commentary is generated in batch and stored — never on read (CLAUDE.md §7)
     commentary_mode: str = Field(default="stored", alias="COMMENTARY_MODE")
+    # R9 D2 — a commentary that fails the guardrail is regenerated up to this
+    # many attempts total; after that the deterministic template publishes
+    # (marked as fallback) so the panel is never empty. The guardrail is never
+    # bypassed — every attempt is validated.
+    commentary_max_attempts: int = Field(default=3, alias="COMMENTARY_MAX_ATTEMPTS")
     # Credited-revenue definition (FIX_SPEC R1-6). BOTH are config, not code:
     # which product grid types count toward credited revenue (comma-separated;
     # relaxing to "PRODUCT_TYPE,PAY_TYPE_SUMMARY" changes behaviour with no code

@@ -168,6 +168,14 @@ export function MonthlyWalkTable({
                             the loaded data; driver attribution for this transition is indicative.
                           </span>
                         )}
+                        {/* R9 D — deterministic-fallback rows: not model wording,
+                            so say so instead of letting the column AI chip imply it. */}
+                        {commentary.status === "PUBLISHED_FALLBACK" && (
+                          <span className="mb-1 block text-[10.5px] font-semibold text-v2-muted">
+                            Deterministic fallback — built from the computed drivers (not AI wording);
+                            the model&apos;s wording failed validation.
+                          </span>
+                        )}
                         {commentary.narrative_text}
                       </>
                     ) : (

@@ -198,10 +198,10 @@ Resume from: N-A
 | V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived e42622c..HEAD; prompts/ + data/real + qa_screenshots excluded; conflict flags on attribution/manifest/v2.ts/evidence-modal |
 | N-A | R9 | account presence excludes ONE_TIME/ADJUSTMENT rev_nature | DONE | 45e6e4a | txn-level filter in activity map + group presence; account drivers claim recurring rows only; R9A fixture (pure one-time, mixed, recurring-then-one-time) PASS; recon $0.00 |
 | N-B | R9 | account-comparison lists populate for group-level drivers (write+read agree) | DONE | 350c158 | QUOTE="double" in generated loading job (JSON shear root cause); builder fail-loud contract; modal logs key path + legacy-accounts fallback; R9B checks PASS |
-| N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | IN_PROGRESS | | started 2026-07-25 |
-| N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | TODO | | |
-| N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | TODO | | |
-| N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | TODO | | |
+| N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | DONE | 1b8f980 | advisor_sid on vertex + full chain; binding outranks screen; cross-advisor declines; GQ-020 attr filter both tiers; chat-CSV header migration; verify [10] 6 checks, 90/90 PASS |
+| N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | DONE | be8e827 | shell passes month list -> adjacent seed; resolve() snaps screen spans; driver_detail matches both months; span_decompose per-transition labels; verify [11] 6 checks, 96/96 PASS |
+| N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | DONE | c3e6864 | chip renders category·severity; missing chat CSV auto-created; failed send keeps turn visible locally; verify [12] 5 checks incl. transcript endpoint; 101/101 PASS |
+| N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | IN_PROGRESS | | started 2026-07-25 |
 | N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | TODO | | |
 | N-F | R9 | glossary ordered by display_order | TODO | | |
 | N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |

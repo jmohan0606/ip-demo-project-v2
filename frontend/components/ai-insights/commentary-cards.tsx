@@ -418,11 +418,23 @@ function TransitionCard({
             {isBaselineTransition && <BaselineTag />}
           </span>
           <span className="flex shrink-0 items-center gap-1.5">
-            <AiGeneratedChip
-              model={versionMeta?.model}
-              promptVersion={versionMeta?.prompt_version}
-              versionId={versionId}
-            />
+            {/* R9 D — a PUBLISHED_FALLBACK narrative is the deterministic
+                template (no model wording), so it must NOT carry the AI chip
+                (rule 8a: only model-authored language is marked). */}
+            {row.status === "PUBLISHED_FALLBACK" ? (
+              <span
+                className="inline-block whitespace-nowrap rounded-full bg-v2-header-bg px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.3px] text-v2-navy"
+                title={row.blocked_reason || "Model wording failed validation; deterministic template published."}
+              >
+                Deterministic fallback
+              </span>
+            ) : (
+              <AiGeneratedChip
+                model={versionMeta?.model}
+                promptVersion={versionMeta?.prompt_version}
+                versionId={versionId}
+              />
+            )}
             {evaluation && <JudgeBadge verdict={evaluation.verdict} />}
           </span>
         </div>
