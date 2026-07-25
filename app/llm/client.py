@@ -11,10 +11,16 @@ class LLMClientError(RuntimeError):
     pass
 
 
-def build_cdao_openai_client(api_version: str, workspace_id: str | None):
+def build_cdao_openai_client(api_version: str | None, workspace_id: str | None):
     """Construct the shared cdao Azure OpenAI client used by BOTH the LLM adapter
     (CdaoOpenAILLMClient) and the embedding adapter (CdaoOpenAIEmbeddingClient) — one
     construction path so the confirmed-working notebook pattern lives in exactly one place.
+
+    R13 A — an empty/blank `api_version` means "OMIT the argument": the client is built with
+    `openai_azure_client(workspace_id=...)` only. GPT-5-series deployments on cdao reject any
+    api_version, while GPT-4 still needs one — the operator signals which by leaving
+    CDAO_API_VERSION / <ROLE>_API_VERSION empty. Config value is the ONLY signal; the model
+    name is never inspected.
 
     GUARDED IMPORT: `cdao` exists only in the client artifactory (cdaosdk-all[openai]). It is
     imported ONLY inside this function, called ONLY when a cdao_openai mode is selected — the app
@@ -28,7 +34,8 @@ def build_cdao_openai_client(api_version: str, workspace_id: str | None):
     if not workspace_id:
         raise LLMClientError(
             "cdao_openai mode requires CDAO_WORKSPACE_ID in .env "
-            "(plus CDAO_API_VERSION — see CLIENT_ENV_SETUP.md §1b)"
+            "(CDAO_API_VERSION for GPT-4-series deployments, empty for GPT-5 — "
+            "see CLIENT_ENV_SETUP.md §1b)"
         )
     try:
         from cdao import openai_azure_client  # type: ignore  # guarded: client-only package
@@ -39,6 +46,8 @@ def build_cdao_openai_client(api_version: str, workspace_id: str | None):
             "environment (uv pip install 'cdaosdk-all[openai]'), or use a build-box "
             "mode (mock|claude) here. Original error: " + str(exc)
         ) from exc
+    if not (api_version or "").strip():
+        return openai_azure_client(workspace_id=workspace_id)
     return openai_azure_client(api_version=api_version, workspace_id=workspace_id)
 
 

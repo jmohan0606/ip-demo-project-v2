@@ -181,6 +181,10 @@ class Settings(BaseSettings):
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],
     # client artifactory only; guarded import). Auth comes from the ambient PCL AWS login session
     # — no credentials here. See CLIENT_ENV_SETUP.md §1b.
+    # R13 A — empty CDAO_API_VERSION (or an empty role *_API_VERSION with no
+    # inherited value) means "OMIT api_version from openai_azure_client(...)":
+    # GPT-5-series cdao deployments reject any api_version; GPT-4 needs one.
+    # Config is the only signal — the model name is never inspected.
     cdao_api_version: str = Field(default="2024-02-01", alias="CDAO_API_VERSION")
     cdao_workspace_id: str | None = Field(default=None, alias="CDAO_WORKSPACE_ID")
     cdao_model: str = Field(default="gpt-4o-2024-08-06", alias="CDAO_MODEL")
