@@ -87,6 +87,9 @@ def write_loading_job(vertices: dict, edges: dict) -> None:
         "// RESTPP/pyTigerGraph upsert is the primary load path on the client machine",
         "// (no server-side file access); this job is the bulk-load alternative for a",
         "// host with local file access.",
+        '// R9 B — QUOTE="double" is REQUIRED: JSON columns (inputs_json, scope_json,',
+        "// figures_json, ...) contain commas; without it the load shears those fields",
+        "// at the first comma and the evidence account lists read back empty.",
         f"USE GRAPH {GRAPH}",
         "",
         f"CREATE LOADING JOB load_v2_all FOR GRAPH {GRAPH} {{",
@@ -100,12 +103,12 @@ def write_loading_job(vertices: dict, edges: dict) -> None:
         cols = ", ".join(f'$"{c}"' for c in spec["attributes"])
         lines.append(
             f"    LOAD f_{short(name)} TO VERTEX {name} VALUES ({cols}) "
-            'USING HEADER="true", SEPARATOR=",";'
+            'USING HEADER="true", SEPARATOR=",", QUOTE="double";'
         )
     for name in edges:
         lines.append(
             f'    LOAD f_{short(name)} TO EDGE {name} VALUES ($"from_id", $"to_id") '
-            'USING HEADER="true", SEPARATOR=",";'
+            'USING HEADER="true", SEPARATOR=",", QUOTE="double";'
         )
     lines.append("}")
     LOADING_JOB.write_text("\n".join(lines) + "\n", encoding="utf-8")

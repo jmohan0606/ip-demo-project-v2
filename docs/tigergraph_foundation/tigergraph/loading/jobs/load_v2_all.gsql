@@ -4,6 +4,9 @@
 // RESTPP/pyTigerGraph upsert is the primary load path on the client machine
 // (no server-side file access); this job is the bulk-load alternative for a
 // host with local file access.
+// R9 B — QUOTE="double" is REQUIRED: JSON columns (inputs_json, scope_json,
+// figures_json, ...) contain commas; without it the load shears those fields
+// at the first comma and the evidence account lists read back empty.
 USE GRAPH iperform_v2_revenue
 
 CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
@@ -62,58 +65,58 @@ CREATE LOADING JOB load_v2_all FOR GRAPH iperform_v2_revenue {
     DEFINE FILENAME f_message_in_conversation = "./edges/message_in_conversation.csv";
     DEFINE FILENAME f_conversation_for_advisor = "./edges/conversation_for_advisor.csv";
 
-    LOAD f_advisor TO VERTEX phx_dm_v2_advisor VALUES ($"advisor_sid", $"advisor_name", $"rep_code", $"branch_cd", $"standard_id", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_month TO VERTEX phx_dm_v2_month VALUES ($"month_id", $"year", $"month_no", $"month_name", $"quarter", $"start_dt", $"end_dt", $"calendar_days", $"billable_days", $"prior_month_id", $"index_return", $"is_current", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_revenue_class TO VERTEX phx_dm_v2_revenue_class VALUES ($"class_id", $"class_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_product_line TO VERTEX phx_dm_v2_product_line VALUES ($"line_id", $"line_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_product_group TO VERTEX phx_dm_v2_product_group VALUES ($"group_id", $"group_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_product TO VERTEX phx_dm_v2_product VALUES ($"product_id", $"product_cd", $"product_sub_cd", $"product_name", $"grid_type", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_account TO VERTEX phx_dm_v2_account VALUES ($"account_no", $"account_typ", $"wrap_flg", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_driver_cause TO VERTEX phx_dm_v2_driver_cause VALUES ($"cause_id", $"cause_name", $"cause_description", $"default_data_source", $"display_order", $"display_name", $"description", $"computation", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_reason_code TO VERTEX phx_dm_v2_reason_code VALUES ($"reason_code", $"description", $"ui_mapping", $"owned_by", $"eligibility", $"include_in_credited", $"incentive_eligible", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_revenue_transaction TO VERTEX phx_dm_v2_revenue_transaction VALUES ($"txn_id", $"trade_ref_no", $"split_seq_no", $"advisor_sid", $"month_id", $"product_id", $"account_no", $"trade_dt", $"proc_dt", $"credited_amt", $"pre_split_amt", $"split_pct", $"client_rate_bps", $"std_tier_rate", $"concession_type", $"discount_amt", $"eff_disc_pct", $"avg_balance_amt", $"file_key", $"trade_description", $"rev_nature", $"reason_cd", $"rm_sid", $"cs_sid", $"revenue_eligibility", $"incentive_eligible", $"days_to_process", $"posting_month_id", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_monthly_product_revenue TO VERTEX phx_dm_v2_monthly_product_revenue VALUES ($"mpr_id", $"advisor_sid", $"month_id", $"group_id", $"line_id", $"class_id", $"revenue", $"txn_count", $"account_count", $"avg_rate_bps", $"recurring_amt", $"one_time_amt", $"total_revenue", $"non_credited_amt", $"excluded_amt", $"late_excluded_amt", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_account_month_balance TO VERTEX phx_dm_v2_account_month_balance VALUES ($"balance_id", $"account_no", $"month_id", $"avg_billable_assets", $"effective_fee_bps", $"billable_days", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_revenue_change TO VERTEX phx_dm_v2_revenue_change VALUES ($"change_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"group_id", $"from_revenue", $"to_revenue", $"change_amt", $"change_pct", $"direction", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_revenue_driver TO VERTEX phx_dm_v2_revenue_driver VALUES ($"driver_id", $"change_id", $"cause_id", $"group_id", $"contribution_amt", $"contribution_pct", $"direction", $"rank", $"inputs_json", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_version TO VERTEX phx_dm_v2_commentary_version VALUES ($"version_id", $"version_no", $"generated_at", $"model", $"prompt_version", $"data_snapshot_dt", $"status", $"advisor_count", $"transition_count", $"blocked_count", $"notes", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary TO VERTEX phx_dm_v2_commentary VALUES ($"commentary_id", $"version_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"headline", $"narrative_text", $"bullets_json", $"status", $"blocked_reason", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_evaluation TO VERTEX phx_dm_v2_commentary_evaluation VALUES ($"evaluation_id", $"commentary_id", $"version_id", $"judge_model", $"faithfulness_score", $"hallucination_flag", $"completeness_score", $"clarity_score", $"verdict", $"reasoning", $"evaluated_at", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_evidence TO VERTEX phx_dm_v2_evidence VALUES ($"evidence_id", $"driver_id", $"finding_text", $"calc_json", $"source_records_json", $"lineage_json", $"checks_json", $"gsql_query_name", $"gsql_params_json", $"gsql_result_json", $"source_sql", $"source_table", $"source_row_count", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_anomaly TO VERTEX phx_dm_v2_anomaly VALUES ($"anomaly_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"rule_id", $"severity", $"title", $"detail_text", $"metrics_json", $"threshold_json", $"impact_amt", $"group_id", $"scan_id", $"detected_at", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_anomaly_scan TO VERTEX phx_dm_v2_anomaly_scan VALUES ($"scan_id", $"started_at", $"advisors_reviewed", $"transitions_reviewed", $"flagged_count", $"thresholds_json", $"status", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_conversation TO VERTEX phx_dm_v2_conversation VALUES ($"conversation_id", $"title", $"created_at", $"last_message_at", $"message_count", $"scope_json", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_message TO VERTEX phx_dm_v2_message VALUES ($"message_id", $"conversation_id", $"seq", $"role", $"text", $"resolved_context_json", $"queries_run_json", $"figures_json", $"llm_provider", $"status", $"guardrail_status", $"guardrail_json", $"created_at", $"data_source") USING HEADER="true", SEPARATOR=",";
-    LOAD f_product_in_group TO EDGE phx_dm_v2_product_in_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_group_in_line TO EDGE phx_dm_v2_group_in_line VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_line_in_class TO EDGE phx_dm_v2_line_in_class VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_txn_for_advisor TO EDGE phx_dm_v2_txn_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_txn_in_month TO EDGE phx_dm_v2_txn_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_txn_for_product TO EDGE phx_dm_v2_txn_for_product VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_txn_for_account TO EDGE phx_dm_v2_txn_for_account VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_txn_has_reason TO EDGE phx_dm_v2_txn_has_reason VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_mpr_for_advisor TO EDGE phx_dm_v2_mpr_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_mpr_in_month TO EDGE phx_dm_v2_mpr_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_mpr_for_group TO EDGE phx_dm_v2_mpr_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_balance_for_account TO EDGE phx_dm_v2_balance_for_account VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_balance_in_month TO EDGE phx_dm_v2_balance_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_change_for_advisor TO EDGE phx_dm_v2_change_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_change_for_group TO EDGE phx_dm_v2_change_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_change_from_month TO EDGE phx_dm_v2_change_from_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_change_to_month TO EDGE phx_dm_v2_change_to_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_driver_of_change TO EDGE phx_dm_v2_driver_of_change VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_driver_has_cause TO EDGE phx_dm_v2_driver_has_cause VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_driver_for_group TO EDGE phx_dm_v2_driver_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_for_advisor TO EDGE phx_dm_v2_commentary_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_from_month TO EDGE phx_dm_v2_commentary_from_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_to_month TO EDGE phx_dm_v2_commentary_to_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_in_version TO EDGE phx_dm_v2_commentary_in_version VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_commentary_cites_driver TO EDGE phx_dm_v2_commentary_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_evidence_for_driver TO EDGE phx_dm_v2_evidence_for_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_evaluation_of_commentary TO EDGE phx_dm_v2_evaluation_of_commentary VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_anomaly_for_advisor TO EDGE phx_dm_v2_anomaly_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_anomaly_in_scan TO EDGE phx_dm_v2_anomaly_in_scan VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_anomaly_cites_driver TO EDGE phx_dm_v2_anomaly_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_message_in_conversation TO EDGE phx_dm_v2_message_in_conversation VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
-    LOAD f_conversation_for_advisor TO EDGE phx_dm_v2_conversation_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",";
+    LOAD f_advisor TO VERTEX phx_dm_v2_advisor VALUES ($"advisor_sid", $"advisor_name", $"rep_code", $"branch_cd", $"standard_id", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_month TO VERTEX phx_dm_v2_month VALUES ($"month_id", $"year", $"month_no", $"month_name", $"quarter", $"start_dt", $"end_dt", $"calendar_days", $"billable_days", $"prior_month_id", $"index_return", $"is_current", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_revenue_class TO VERTEX phx_dm_v2_revenue_class VALUES ($"class_id", $"class_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_product_line TO VERTEX phx_dm_v2_product_line VALUES ($"line_id", $"line_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_product_group TO VERTEX phx_dm_v2_product_group VALUES ($"group_id", $"group_name", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_product TO VERTEX phx_dm_v2_product VALUES ($"product_id", $"product_cd", $"product_sub_cd", $"product_name", $"grid_type", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_account TO VERTEX phx_dm_v2_account VALUES ($"account_no", $"account_typ", $"wrap_flg", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_driver_cause TO VERTEX phx_dm_v2_driver_cause VALUES ($"cause_id", $"cause_name", $"cause_description", $"default_data_source", $"display_order", $"display_name", $"description", $"computation", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_reason_code TO VERTEX phx_dm_v2_reason_code VALUES ($"reason_code", $"description", $"ui_mapping", $"owned_by", $"eligibility", $"include_in_credited", $"incentive_eligible", $"display_order", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_revenue_transaction TO VERTEX phx_dm_v2_revenue_transaction VALUES ($"txn_id", $"trade_ref_no", $"split_seq_no", $"advisor_sid", $"month_id", $"product_id", $"account_no", $"trade_dt", $"proc_dt", $"credited_amt", $"pre_split_amt", $"split_pct", $"client_rate_bps", $"std_tier_rate", $"concession_type", $"discount_amt", $"eff_disc_pct", $"avg_balance_amt", $"file_key", $"trade_description", $"rev_nature", $"reason_cd", $"rm_sid", $"cs_sid", $"revenue_eligibility", $"incentive_eligible", $"days_to_process", $"posting_month_id", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_monthly_product_revenue TO VERTEX phx_dm_v2_monthly_product_revenue VALUES ($"mpr_id", $"advisor_sid", $"month_id", $"group_id", $"line_id", $"class_id", $"revenue", $"txn_count", $"account_count", $"avg_rate_bps", $"recurring_amt", $"one_time_amt", $"total_revenue", $"non_credited_amt", $"excluded_amt", $"late_excluded_amt", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_account_month_balance TO VERTEX phx_dm_v2_account_month_balance VALUES ($"balance_id", $"account_no", $"month_id", $"avg_billable_assets", $"effective_fee_bps", $"billable_days", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_revenue_change TO VERTEX phx_dm_v2_revenue_change VALUES ($"change_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"group_id", $"from_revenue", $"to_revenue", $"change_amt", $"change_pct", $"direction", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_revenue_driver TO VERTEX phx_dm_v2_revenue_driver VALUES ($"driver_id", $"change_id", $"cause_id", $"group_id", $"contribution_amt", $"contribution_pct", $"direction", $"rank", $"inputs_json", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_version TO VERTEX phx_dm_v2_commentary_version VALUES ($"version_id", $"version_no", $"generated_at", $"model", $"prompt_version", $"data_snapshot_dt", $"status", $"advisor_count", $"transition_count", $"blocked_count", $"notes", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary TO VERTEX phx_dm_v2_commentary VALUES ($"commentary_id", $"version_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"headline", $"narrative_text", $"bullets_json", $"status", $"blocked_reason", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_evaluation TO VERTEX phx_dm_v2_commentary_evaluation VALUES ($"evaluation_id", $"commentary_id", $"version_id", $"judge_model", $"faithfulness_score", $"hallucination_flag", $"completeness_score", $"clarity_score", $"verdict", $"reasoning", $"evaluated_at", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_evidence TO VERTEX phx_dm_v2_evidence VALUES ($"evidence_id", $"driver_id", $"finding_text", $"calc_json", $"source_records_json", $"lineage_json", $"checks_json", $"gsql_query_name", $"gsql_params_json", $"gsql_result_json", $"source_sql", $"source_table", $"source_row_count", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_anomaly TO VERTEX phx_dm_v2_anomaly VALUES ($"anomaly_id", $"advisor_sid", $"from_month_id", $"to_month_id", $"rule_id", $"severity", $"title", $"detail_text", $"metrics_json", $"threshold_json", $"impact_amt", $"group_id", $"scan_id", $"detected_at", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_anomaly_scan TO VERTEX phx_dm_v2_anomaly_scan VALUES ($"scan_id", $"started_at", $"advisors_reviewed", $"transitions_reviewed", $"flagged_count", $"thresholds_json", $"status", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_conversation TO VERTEX phx_dm_v2_conversation VALUES ($"conversation_id", $"title", $"created_at", $"last_message_at", $"message_count", $"scope_json", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_message TO VERTEX phx_dm_v2_message VALUES ($"message_id", $"conversation_id", $"seq", $"role", $"text", $"resolved_context_json", $"queries_run_json", $"figures_json", $"llm_provider", $"status", $"guardrail_status", $"guardrail_json", $"created_at", $"data_source") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_product_in_group TO EDGE phx_dm_v2_product_in_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_group_in_line TO EDGE phx_dm_v2_group_in_line VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_line_in_class TO EDGE phx_dm_v2_line_in_class VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_txn_for_advisor TO EDGE phx_dm_v2_txn_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_txn_in_month TO EDGE phx_dm_v2_txn_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_txn_for_product TO EDGE phx_dm_v2_txn_for_product VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_txn_for_account TO EDGE phx_dm_v2_txn_for_account VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_txn_has_reason TO EDGE phx_dm_v2_txn_has_reason VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_mpr_for_advisor TO EDGE phx_dm_v2_mpr_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_mpr_in_month TO EDGE phx_dm_v2_mpr_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_mpr_for_group TO EDGE phx_dm_v2_mpr_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_balance_for_account TO EDGE phx_dm_v2_balance_for_account VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_balance_in_month TO EDGE phx_dm_v2_balance_in_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_change_for_advisor TO EDGE phx_dm_v2_change_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_change_for_group TO EDGE phx_dm_v2_change_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_change_from_month TO EDGE phx_dm_v2_change_from_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_change_to_month TO EDGE phx_dm_v2_change_to_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_driver_of_change TO EDGE phx_dm_v2_driver_of_change VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_driver_has_cause TO EDGE phx_dm_v2_driver_has_cause VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_driver_for_group TO EDGE phx_dm_v2_driver_for_group VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_for_advisor TO EDGE phx_dm_v2_commentary_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_from_month TO EDGE phx_dm_v2_commentary_from_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_to_month TO EDGE phx_dm_v2_commentary_to_month VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_in_version TO EDGE phx_dm_v2_commentary_in_version VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_commentary_cites_driver TO EDGE phx_dm_v2_commentary_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_evidence_for_driver TO EDGE phx_dm_v2_evidence_for_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_evaluation_of_commentary TO EDGE phx_dm_v2_evaluation_of_commentary VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_anomaly_for_advisor TO EDGE phx_dm_v2_anomaly_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_anomaly_in_scan TO EDGE phx_dm_v2_anomaly_in_scan VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_anomaly_cites_driver TO EDGE phx_dm_v2_anomaly_cites_driver VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_message_in_conversation TO EDGE phx_dm_v2_message_in_conversation VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
+    LOAD f_conversation_for_advisor TO EDGE phx_dm_v2_conversation_for_advisor VALUES ($"from_id", $"to_id") USING HEADER="true", SEPARATOR=",", QUOTE="double";
 }

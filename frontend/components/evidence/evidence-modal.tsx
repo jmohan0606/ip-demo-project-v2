@@ -131,6 +131,8 @@ interface AccountDriverInputs {
   from_month_revenue_by_account?: Record<string, number>;
   account_absence_months?: number;
   classification_rule?: string;
+  /** Legacy pre-R8 rows stored only this flat list (no revenue map). */
+  accounts?: string[];
 }
 const ACCOUNT_DRIVER_CAUSES = new Set(["NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED"]);
 const causeOrder = (cause: string): number => {
@@ -764,9 +766,43 @@ export function EvidenceModal({
 
   // FIX_SPEC_R8 C — parsed account-comparison inputs; present only on account
   // drivers, so the panel renders for those and never elsewhere.
+  //
+  // R9 B — the read side names the exact key path it expects and never fails
+  // silently: an account driver with a non-zero claim whose lists come back
+  // empty (unparseable inputs_json, or rows written before the R8 keys) logs a
+  // console warning with the key path, and legacy rows that stored only the
+  // flat `accounts` list fall back to it so the lists still render.
   const accountInputs = useMemo<AccountDriverInputs | null>(() => {
     if (!driver || !ACCOUNT_DRIVER_CAUSES.has(driver.cause_id)) return null;
-    return parseJson<AccountDriverInputs>(driver.inputs_json, {});
+    const parsed = parseJson<AccountDriverInputs>(driver.inputs_json, {});
+    if (driver.inputs_json && Object.keys(parsed).length === 0) {
+      console.warn(
+        `[evidence] driver ${driver.driver_id} (${driver.cause_id}, claim ${driver.contribution_amt}): ` +
+          "inputs_json did not parse as JSON — expected keys inputs_json.accounts_present_only_in_from_month / " +
+          ".accounts_present_only_in_to_month / .from_month_revenue_by_account / .to_month_revenue_by_account. " +
+          `Raw prefix: ${String(driver.inputs_json).slice(0, 120)}`,
+      );
+    }
+    if (parsed.accounts?.length) {
+      if (driver.cause_id === "NEW_ACCOUNT" && !parsed.accounts_present_only_in_to_month?.length) {
+        parsed.accounts_present_only_in_to_month = parsed.accounts;
+      }
+      if (driver.cause_id === "LOST_ACCOUNT" && !parsed.accounts_present_only_in_from_month?.length) {
+        parsed.accounts_present_only_in_from_month = parsed.accounts;
+      }
+    }
+    const anyListed =
+      (parsed.accounts_present_only_in_from_month?.length ?? 0) +
+      (parsed.accounts_present_only_in_to_month?.length ?? 0);
+    if (driver.contribution_amt !== 0 && anyListed === 0) {
+      console.warn(
+        `[evidence] driver ${driver.driver_id} (${driver.cause_id}) claims ${driver.contribution_amt} ` +
+          "but inputs_json.accounts_present_only_in_from_month and .accounts_present_only_in_to_month " +
+          "are both empty — the account-comparison lists will render 'None' against a non-zero claim. " +
+          "The write side (attribute_group inputs_json) and this read path disagree; re-run the data build.",
+      );
+    }
+    return parsed;
   }, [driver]);
 
   const openAccountsInTransactions = (accounts: string[], monthId: string) => {

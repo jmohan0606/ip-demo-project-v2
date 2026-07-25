@@ -216,6 +216,13 @@ def build_dataset(
             + json.dumps(report, indent=2)
         )
 
+    # R9 B — write-side contract for the account-comparison evidence: every
+    # GROUP-level account driver with a non-zero claim MUST carry non-empty
+    # account lists whose per-account revenue sums back to the claim. An empty
+    # list under a non-zero claim would render "None" in the evidence modal
+    # against a stated amount — fail the build loudly instead of publishing it.
+    _validate_account_driver_inputs(drivers)
+
     # ------------------------------------------------ vertex CSVs
     counts: dict[str, int] = {}
     counts[csv_file_for("vertex", "advisor")] = write_vertex_csv(out_dir / csv_file_for("vertex", "advisor"), advisors,
@@ -445,6 +452,60 @@ def _presence_summary(drivers: list[dict]) -> dict[str, dict]:
             out[key]["baseline_limited_amt"] = round(
                 out[key]["baseline_limited_amt"] + float(d["contribution_amt"]), 2)
     return dict(sorted(out.items()))
+
+
+def _validate_account_driver_inputs(drivers: list[dict]) -> None:
+    """R9 B — the account-comparison evidence contract, checked at WRITE time.
+
+    The evidence modal renders, for NEW_ACCOUNT / LOST_ACCOUNT /
+    BASELINE_LIMITED drivers, the lists stored in inputs_json under
+    `accounts_present_only_in_to_month` / `to_month_revenue_by_account` (NEW)
+    and `accounts_present_only_in_from_month` / `from_month_revenue_by_account`
+    (LOST; BASELINE_LIMITED uses both). A group-level driver claiming a
+    non-zero amount with empty lists — or per-account revenue that does not sum
+    back to the claim — would show "None" beside a stated dollar figure.
+    Fail the build instead of publishing that."""
+    problems: list[str] = []
+    for d in drivers:
+        cause = d["cause_id"]
+        if cause not in ("NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED"):
+            continue
+        contribution = float(d["contribution_amt"])
+        if abs(contribution) < 0.005:
+            continue
+        try:
+            inputs = json.loads(d["inputs_json"])
+        except (TypeError, ValueError):
+            problems.append(f"{d['driver_id']}: inputs_json is not parseable JSON")
+            continue
+        to_accounts = inputs.get("accounts_present_only_in_to_month") or []
+        from_accounts = inputs.get("accounts_present_only_in_from_month") or []
+        to_rev = inputs.get("to_month_revenue_by_account") or {}
+        from_rev = inputs.get("from_month_revenue_by_account") or {}
+        if cause == "NEW_ACCOUNT":
+            expected = sum(to_rev.values())
+            lists_ok = bool(to_accounts) and set(to_rev) == set(to_accounts)
+        elif cause == "LOST_ACCOUNT":
+            expected = -sum(from_rev.values())
+            lists_ok = bool(from_accounts) and set(from_rev) == set(from_accounts)
+        else:  # BASELINE_LIMITED
+            expected = sum(to_rev.values()) - sum(from_rev.values())
+            lists_ok = bool(to_accounts or from_accounts)
+        if not lists_ok:
+            problems.append(
+                f"{d['driver_id']}: {cause} claims {contribution:,.2f} but the "
+                "account lists in inputs_json are empty or inconsistent "
+                "(keys: accounts_present_only_in_from_month/"
+                "accounts_present_only_in_to_month + *_month_revenue_by_account)")
+        elif abs(expected - contribution) > 1.0:
+            problems.append(
+                f"{d['driver_id']}: per-account revenue sums to {expected:,.2f} "
+                f"but the driver claims {contribution:,.2f}")
+    if problems:
+        raise ReconciliationError(
+            "ACCOUNT EVIDENCE CONTRACT FAILED (R9 B) — account drivers were "
+            "produced whose evidence lists would render empty or wrong; nothing "
+            "was published:\n- " + "\n- ".join(problems))
 
 
 def _driver_cause_rows() -> list[dict]:

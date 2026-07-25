@@ -302,6 +302,35 @@ def main() -> int:
     check("R9A: reconciliation $0.00 on every transition", r9_rec["all_reconcile"],
           json.dumps({k: v["discrepancy"] for k, v in r9_rec["transitions"].items()}))
 
+    # ------------------------------------------------- 2c. R9 B: evidence lists populate
+    print("\n— R9 B: group-level account drivers carry populated, reconciling "
+          "account lists in inputs_json —")
+    b_drivers = [d for d in drivers + r9_drivers
+                 if d["cause_id"] in ("NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED")
+                 and abs(float(d["contribution_amt"])) >= 0.005]
+    check("R9B: fixture produced group-level account drivers to check", bool(b_drivers),
+          f"{len(b_drivers)} drivers")
+    b_bad: list[str] = []
+    for d in b_drivers:
+        inputs = json.loads(d["inputs_json"])
+        contribution = float(d["contribution_amt"])
+        to_rev = inputs.get("to_month_revenue_by_account") or {}
+        from_rev = inputs.get("from_month_revenue_by_account") or {}
+        to_list = inputs.get("accounts_present_only_in_to_month") or []
+        from_list = inputs.get("accounts_present_only_in_from_month") or []
+        if d["cause_id"] == "NEW_ACCOUNT":
+            ok = bool(to_list) and abs(sum(to_rev.values()) - contribution) <= 1.0
+        elif d["cause_id"] == "LOST_ACCOUNT":
+            ok = bool(from_list) and abs(-sum(from_rev.values()) - contribution) <= 1.0
+        else:
+            ok = bool(to_list or from_list) and abs(
+                sum(to_rev.values()) - sum(from_rev.values()) - contribution) <= 1.0
+        if not ok:
+            b_bad.append(f"{d['driver_id']} lists={len(from_list)}/{len(to_list)} "
+                         f"claim={contribution}")
+    check("R9B: every account driver's lists are non-empty and sum to its claim "
+          "(empty lists with a non-zero claim is the round-9 bug)", not b_bad, str(b_bad))
+
     # ---------------------------------------------------------------- 3. guard
     # R8: the R6 A3 abort (|BL| > |NET change| -> AttributionError) was removed —
     # drivers offset each other, so a single driver can legitimately exceed the
