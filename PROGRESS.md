@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T21:00:00Z
-Current phase: ROUND 13 (FIX_SPEC_R13.md) — cdao GPT-5 compatibility (api_version / temperature / max_tokens)
-Resume from: R-A
+Last updated: 2026-07-25T22:00:00Z
+Current phase: ROUND 13 (FIX_SPEC_R13.md) — COMPLETE (operator acceptance pending: real-cdao GPT-5 checks — docs/ROUND13_ACCEPTANCE.md)
+Resume from: — (all R tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -18,7 +18,7 @@ Resume from: R-A
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
 | 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
-| 13 | 2026-07-25 | | round 13 fresh start (FIX_SPEC_R13.md) | cdao GPT-5 compat: api_version omit-when-empty, temperature config (default 1), max_tokens removed from cdao creates, Env Health probe on corrected path |
+| 13 | 2026-07-25 | 2026-07-25 | round 13 fresh start (FIX_SPEC_R13.md) | R-A..R-E all DONE; verify_gpt5_compat 34/34; suites re-run PASS (role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101, glossary 7/7, taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/anomalies, e2e recon $0.00); tsc clean; .env.example 136/136 keys; live GPT-5 cdao checks = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -247,8 +247,8 @@ Resume from: R-A
 | R-A | R13 | build_cdao_openai_client + per-role builder: empty api_version ⇒ omit it (workspace_id only), config-driven | DONE | 2772d3f | empty/None/blank ⇒ workspace_id-only construction; non-empty unchanged; fixture-verified via fake cdao module; per-role + embedding funnel through the same builder |
 | R-B | R13 | CDAO_TEMPERATURE + WRITER/JUDGE/ASSISTANT_TEMPERATURE (default 1) threaded via roles.py into every cdao create | DONE | 712aea1 | RoleLLMConfig.temperature (never counts as R12 config); threaded through build_llm_client into Real+Cdao adapters, judge legacy R9 E path, assistant primary link; unconfigured writer = main singleton (CDAO_TEMPERATURE); .env.example 4 new keys |
 | R-C | R13 | remove max_tokens from cdao create calls (main + per-role); leave Anthropic untouched | DONE | 8569ff6 | removed from Real+Cdao chat-completions creates; Anthropic messages.create max_tokens=1024 is the only one left in client.py (asserted) |
-| R-D | R13 | Env Health per-role probe uses the same corrected construction/call | IN_PROGRESS | 1eaee0b | probe corrected + verify_gpt5_compat 34/34; suites re-run PASS; ROUND13_ACCEPTANCE.md pending |
-| R-E | R13 | docs/ROUND13_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| R-D | R13 | Env Health per-role probe uses the same corrected construction/call | DONE | 1eaee0b/9f9bb62 | corrected construction + minimal one-word create on cdao (discarded, no secrets); verify_gpt5_compat 34/34; all suites re-run PASS, recon $0.00, tsc clean; ROUND13_ACCEPTANCE.md written |
+| R-E | R13 | docs/ROUND13_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 0427bb8..HEAD; client.py flagged ⚠ operator-patched-locally (repo supersedes); + BUILD_REPORT §19 |
 
 ## Decisions
 | When | Decision | Why |
