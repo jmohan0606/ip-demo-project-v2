@@ -172,8 +172,16 @@ def _run(notes: str = "", advisor_id: str = "") -> dict:
                    for r in graph.run_query("get_months", {})["results"][0]["months"]]
     month_ids = sorted(str(m.get("month_id")) for m in months_rows)
     transitions = list(zip(month_ids, month_ids[1:]))
-    model = (settings.anthropic_model if settings.llm_client_mode == "claude"
-             else settings.llm_client_mode)
+    # Version-row model label (metadata only). R12 — when WRITER_* config is
+    # set, the label names the writer's effective model; unconfigured keeps
+    # the pre-R12 label exactly.
+    from app.llm.roles import resolve_role_config
+    wcfg = resolve_role_config("writer", settings)
+    if wcfg.configured:
+        model = f"{wcfg.mode}:{wcfg.deployment or wcfg.model or wcfg.default_model_label()}"
+    else:
+        model = (settings.anthropic_model if settings.llm_client_mode == "claude"
+                 else settings.llm_client_mode)
     judge_llm = judge_mod.get_judge_llm() if settings.judge_enabled else None
 
     per_version: list[dict] = []

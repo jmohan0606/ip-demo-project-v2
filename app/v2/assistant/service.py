@@ -212,7 +212,7 @@ class AssistantService:
         # limit, never repeated disclaimers).
         narrated = self._narrate(answer, resolved_dict,
                                  "" if plan.advisory else gate.text)
-        text_out, ai_generated, provider, model, fallback_from = narrated
+        text_out, ai_generated, provider, model, fallback_from = narrated[:5]
 
         if plan.advisory:
             text_out = f"{text_out} {_ADVICE_LIMIT}"
@@ -237,6 +237,14 @@ class AssistantService:
         provider_label = provider or fallback_provider
         if fallback_from:
             provider_label += f" (after {', '.join(fallback_from)} failed)"
+        # R12 C — surface the served path (role_config / fallback_agent_llm)
+        # whenever the assistant has its own role config, or whenever any
+        # fallback actually happened; unconfigured clean turns keep the exact
+        # R7 label (no regression).
+        served_path = narrated[5]
+        if provider_label and served_path and (
+                served_path != "role_config" or self.llm.configured):
+            provider_label += f" [served: {served_path}]"
 
         assistant_message = self.store.append_message(
             conversation, role="ASSISTANT", text=text_out,
@@ -258,14 +266,15 @@ class AssistantService:
     # ------------------------------------------------------------ helpers
 
     def _narrate(self, answer: AnswerData, resolved: dict, question: str
-                 ) -> tuple[str, bool, str, str, list[str]]:
-        """Returns (text, ai_generated, provider, model, fallback_from)."""
+                 ) -> tuple[str, bool, str, str, list[str], str]:
+        """Returns (text, ai_generated, provider, model, fallback_from,
+        served_path)."""
         from app.guardrails.numeric_validation import validate_anomaly_text
 
         if answer.verbatim_stored:
             # Stored, versioned commentary — validated at publication, quoted
             # verbatim, never re-narrated (CLAUDE.md §7).
-            return answer.text, False, "stored-commentary", "", []
+            return answer.text, False, "stored-commentary", "", [], ""
 
         # R11 D exposed a collision: two figures may share a label (e.g. one
         # account with several same-product transactions), and a label-keyed
@@ -289,7 +298,8 @@ class AssistantService:
         if text:
             check = validate_anomaly_text(figures_payload, {}, [text])
             if check["passed"]:
-                return text, True, result["provider"], result["model"], result["fallback_from"]
+                return (text, True, result["provider"], result["model"],
+                        result["fallback_from"], result.get("served_path", ""))
             _log.warning("assistant narration REJECTED by no-invented-figures guardrail "
                          "(%s) — deterministic fallback used", check["blocked_reason"])
         # deterministic template: built only from stored figures, passes by
@@ -299,7 +309,7 @@ class AssistantService:
             _log.error("deterministic answer failed its own figure check: %s",
                        det["blocked_reason"])
         return answer.text, False, result.get("provider", ""), result.get("model", ""), \
-            result.get("fallback_from", [])
+            result.get("fallback_from", []), result.get("served_path", "")
 
     def _last_context(self, conversation: dict) -> tuple[dict | None, str]:
         rows = self.store.messages(conversation["conversation_id"])["messages"]

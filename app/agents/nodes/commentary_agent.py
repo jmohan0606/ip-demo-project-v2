@@ -172,11 +172,13 @@ def narrate(revenue_output: dict, llm) -> dict:
             "loaded data; there is no prior period for account comparison, so driver "
             "attribution for this transition is indicative.")
     llm_model = "unavailable"
+    llm_path = ""  # R12 C — served path when the writer runs on a RoleLLM
     narrative = ""
     bullet_texts: dict[str, str] = {}
     try:
         raw = llm.generate(json.dumps(payload, indent=2), {"system_prompt": _SYSTEM_PROMPT})
         llm_model = llm.describe().get("model", llm.describe().get("mode", "unknown"))
+        llm_path = llm.describe().get("served_path", "")
         match = re.search(r"\{.*\}", raw or "", re.S)
         if match:
             parsed = json.loads(match.group(0))
@@ -202,13 +204,19 @@ def narrate(revenue_output: dict, llm) -> dict:
             "group_id": d["group_id"],
             "data_source": d["data_source"],
         })
-    return {
+    out = {
         "headline": build_headline(revenue_output),
         "narrative_text": narrative,
         "bullets": bullets,
         "model": llm_model,
         "prompt_version": PROMPT_VERSION,
     }
+    if llm_path:
+        # R12 C — which path served the writer: role_config / fallback_agent_llm.
+        # Absent when the writer runs unconfigured on the app singleton (pre-R12
+        # behaviour) — metadata only, never a computed figure.
+        out["llm_path"] = llm_path
+    return out
 
 
 # ---------------------------------------------------------------- anomaly mode (R6 Y6)
@@ -326,11 +334,16 @@ class CommentaryAgent(BaseAgent):
 
     def run(self, state: AgentWorkflowState) -> AgentWorkflowState:
         from app.llm.client import get_llm_client
+        from app.llm.roles import build_role_llm
 
         task = self.create_task("narrate computed drivers")
         try:
             revenue_output = state.context["revenue_output"]
-            state.context["commentary"] = narrate(revenue_output, get_llm_client())
+            # R12 — WRITER_* config gives the writer its own client (with the
+            # single-retry auto-fallback to the default agent LLM inside
+            # RoleLLM); no WRITER_* keys = the app singleton, exactly as before.
+            writer_llm = build_role_llm("writer") or get_llm_client()
+            state.context["commentary"] = narrate(revenue_output, writer_llm)
             state.tasks.append(self.complete_task(task, {"bullets": len(state.context["commentary"]["bullets"])}))
         except Exception as exc:  # noqa: BLE001
             state.errors.append(f"commentary_agent: {exc}")

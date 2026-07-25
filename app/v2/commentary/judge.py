@@ -63,11 +63,37 @@ def get_judge_llm():
     default model, except claude mode which keeps the R5 different-model
     default (claude-sonnet-5 vs the haiku writer). Returns None when no judge
     can run (mock mode, construction failure): judge_commentary then produces
-    the honest UNAVAILABLE fallback."""
+    the honest UNAVAILABLE fallback.
+
+    R12 — when any NEW judge key is set (JUDGE_CLIENT_MODE / JUDGE_DEPLOYMENT /
+    JUDGE_API_VERSION), the judge gets its own client from the shared role
+    helper, wrapped with the single-retry auto-fallback to the default agent
+    LLM. JUDGE_MODEL alone keeps the exact R9 path (no regression)."""
     settings = get_settings()
-    mode = settings.llm_client_mode.lower()
-    if mode == "mock":
+    from app.llm.roles import RoleLLM, resolve_role_config
+
+    cfg = resolve_role_config("judge", settings)
+    if cfg.mode == "mock":
+        # The judge never runs on the mock adapter — deterministic template
+        # output cannot judge language. Honest UNAVAILABLE instead (R9 E).
         return None
+    if cfg.configured:
+        role_llm = RoleLLM(cfg)
+        if not role_llm.available:
+            # Both the configured client AND the default agent LLM failed to
+            # construct → honest UNAVAILABLE (the WARNINGs are already logged).
+            return None
+        if role_llm.served_path == "fallback_agent_llm" and \
+                settings.llm_client_mode.lower() == "mock":
+            # The fallback landed on the mock adapter, which cannot judge —
+            # honest UNAVAILABLE, never a deterministic pseudo-verdict (F4).
+            _log.warning("judge: configured LLM unusable and the default agent "
+                         "LLM is mock — judge UNAVAILABLE")
+            return None
+        return role_llm
+
+    # No R12 config — the exact R9 E path.
+    mode = cfg.mode
     model = (settings.judge_model or "").strip()
     if not model and mode == "claude":
         model = "claude-sonnet-5"  # R5: a different model than the writer
@@ -153,12 +179,19 @@ def judge_commentary(revenue_output: dict, commentary: dict, llm) -> dict:
     verdict = str(parsed.get("verdict") or "").upper()
     if verdict not in _VERDICTS:
         verdict = "REVIEW"
-    return {
+    result = {
         "faithfulness_score": _score(parsed.get("faithfulness_score")),
         "hallucination_flag": bool(parsed.get("hallucination_flag")),
         "completeness_score": _score(parsed.get("completeness_score")),
         "clarity_score": _score(parsed.get("clarity_score")),
         "verdict": verdict,
         "reasoning": str(parsed.get("reasoning") or "")[:2000],
-        "judge_model": judge_model,
+        "judge_model": llm.describe().get("model", judge_model),
     }
+    # R12 C — served path (role_config / fallback_agent_llm) when the judge
+    # runs on a RoleLLM; absent on the unconfigured R9 path. The describe() is
+    # re-read AFTER generate() because a first-call fallback swaps the client.
+    path = llm.describe().get("served_path", "")
+    if path:
+        result["llm_path"] = path
+    return result
