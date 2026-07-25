@@ -40,6 +40,7 @@ from app.v2.drivers.attribution import (
     reconcile,
 )
 from app.v2.revenue import eligibility as elig
+from app.v2.revenue import taxonomy
 from app.v2.revenue.aggregation import (
     TOTAL_GROUP,
     EligibilityContext,
@@ -193,6 +194,9 @@ def build_dataset(
     line_class = {l[0]: l[2] for l in lines}
     recurring_class_groups = {g for g, line in group_line.items()
                               if line_class.get(line) == "RECURRING"}
+    # R10 D — CLAWBACK scope from hierarchy position (Annuities / Insurance
+    # lines + the Trails Annuities group), over the ACTUAL built dimensions.
+    clawback_groups = taxonomy.clawback_group_ids(lines, groups)
 
     months = month_rows(month_ids)
     mpr = aggregate_monthly(txns, product_group, group_line, line_class, ctx)
@@ -228,6 +232,7 @@ def build_dataset(
             max_processing_days=ctx.max_processing_days,
             loaded_month_ids=month_ids,
             absence_months=absence_months,
+            clawback_group_ids=clawback_groups,
         ))
 
     report = reconcile(changes, drivers)
@@ -630,8 +635,11 @@ def _driver_cause_rows() -> list[dict]:
          "account. Contribution = −(their prior-month credited revenue).",
          "REAL", 15),
         ("CLAWBACK", "Charge Back",
-         "Reversals / chargebacks (negative revenue)",
-         "Change in the sum of negative credited amounts between the months.",
+         "Reversals / chargebacks (negative revenue) on Annuities, Insurance and "
+         "Life products only",
+         "Change in the sum of negative credited amounts between the months, for "
+         "Annuities / Insurance / Life products (by hierarchy position). Reversals on "
+         "other products remain ordinary negative revenue in their own drivers.",
          "REAL", 16),
         ("MARKET", "Market",
          "Movement in asset values (not yet sourced — shown as illustrative)",

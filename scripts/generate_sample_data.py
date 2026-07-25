@@ -268,11 +268,22 @@ def build_transactions() -> list[dict]:
             # Mutual fund trails — recurring plus CLAWBACK reversals that vary.
             txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 25,
                                 round(1900 + ai * 250, 2), rate_bps=25.0, file_key="mf_12b1"))
+            # R10 D: mutual-fund trail reversals are OUT of CLAWBACK scope —
+            # they stay real negative revenue in the ordinary buckets and must
+            # NOT produce a CLAWBACK driver (proven by verify_clawback_scope).
             neg_rows = {"202604": 1, "202605": 2, "202606": 4}[m] + (ai - 1)
             for k in range(neg_rows):
                 txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 26,
                                     -round(120 + 35 * k + ai * 10, 2), rate_bps=25.0,
                                     file_key="mf_12b1", description=f"MONTH M{int(m[4:6]):02d}-2026 REVERSAL"))
+            # CLAWBACK story (R10 D — in scope): annuity trail reversals vary
+            # month over month on the recurring Trails -> Annuities group.
+            neg_annu = {"202604": 1, "202605": 2, "202606": 3}[m]
+            for k in range(neg_annu):
+                txns.append(_mk_txn(adv, m, "ANNU|TRL", accounts[4], 23,
+                                    -round(90 + 25 * k + ai * 8, 2), rate_bps=0.0,
+                                    file_key="l_a_btr",
+                                    description=f"MONTH M{int(m[4:6]):02d}-2026 ANNUITY REVERSAL"))
             # 9G inherited account (R10 C1 — INHERITANCE story): SMPL002's
             # inherited trail is NON_CREDITED (9G) in Apr and May; the
             # inheritance cooling period ends in Jun, the 9G flag drops and

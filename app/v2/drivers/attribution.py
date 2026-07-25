@@ -127,6 +127,8 @@ def attribute_group(
     from_excl_txns: list[dict] | None = None,
     to_excl_txns: list[dict] | None = None,
     max_processing_days: int = 90,
+    clawback_in_scope: bool = True,
+    clawback_product_codes: frozenset[str] = frozenset({"LIFE"}),
 ) -> list[dict]:
     """Driver rows (without ids/rank — assigned per transition) for one group's
     change. Steps per EXTRACTION_SPEC §7 plus ELIGIBILITY (FIX_SPEC R1-8),
@@ -395,17 +397,32 @@ def attribute_group(
                        "reason code (e.g. deleted) leaves credited revenue, and vice versa",
         })
 
-    # 4. CLAWBACK — change in negative-amount rows among the remainder.
-    from_neg = [t for t in rem_from if _num(t.get("credited_amt")) < 0]
-    to_neg = [t for t in rem_to if _num(t.get("credited_amt")) < 0]
+    # 4. CLAWBACK — change in negative-amount (reversal) rows among the
+    # remainder. R10 D: scoped to Annuities, Insurance (product) and Life
+    # (product code) ONLY — clawback_in_scope says whether this GROUP sits
+    # under an Annuities/Insurance line (decided by hierarchy position in
+    # app/v2/revenue/taxonomy.clawback_group_ids); the product-code gate
+    # catches Life products in out-of-scope groups. Reversals on any other
+    # product are NOT labelled CLAWBACK — they stay in the remainder and
+    # reconcile through VOLUME/DEAL_SIZE/MIX as ordinary negative revenue.
+    def _cb(t: dict) -> bool:
+        if clawback_in_scope:
+            return True
+        code = str(t.get("product_id") or "").split("|")[0].strip().upper()
+        return code in clawback_product_codes
+
+    from_neg = [t for t in rem_from if _num(t.get("credited_amt")) < 0 and _cb(t)]
+    to_neg = [t for t in rem_to if _num(t.get("credited_amt")) < 0 and _cb(t)]
     if from_neg or to_neg:
         emit("CLAWBACK", _sum(to_neg) - _sum(from_neg), {
             "from_negative_total": round(_sum(from_neg), 2), "to_negative_total": round(_sum(to_neg), 2),
             "from_negative_rows": len(from_neg), "to_negative_rows": len(to_neg),
+            "scope": "Annuities / Insurance / Life products only (FIX_SPEC_R10 D)",
             "formula": "to_negative_total - from_negative_total",
         })
-    rem_from = [t for t in rem_from if _num(t.get("credited_amt")) >= 0]
-    rem_to = [t for t in rem_to if _num(t.get("credited_amt")) >= 0]
+        claimed_neg = {id(t) for t in from_neg + to_neg}
+        rem_from = [t for t in rem_from if id(t) not in claimed_neg]
+        rem_to = [t for t in rem_to if id(t) not in claimed_neg]
 
     # 5. TIMING — quarterly-billed group present in exactly one month.
     if change["group_id"] in QUARTERLY_BILLED_GROUPS and bool(rem_from) != bool(rem_to):
@@ -545,6 +562,7 @@ def attribute_transition(
     loaded_month_ids: list[str] | None = None,
     absence_months: int = DEFAULT_ACCOUNT_ABSENCE_MONTHS,
     legacy_two_month_presence: bool = False,
+    clawback_group_ids: set[str] | None = None,
 ) -> list[dict]:
     """All driver rows for one transition (advisor + from/to months).
 
@@ -669,6 +687,10 @@ def attribute_transition(
             from_excl_txns=excl_txns_by_group_month.get((group_id, change["from_month_id"]), []),
             to_excl_txns=excl_txns_by_group_month.get((group_id, change["to_month_id"]), []),
             max_processing_days=max_processing_days,
+            # R10 D — None (legacy fixtures) keeps every group in scope; the
+            # production builder always passes the taxonomy-derived scope set.
+            clawback_in_scope=(clawback_group_ids is None
+                               or group_id in clawback_group_ids),
         ):
             raw.append((change, d))
 

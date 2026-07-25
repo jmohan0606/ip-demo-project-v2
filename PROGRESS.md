@@ -211,10 +211,10 @@ Resume from: T-A1
 | T-A3 | R10 | propagate taxonomy through DDL→catalog→loading→manifest→both builders→both tiers | DONE | 8225cbe | no DDL change (ids/data only) — schema artifacts regenerated, zero drift; manifest via builders; both tiers data-driven; real-path proven on B6 fixtures |
 | T-B1 | R10 | eligibility: NULL/empty/__NONE__ credited; 91/92/9L flip to non-credited; excluded set unchanged | DONE | 0ce93ae | seed flip only; verify_eligibility 25/25 PASS; recon $0.00 |
 | T-B2 | R10 | evidence: annotate the `less excluded` line with its reason-code breakdown | DONE | 0ce93ae | excluded_detail in breakdown (rendering only); modal note like non-credited line; older evidence -> optional field |
-| T-C0 | R10 | confirm per-month reason-code availability; report gap if missing | TODO | | |
-| T-C1 | R10 | INHERITANCE driver (9G flip) + 6-month cooling-period code note | TODO | | |
-| T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | TODO | | |
-| T-C3 | R10 | attribution order + reconciliation with new drivers | TODO | | |
+| T-C0 | R10 | confirm per-month reason-code availability; report gap if missing | DONE | 8218f0e | CONFIRMED: nc txn rows carry account_no/month_id/reason_cd per month — no gap |
+| T-C1 | R10 | INHERITANCE driver (9G flip) + 6-month cooling-period code note | DONE | 8218f0e | -(Δ nc 9G); flip lists in inputs; cooling note in attribution.py; DERIVED |
+| T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | DONE | 8218f0e | -(Δ nc 9E); ELIGIBILITY excludes 9G/9E — three sum exactly to -(Δ total nc) |
+| T-C3 | R10 | attribution order + reconciliation with new drivers | DONE | 8218f0e | before ELIGIBILITY remainder; verify_new_drivers PASS; recon $0.00; MIX clean |
 | T-D1 | R10 | CLAWBACK scoped to Annuities/Insurance/Life (real hierarchy names confirmed) | TODO | | |
 | T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | TODO | | |
 | T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | TODO | | |

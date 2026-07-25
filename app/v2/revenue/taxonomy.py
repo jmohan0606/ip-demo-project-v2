@@ -183,6 +183,35 @@ for _cls, _line, _groups in HIERARCHY:
     _UNIQUE_LINE[_lkey] = (_cls, _lid)
 
 
+# ------------------------------------------------------------- clawback scope
+# FIX_SPEC_R10 D — the CLAWBACK ("Charge Back") driver applies ONLY to
+# Annuities, Insurance (product), and Life (product code). Confirmed against
+# the corrected A1 hierarchy: Annuities = the non-recurring Annuities line
+# (Fixed/Variable) AND the Trails -> Annuities trail group; Insurance = the
+# non-recurring Insurance line. "Life" is a PRODUCT CODE gate — the REAL
+# product hierarchy extract is operator-local, so the exact code value could
+# not be verified here; "LIFE" (case-insensitive) is the assumed identifier,
+# recorded as a data gap in PROGRESS.md. Reversals on any other product still
+# reconcile through the ordinary buckets but are NOT labelled CLAWBACK.
+CLAWBACK_LINE_NAMES = frozenset({"annuities", "insurance"})
+CLAWBACK_PRODUCT_CODES = frozenset({"LIFE"})
+
+
+def clawback_group_ids(lines_rows=None, groups_rows=None) -> set[str]:
+    """Group ids in CLAWBACK scope, computed from hierarchy POSITION: every
+    group under an Annuities or Insurance line, plus the Trails -> Annuities
+    trail group. Pass the actual built dimensions (they may contain
+    dynamically-created groups under those lines); defaults to the A1 seed."""
+    lines_rows = lines_rows if lines_rows is not None else lines()
+    groups_rows = groups_rows if groups_rows is not None else groups()
+    scope_lines = {lid for lid, name, _cls, _o in lines_rows
+                   if _norm(name) in CLAWBACK_LINE_NAMES}
+    out = {gid for gid, _name, lid, _o in groups_rows if lid in scope_lines}
+    out |= {gid for gid, name, lid, _o in groups_rows
+            if _norm(name) == "annuities"}  # Trails -> Annuities (recurring side)
+    return out
+
+
 class AmbiguousPathError(ValueError):
     """The (line, group) path cannot be classified without guessing by name —
     the caller must STOP and report (FIX_SPEC_R10 A2), never default."""

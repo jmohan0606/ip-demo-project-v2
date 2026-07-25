@@ -239,7 +239,7 @@
         "txn_id",
         "data_source"
       ],
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -344,7 +344,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 167,
+      "expected_rows": 174,
       "workflow_generated": false
     },
     {
@@ -610,7 +610,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -623,7 +623,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -636,7 +636,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -649,7 +649,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -662,7 +662,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 256,
+      "expected_rows": 274,
       "workflow_generated": false
     },
     {
@@ -792,7 +792,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 167,
+      "expected_rows": 174,
       "workflow_generated": false
     },
     {
@@ -805,7 +805,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 167,
+      "expected_rows": 174,
       "workflow_generated": false
     },
     {
@@ -818,7 +818,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 155,
+      "expected_rows": 162,
       "workflow_generated": false
     },
     {

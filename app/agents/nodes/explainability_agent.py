@@ -282,13 +282,17 @@ _CAUSE_WHY: dict[str, dict] = {
     },
     "CLAWBACK": {
         "rule": "Change in negative-amount (reversal) rows among transactions no earlier step "
-                "claimed: to-month negative total less from-month negative total.",
-        "inputs_tested": ["credited_amt sign per row", "negative totals and row counts per month"],
+                "claimed: to-month negative total less from-month negative total. Applies "
+                "ONLY to Annuities, Insurance and Life products (by hierarchy position — "
+                "FIX_SPEC_R10 D); reversals on other products stay in the ordinary buckets "
+                "and are not labelled Charge Back.",
+        "inputs_tested": ["credited_amt sign per row", "negative totals and row counts per month",
+                          "product scope (Annuities / Insurance lines, Life product code)"],
         "rejected": [
             {"cause": "ONE_TIME", "reason": "clawback is tested by amount sign, not rev_nature; "
              "one-time rows were already removed at step 2"},
-            {"cause": "VOLUME", "reason": "reversals are not count behaviour; negative rows are "
-             "removed before counts are compared"},
+            {"cause": "VOLUME", "reason": "reversals on in-scope products are not count "
+             "behaviour; those rows are claimed before counts are compared"},
         ],
     },
     "TIMING": {
