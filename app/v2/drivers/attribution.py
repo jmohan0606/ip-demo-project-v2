@@ -60,6 +60,10 @@ def _presence_rows(txns: Iterable[dict]) -> list[dict]:
 
 CAUSE_DATA_SOURCE = {
     "VOLUME": "REAL", "DEAL_SIZE": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL",
+    # R10 C — reclassification carve-outs from the eligibility effect. DERIVED:
+    # computed from reason-code presence/absence across adjacent months, not
+    # from a sourced inheritance/household event feed.
+    "INHERITANCE": "DERIVED", "HOUSEHOLD": "DERIVED",
     "LATE_PROCESSING": "REAL", "EXCLUDED_CHANGE": "REAL", "TIMING": "REAL",
     "FEE_RATE": "REAL", "DISCOUNT": "REAL", "BILLABLE_DAYS": "DERIVED", "MIX": "DERIVED",
     "NEW_ACCOUNT": "REAL", "LOST_ACCOUNT": "REAL", "CLAWBACK": "REAL",
@@ -281,13 +285,65 @@ def attribute_group(
     rem_from = [t for t in rem_from if t.get("rev_nature") != ONE_TIME]
     rem_to = [t for t in rem_to if t.get("rev_nature") != ONE_TIME]
 
-    # 3. ELIGIBILITY (FIX_SPEC R1-8) — revenue that moved between credited and
-    # non-credited (e.g. a household crossing the minimum-household threshold).
-    # Non-credited revenue rising means credited revenue fell by that amount,
-    # so the contribution to the CREDITED change is -(Δ non-credited). Accounts
-    # already claimed by NEW/LOST_ACCOUNT are excluded to prevent double-count.
+    # 3. Eligibility-effect PARTITION (FIX_SPEC_R10 C3). 9G and 9E are
+    # non-credited reason codes, so their movement is part of what the
+    # aggregate ELIGIBILITY driver would claim. INHERITANCE and HOUSEHOLD do
+    # not add new dollars — they CARVE those codes OUT of the eligibility
+    # effect: they are computed FIRST from the 9G / 9E rows, then ELIGIBILITY
+    # is the non-credited movement of all OTHER codes. The three sum exactly
+    # to -(Δ total non-credited), so nothing is double-counted and MIX never
+    # absorbs reclassification movement. Accounts already claimed by
+    # NEW/LOST_ACCOUNT are excluded from all three (double-count guard).
     nc_from = [t for t in (from_nc_txns or []) if str(t.get("account_no")) not in claimed_accounts]
     nc_to = [t for t in (to_nc_txns or []) if str(t.get("account_no")) not in claimed_accounts]
+
+    def _code(t: dict) -> str:
+        return str(t.get("reason_cd") or "").strip().upper()
+
+    def _flip_inputs(code: str, from_rows: list[dict], to_rows: list[dict]) -> dict:
+        """Per-account presence/absence of `code` across the two months — the
+        evidence for a reclassification driver (which accounts flipped)."""
+        from_accts = {str(t.get("account_no")) for t in from_rows}
+        to_accts = {str(t.get("account_no")) for t in to_rows}
+        return {
+            "reason_code": code,
+            f"from_non_credited_{code}": round(_sum(from_rows), 2),
+            f"to_non_credited_{code}": round(_sum(to_rows), 2),
+            "from_txn_count": len(from_rows), "to_txn_count": len(to_rows),
+            "accounts_with_code_in_from_month_only": sorted(from_accts - to_accts),
+            "accounts_with_code_in_to_month_only": sorted(to_accts - from_accts),
+            "accounts_with_code_in_both_months": sorted(from_accts & to_accts),
+            "from_month_revenue_by_account": _rev_by_account(from_rows),
+            "to_month_revenue_by_account": _rev_by_account(to_rows),
+            "formula": f"-(to_non_credited_{code} - from_non_credited_{code}) — revenue "
+                       f"leaving the {code} bucket returns to credited, and vice versa",
+        }
+
+    # 3a-1. INHERITANCE (9G — Inherited Account). The business rule is a
+    # ~6-month inheritance cooling period after an account transfers from
+    # another advisor. The extract carries NO inheritance effective date
+    # (confirmed), so this driver APPROXIMATES the rule by 9G presence/absence
+    # across adjacent months: 9G present one month and absent the next (or
+    # vice versa) is the cooling period ending/starting. When an effective
+    # date becomes available, refine this to the true 6-month window.
+    g_from = [t for t in nc_from if _code(t) == "9G"]
+    g_to = [t for t in nc_to if _code(t) == "9G"]
+    if g_from or g_to:
+        emit("INHERITANCE", -(_sum(g_to) - _sum(g_from)), _flip_inputs("9G", g_from, g_to))
+
+    # 3a-2. HOUSEHOLD (9E — Minimum Household Policy). Accounts move in/out of
+    # 9E as household groupings change; the 9E-transition portion is claimed
+    # here so the aggregate ELIGIBILITY driver cannot double-count it.
+    e_from = [t for t in nc_from if _code(t) == "9E"]
+    e_to = [t for t in nc_to if _code(t) == "9E"]
+    if e_from or e_to:
+        emit("HOUSEHOLD", -(_sum(e_to) - _sum(e_from)), _flip_inputs("9E", e_from, e_to))
+
+    # 3a-3. ELIGIBILITY (FIX_SPEC R1-8, remainder per FIX_SPEC_R10 C3) — the
+    # non-credited movement of every code EXCEPT 9G and 9E. Non-credited
+    # revenue rising means credited revenue fell: contribution = -(Δ).
+    nc_from = [t for t in nc_from if _code(t) not in ("9G", "9E")]
+    nc_to = [t for t in nc_to if _code(t) not in ("9G", "9E")]
     if nc_from or nc_to:
         nc_delta = _sum(nc_to) - _sum(nc_from)
         reason_mix = sorted({str(t.get("reason_cd") or "") for t in nc_from + nc_to})
@@ -296,8 +352,11 @@ def attribute_group(
             "to_non_credited": round(_sum(nc_to), 2),
             "from_txn_count": len(nc_from), "to_txn_count": len(nc_to),
             "reason_codes": reason_mix,
-            "formula": "-(to_non_credited - from_non_credited) — revenue moving to a "
-                       "non-credited reason code leaves credited revenue, and vice versa",
+            "excluded_reason_codes": ["9E", "9G"],
+            "formula": "-(to_non_credited - from_non_credited) over all reason codes "
+                       "EXCEPT 9G (Inheritance) and 9E (Household), which carve their "
+                       "movement out of this driver — revenue moving to a non-credited "
+                       "reason code leaves credited revenue, and vice versa",
         })
 
     # 3b. LATE_PROCESSING (FIX_SPEC_R3 T1-1) — symmetric with ELIGIBILITY:

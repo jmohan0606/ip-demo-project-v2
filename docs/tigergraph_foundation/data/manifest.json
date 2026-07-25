@@ -171,7 +171,7 @@
         "cause_id",
         "data_source"
       ],
-      "expected_rows": 17,
+      "expected_rows": 19,
       "workflow_generated": false
     },
     {
@@ -344,7 +344,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 164,
+      "expected_rows": 167,
       "workflow_generated": false
     },
     {
@@ -792,7 +792,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 164,
+      "expected_rows": 167,
       "workflow_generated": false
     },
     {
@@ -805,7 +805,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 164,
+      "expected_rows": 167,
       "workflow_generated": false
     },
     {
@@ -818,7 +818,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 152,
+      "expected_rows": 155,
       "workflow_generated": false
     },
     {

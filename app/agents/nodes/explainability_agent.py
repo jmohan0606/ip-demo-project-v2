@@ -26,8 +26,13 @@ _CAUSE_FINDING = {
     "DEAL_SIZE": "the average transaction value changed while the transaction count "
                  "stayed similar",
     "ONE_TIME": "one-time items in one month did not repeat in the other",
+    "INHERITANCE": "an account's inherited-account status (reason code 9G) started or "
+                   "ended between the months, reclassifying its revenue",
+    "HOUSEHOLD": "an account moved in or out of the minimum-household policy (reason "
+                 "code 9E) between the months, reclassifying its revenue",
     "ELIGIBILITY": "revenue moved between credited and non-credited reason codes "
-                   "(e.g. a household crossing the minimum-household threshold)",
+                   "other than 9G (Inheritance) and 9E (Household), which are "
+                   "carved out first",
     "LATE_PROCESSING": "revenue excluded by the 90-day rule (processed more than 90 "
                        "days after the trade) changed between the months",
     "EXCLUDED_CHANGE": "revenue moved between credited and excluded reason codes "
@@ -55,7 +60,10 @@ _CAUSE_FINDING = {
 ATTRIBUTION_ORDER = [
     "NEW_ACCOUNT/LOST_ACCOUNT (recurring-class groups only; BASELINE_LIMITED where "
     "the loaded range is too short to apply the persistence test)",
-    "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "ONE_TIME",
+    "INHERITANCE/HOUSEHOLD (R10 C — 9G and 9E reclassification carve-outs, claimed "
+    "before the Eligibility remainder so the same dollars are never counted twice)",
+    "ELIGIBILITY (all reason codes except 9G and 9E)", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK", "TIMING",
     "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS",
     "VOLUME/DEAL_SIZE (count effect and average-value effect of one price/volume "
@@ -64,14 +72,16 @@ ATTRIBUTION_ORDER = [
     "MARKET", "NET_FLOW", "MIX",
 ]
 _CAUSE_STEP = {
-    "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "BASELINE_LIMITED": 1, "ONE_TIME": 2, "ELIGIBILITY": 3,
-    "LATE_PROCESSING": 4, "EXCLUDED_CHANGE": 5,
-    "CLAWBACK": 6, "TIMING": 7, "FEE_RATE": 8, "DISCOUNT": 9,
-    "BILLABLE_DAYS": 10, "VOLUME": 11, "DEAL_SIZE": 11, "MARKET": 12, "NET_FLOW": 13, "MIX": 14,
+    "NEW_ACCOUNT": 1, "LOST_ACCOUNT": 1, "BASELINE_LIMITED": 1, "ONE_TIME": 2,
+    "INHERITANCE": 3, "HOUSEHOLD": 3, "ELIGIBILITY": 4,
+    "LATE_PROCESSING": 5, "EXCLUDED_CHANGE": 6,
+    "CLAWBACK": 7, "TIMING": 8, "FEE_RATE": 9, "DISCOUNT": 10,
+    "BILLABLE_DAYS": 11, "VOLUME": 12, "DEAL_SIZE": 12, "MARKET": 13, "NET_FLOW": 14, "MIX": 15,
 }
 # Deterministic per-cause ordering for the waterfall (step order, split pairs).
 _WATERFALL_CAUSE_ORDER = [
-    "NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED", "ONE_TIME", "ELIGIBILITY", "LATE_PROCESSING",
+    "NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED", "ONE_TIME",
+    "INHERITANCE", "HOUSEHOLD", "ELIGIBILITY", "LATE_PROCESSING",
     "EXCLUDED_CHANGE", "CLAWBACK",
     "TIMING", "FEE_RATE", "DISCOUNT", "BILLABLE_DAYS", "VOLUME", "DEAL_SIZE",
     "MARKET", "NET_FLOW", "MIX",
@@ -165,16 +175,64 @@ _CAUSE_WHY: dict[str, dict] = {
              "behaviour; those rows are removed before counts are compared"},
         ],
     },
+    "INHERITANCE": {
+        "rule": "Non-credited revenue carrying reason code 9G (Inherited Account) moved "
+                "between {from_m} and {to_m}: 9G present in one month and absent in the "
+                "other is the inheritance cooling period starting or ending, so the "
+                "associated revenue change is reclassification, not volume or loss. "
+                "Contribution = -(change in 9G non-credited revenue). The business rule "
+                "is a ~6-month cooling period; the extract carries no inheritance "
+                "effective date, so 9G presence/absence across adjacent months "
+                "approximates it. Accounts already claimed by NEW_ACCOUNT/LOST_ACCOUNT "
+                "are excluded.",
+        "inputs_tested": ["reason_cd == 9G per row, per account, per month",
+                          "9G non-credited totals per month",
+                          "per-account 9G presence in each month",
+                          "accounts already claimed by NEW/LOST_ACCOUNT"],
+        "rejected": [
+            {"cause": "ELIGIBILITY", "reason": "9G movement is carved out of the aggregate "
+             "eligibility effect and claimed here first — the remainder driver excludes 9G "
+             "so the same dollars are never counted twice"},
+            {"cause": "LOST_ACCOUNT", "reason": "an inherited account leaving the 9G bucket "
+             "is still trading — its revenue returns to credited rather than disappearing"},
+            {"cause": "VOLUME", "reason": "the rows exist in both months; only their "
+             "credited status changed"},
+        ],
+    },
+    "HOUSEHOLD": {
+        "rule": "Non-credited revenue carrying reason code 9E (Minimum Household Policy) "
+                "moved between {from_m} and {to_m}: an account marked 9E in one month and "
+                "not the other crossed the household-minimum grouping, reclassifying its "
+                "revenue between credited and non-credited. Contribution = -(change in 9E "
+                "non-credited revenue). Accounts already claimed by "
+                "NEW_ACCOUNT/LOST_ACCOUNT are excluded.",
+        "inputs_tested": ["reason_cd == 9E per row, per account, per month",
+                          "9E non-credited totals per month",
+                          "per-account 9E presence in each month",
+                          "accounts already claimed by NEW/LOST_ACCOUNT"],
+        "rejected": [
+            {"cause": "ELIGIBILITY", "reason": "9E movement is carved out of the aggregate "
+             "eligibility effect and claimed here first — the remainder driver excludes 9E "
+             "so the same dollars are never counted twice"},
+            {"cause": "LOST_ACCOUNT", "reason": "an account whose rows became 9E is still "
+             "trading — a household reclassification, not a lost account"},
+            {"cause": "MIX", "reason": "the movement is explained by the 9E reason code, so "
+             "it is claimed before the residual"},
+        ],
+    },
     "ELIGIBILITY": {
         "rule": "Revenue whose reason code moved it between credited and non-credited month "
-                "over month (e.g. a household crossing the minimum-household threshold){codes}. "
+                "over month{codes}, over every reason code EXCEPT 9G (Inheritance) and 9E "
+                "(Household) — those carve their movement out of this driver first (R10 C3). "
                 "Contribution = -(change in non-credited revenue): non-credited rising means "
                 "credited fell by that amount. Accounts already claimed by "
                 "NEW_ACCOUNT/LOST_ACCOUNT are excluded to prevent double-counting.",
         "inputs_tested": ["reason_cd per row (vs the phx_dm_v2_reason_code eligibility rows)",
-                          "non-credited totals per month",
+                          "non-credited totals per month (9G/9E rows excluded)",
                           "accounts already claimed by NEW/LOST_ACCOUNT"],
         "rejected": [
+            {"cause": "INHERITANCE/HOUSEHOLD", "reason": "9G and 9E movement is claimed by "
+             "those drivers before this remainder, so nothing is double-counted"},
             {"cause": "NEW_ACCOUNT/LOST_ACCOUNT", "reason": "accounts claimed at step 1 are "
              "excluded here, so an opening/closure is never also counted as an eligibility move"},
             {"cause": "LOST_ACCOUNT", "reason": "an account whose rows merely became "

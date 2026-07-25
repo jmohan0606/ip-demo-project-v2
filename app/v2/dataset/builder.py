@@ -558,45 +558,60 @@ def _driver_cause_rows() -> list[dict]:
          "Change in revenue tagged one-time (from file_key and trade_description) between "
          "the two months.",
          "REAL", 3),
+        # R10 C — reclassification carve-outs, placed BEFORE the ELIGIBILITY
+        # remainder (they claim their codes first; ELIGIBILITY takes the rest).
+        ("INHERITANCE", "Inheritance",
+         "Revenue reclassified because an account's inherited-account status (reason "
+         "code 9G) started or ended between the two months",
+         "−(Δ non-credited revenue carrying reason code 9G). An inherited account has "
+         "a ~6-month cooling period; the extract has no inheritance effective date, so "
+         "this approximates it by 9G presence/absence across adjacent months.",
+         "DERIVED", 4),
+        ("HOUSEHOLD", "Household",
+         "Revenue reclassified because an account moved in or out of the minimum-"
+         "household policy (reason code 9E) between the two months",
+         "−(Δ non-credited revenue carrying reason code 9E). Claimed before the "
+         "Eligibility remainder so the same dollars are never counted twice.",
+         "DERIVED", 5),
         ("ELIGIBILITY", "Eligibility",
-         "Revenue moving into or out of credited status",
-         "Change in non-credited revenue for the group (e.g. a household crossing the "
-         "minimum-household threshold moves revenue from credited to non-credited). "
-         "Contribution = −(Δ non-credited).",
-         "REAL", 4),
+         "Revenue moving into or out of credited status (other than Inheritance and "
+         "Household, which are carved out first)",
+         "Change in non-credited revenue for the group over every reason code EXCEPT "
+         "9G (Inheritance) and 9E (Household). Contribution = −(Δ non-credited).",
+         "REAL", 6),
         ("LATE_PROCESSING", "Late Processing",
          "Revenue excluded because it processed more than 90 days after the trade",
          "Change in revenue failing the 90-day rule (proc_dt − trade_dt > 90). "
          "Contribution = −(Δ late-excluded).",
-         "REAL", 5),
+         "REAL", 7),
         ("EXCLUDED_CHANGE", "Excluded Bookings",
          "Revenue moving into or out of an excluded state (e.g. a deleted booking)",
          "Change in revenue carrying an excluding reason code (e.g. 9X deleted) between "
          "the two months. Contribution = −(Δ excluded).",
-         "REAL", 6),
+         "REAL", 8),
         ("TIMING", "Timing",
          "Quarterly or periodic billing landing in one month but not the other",
          "Revenue for a group present in one month's billing cycle and absent the other, "
          "not already claimed by One-Time.",
-         "REAL", 7),
+         "REAL", 9),
         ("FEE_RATE", "Fee Rate",
          "Change in the effective fee rate charged",
          "Prior-month asset proxy × (this month's avg rate − last month's), in bps.",
-         "REAL", 8),
+         "REAL", 10),
         ("DISCOUNT", "Discount",
          "Change in fee discounting / concessions",
          "Change in Σ discount amount and in the count of discounted transactions.",
-         "REAL", 9),
+         "REAL", 11),
         ("BILLABLE_DAYS", "Billable Days",
          "A different number of billing days between the two months",
          "Recurring/fee-based revenue × (Δ billable days ÷ prior billable days). Derived "
          "from a business-day calendar.",
-         "DERIVED", 10),
+         "DERIVED", 12),
         ("MIX", "Product Mix",
          "The residual shift between products at different rates",
          "Whatever remains after all named drivers are attributed. A large value here "
          "means a driver may be missing.",
-         "DERIVED", 11),
+         "DERIVED", 13),
         ("NEW_ACCOUNT", "New Account",
          "Revenue from accounts in recurring product lines (Managed, Trails) that began "
          "billing after a confirmed quiet period",
@@ -605,7 +620,7 @@ def _driver_cause_rows() -> list[dict]:
          "level so a mere product switch is not miscounted. Transactional product lines "
          "never emit this driver — intermittent trading there is routine. "
          "Contribution = Σ credited revenue of those accounts.",
-         "REAL", 12),
+         "REAL", 14),
         ("LOST_ACCOUNT", "Lost Account",
          "Revenue lost from accounts in recurring product lines with no billing activity "
          "for consecutive months",
@@ -613,21 +628,21 @@ def _driver_cause_rows() -> list[dict]:
          "from-month and then quiet for ACCOUNT_ABSENCE_MONTHS consecutive loaded months "
          "(default 2). A single quiet month is ordinary intermittency, not a lost "
          "account. Contribution = −(their prior-month credited revenue).",
-         "REAL", 13),
+         "REAL", 15),
         ("CLAWBACK", "Charge Back",
          "Reversals / chargebacks (negative revenue)",
          "Change in the sum of negative credited amounts between the months.",
-         "REAL", 14),
+         "REAL", 16),
         ("MARKET", "Market",
          "Movement in asset values (not yet sourced — shown as illustrative)",
          "Requires an index-return feed not currently available. Modelled, flagged, "
          "contributes $0 until data is supplied.",
-         "DUMMY", 15),
+         "DUMMY", 17),
         ("NET_FLOW", "Net Flow",
          "Client inflows and outflows (not yet sourced — shown as illustrative)",
          "Requires a flows feed (current source stops Jan 2026). Modelled, flagged, "
          "contributes $0 until data is supplied.",
-         "DUMMY", 16),
+         "DUMMY", 18),
         ("BASELINE_LIMITED", "Baseline Period",
          "Recurring-line account movement the loaded data cannot classify — too few "
          "loaded months before or after this transition to apply the account-presence test",
@@ -636,7 +651,7 @@ def _driver_cause_rows() -> list[dict]:
          "credited revenue of unconfirmable recurring-line accounts present in only one "
          "of the two months, signed. Checked against total gross driver movement as a "
          "build-time warning. Derived, never narrated as a business event.",
-         "DERIVED", 17),
+         "DERIVED", 19),
     ]
     return [{"cause_id": c, "cause_name": n, "cause_description": d,
              "display_name": n, "description": d, "computation": comp,

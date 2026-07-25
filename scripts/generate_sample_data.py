@@ -17,8 +17,12 @@ ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
   (persistence proof) SMPLACCT-x111 skips May and returns in Jun — intermittent,
                 NOT lost and NOT new; no account driver may fire for it
   ONE_TIME      structured-products syndicate rows land in May only (file_key twhs)
-  ELIGIBILITY   SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
-                household) in Jun — revenue moves credited -> non-credited
+  HOUSEHOLD     SMPL001 account SMPLACCT-1103's UMA fee goes reason 9E (small
+                household) in Jun — the 9E carve-out claims the move (R10 C2)
+  INHERITANCE   SMPL002's 9G trail: non-credited Apr+May, cooling ends in Jun
+                and the 800 returns to credited (R10 C1)
+  ELIGIBILITY   the 91 equity-below-minimum rows (non-credited since R10 B)
+                vary month over month — the non-9E/9G remainder
   TIMING        MAC (Trails) bills quarterly: Apr and Jun rows, none in May
   FEE_RATE      SMPL002 managed UMA rate steps 82 -> 88 bps in Jun
   DISCOUNT      SMPL003 managed rows gain concession_type=Discount in Jun
@@ -34,9 +38,9 @@ ACCOUNT_ABSENCE_MONTHS=2 consecutive quiet months", which moves the stories):
 
 Reason-code coverage (R1-11) — every eligibility path is visible in the UI:
   __NONE__  the bulk of rows (Grid transactions, credited)
-  91        equity-below-minimum rows (credited, incentive-INeligible)
-  9E        the ELIGIBILITY story above (non-credited)
-  9G        SMPL002 inherited account, steady non-credited trail all 3 months
+  91        equity-below-minimum rows (NON_CREDITED since R10 B)
+  9E        the HOUSEHOLD story above (non-credited)
+  9G        SMPL002 inherited account trail — 9G Apr+May, credited from Jun
   9X        SMPL003's deleted trail booking (EXCLUDED — in no total at all)
   + one SMPL003 UMA row with days_to_process > 90 (the 90-day rule)
   + UMA|PAYS pay-type-summary rows (grid_type filter, OUT_OF_GRID by config)
@@ -269,12 +273,16 @@ def build_transactions() -> list[dict]:
                 txns.append(_mk_txn(adv, m, "MFT|12B1", accounts[6], 26,
                                     -round(120 + 35 * k + ai * 10, 2), rate_bps=25.0,
                                     file_key="mf_12b1", description=f"MONTH M{int(m[4:6]):02d}-2026 REVERSAL"))
-            # 9G inherited account: SMPL002 carries a steady NON_CREDITED trail
-            # all three months (visible in the breakdown; no MoM driver).
+            # 9G inherited account (R10 C1 — INHERITANCE story): SMPL002's
+            # inherited trail is NON_CREDITED (9G) in Apr and May; the
+            # inheritance cooling period ends in Jun, the 9G flag drops and
+            # the same 800 trail returns to credited. Apr->May: 9G steady, no
+            # driver. May->Jun: INHERITANCE +800 (revenue back to credited).
             if adv == "SMPL002":
                 txns.append(_mk_txn(adv, m, "MFT|12B1", f"SMPLACCT-{base + 110}", 25,
                                     800.0, rate_bps=25.0, file_key="mf_12b1",
-                                    reason="9G"))
+                                    reason="9G" if m != "202606" else "",
+                                    description="INHERITED ACCOUNT TRAIL"))
             # Structured products — ONE_TIME syndicate in May only.
             if m == "202605":
                 for k in range(3):

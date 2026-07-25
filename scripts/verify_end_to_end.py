@@ -79,9 +79,9 @@ def main() -> int:
           f"{sum(len(r) for r in c.store.vertices.values())} vertices")
 
     causes = {a["cause_id"] for a in c.store.all_vertices("phx_dm_v2_revenue_driver").values()}
-    # R8 — 17 causes: DEAL_SIZE (average-transaction-value effect) joined the model.
-    check("all 17 causes exercised (incl. DEAL_SIZE and BASELINE_LIMITED on the baseline transition)",
-          len(causes) == 17, str(sorted(causes)))
+    # R8 — DEAL_SIZE joined the model; R10 — INHERITANCE and HOUSEHOLD joined (19).
+    check("all 19 causes exercised (incl. DEAL_SIZE, INHERITANCE, HOUSEHOLD)",
+          len(causes) == 19, str(sorted(causes)))
 
     # T1-4: MIX magnitude per transition. Reconciliation at $0.00 proves
     # COMPLETENESS only — MIX absorbs whatever named drivers don't claim, so it
@@ -155,7 +155,7 @@ def main() -> int:
                   for obj in causes_res.get("results", []) for r in obj.get("causes", [])]
     orders = [int(float(a.get("display_order") or 0)) for a in cause_rows]
     check("glossary query returns causes sorted by display_order",
-          orders == sorted(orders) and len(cause_rows) == 17, str(orders))
+          orders == sorted(orders) and len(cause_rows) == 19, str(orders))
     check("every cause has a distinct positive display_order (incl. DEAL_SIZE)",
           len(set(orders)) == len(orders) and all(o > 0 for o in orders)
           and any(str(a.get("cause_id")) == "DEAL_SIZE" and int(float(a.get("display_order") or 0)) == 2

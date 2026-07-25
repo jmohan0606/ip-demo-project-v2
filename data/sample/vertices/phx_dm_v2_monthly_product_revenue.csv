@@ -58,7 +58,7 @@ SMPL002|202606|rec_managed__jpmcap,SMPL002,202606,rec_managed__jpmcap,rec_manage
 SMPL002|202606|rec_managed__unified_managed_account,SMPL002,202606,rec_managed__unified_managed_account,rec_managed,RECURRING,27425.85,5,5,87.8819,27425.85,0.0,27425.85,0.0,0.0,0.0,DERIVED
 SMPL002|202606|rec_trails__annuities,SMPL002,202606,rec_trails__annuities,rec_trails,RECURRING,740.0,1,1,0.0,740.0,0.0,740.0,0.0,0.0,0.0,DERIVED
 SMPL002|202606|rec_trails__mac,SMPL002,202606,rec_trails__mac,rec_trails,RECURRING,7800.0,1,1,120.0,7800.0,0.0,7800.0,0.0,0.0,0.0,DERIVED
-SMPL002|202606|rec_trails__mutual_funds,SMPL002,202606,rec_trails__mutual_funds,rec_trails,RECURRING,1350.0,6,1,25.0,1350.0,0.0,2150.0,800.0,0.0,0.0,DERIVED
+SMPL002|202606|rec_trails__mutual_funds,SMPL002,202606,rec_trails__mutual_funds,rec_trails,RECURRING,2150.0,7,2,25.0,2150.0,0.0,2150.0,0.0,0.0,0.0,DERIVED
 SMPL003|202604|nonrec_annuities__variable,SMPL003,202604,nonrec_annuities__variable,nonrec_annuities,NON_RECURRING,7400.0,1,1,0.0,0.0,7400.0,7400.0,0.0,0.0,0.0,DERIVED
 SMPL003|202604|nonrec_cash_management__brokered_cds,SMPL003,202604,nonrec_cash_management__brokered_cds,nonrec_cash_management,NON_RECURRING,300.0,1,1,0.0,300.0,0.0,300.0,0.0,0.0,0.0,DERIVED
 SMPL003|202604|nonrec_equities_and_options__equities,SMPL003,202604,nonrec_equities_and_options__equities,nonrec_equities_and_options,NON_RECURRING,1505.27,11,3,0.0,1505.27,0.0,1669.67,164.4,0.0,0.0,DERIVED

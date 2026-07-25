@@ -209,8 +209,8 @@ Resume from: T-A1
 | T-A1 | R10 | re-seed taxonomy to the verbatim hierarchy (A1) | DONE | 8225cbe | app/v2/revenue/taxonomy.py canonical; 12 lines/34 groups verbatim; verify_taxonomy [1] |
 | T-A2 | R10 | classify by hierarchy path, not name; dual-name cases correct | DONE | 8225cbe | path-scoped ids; resolve_path on (level_one, level_two); AmbiguousPathError on name-only dual cases; verify_taxonomy 33/33 PASS |
 | T-A3 | R10 | propagate taxonomy through DDL→catalog→loading→manifest→both builders→both tiers | DONE | 8225cbe | no DDL change (ids/data only) — schema artifacts regenerated, zero drift; manifest via builders; both tiers data-driven; real-path proven on B6 fixtures |
-| T-B1 | R10 | eligibility: NULL/empty/__NONE__ credited; 91/92/9L flip to non-credited; excluded set unchanged | TODO | | |
-| T-B2 | R10 | evidence: annotate the `less excluded` line with its reason-code breakdown | TODO | | |
+| T-B1 | R10 | eligibility: NULL/empty/__NONE__ credited; 91/92/9L flip to non-credited; excluded set unchanged | DONE | 0ce93ae | seed flip only; verify_eligibility 25/25 PASS; recon $0.00 |
+| T-B2 | R10 | evidence: annotate the `less excluded` line with its reason-code breakdown | DONE | 0ce93ae | excluded_detail in breakdown (rendering only); modal note like non-credited line; older evidence -> optional field |
 | T-C0 | R10 | confirm per-month reason-code availability; report gap if missing | TODO | | |
 | T-C1 | R10 | INHERITANCE driver (9G flip) + 6-month cooling-period code note | TODO | | |
 | T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | TODO | | |
