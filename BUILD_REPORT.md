@@ -1301,3 +1301,59 @@ mirrored in `verify_assistant`); `figures_json` itself was always complete.
 Live reinstall of the 4 changed queries + schema attribute additions; real
 hierarchy classification run (incl. ALTI class confirmation with the client);
 per-advisor + async behaviour under real latency and cdao; sample rescan demo.
+
+## 18. Round 12 (FIX_SPEC_R12.md, 2026-07-25) — PER-ROLE LLM CONFIG + AUTO-FALLBACK
+
+LLM plumbing only: each of the three LLM roles — commentary **writer**, **judge**
+(advisory, R9 E), **assistant** (R7) — now has its own complete optional config
+(client-mode, model, deployment, api_version) with a single-retry auto-fallback to
+the active default agent LLM. No computed figure was touched; reconciliation
+remains $0.00 on every transition (re-verified by e2e).
+
+### Commits
+
+| Hash | What |
+|------|------|
+| 616b887 | Q-A: per-role keys + shared resolution helper (`app/llm/roles.py`) + .env.example guidance |
+| b55047c | Q-B: `build_llm_client` + Azure-shaped adapters take deployment/api_version overrides |
+| 810a006 | Q-C: all three roles wired via the helper; auto-fallback; served path recorded |
+| af79044 | Q-D: Env Health shows each role's effective config + will-fall-back state |
+| dcf703a | Q-C: `scripts/verify_role_llm.py` (32 checks) |
+| f7359e3 | Q-D2: ROUND12_ACCEPTANCE (config table + operator checks) |
+| (wrap) | Q-E: ROUND12_CHANGED_FILES + this section |
+
+### Key points
+
+- **Keys reused, not duplicated** (spec A): `ASSISTANT_LLM_MODE` IS the assistant's
+  client-mode key; `JUDGE_MODEL`/`JUDGE_ENABLED` kept. New keys only for genuinely
+  new fields. `JUDGE_MODEL` alone (or `ASSISTANT_LLM_MODE` alone) keeps the exact
+  R9/R7 code path — those keys predate R12 and participated in the old behaviour,
+  so alone they must not change it.
+- **One resolution helper** (`resolve_role_config`) shared by writer, judge,
+  assistant, and Env Health — per-field inheritance from the active mode; the
+  deployment-vs-model best-effort rule (Azure/cdao route by deployment) lives once.
+- **Auto-fallback**: `RoleLLM` wraps a configured role's client; construction or
+  first-call failure logs a WARNING naming the role and retries ONCE with
+  `build_llm_client(LLM_CLIENT_MODE)`. Served path (`role_config` /
+  `fallback_agent_llm` / `unavailable`) is recorded: `llm_path` on commentary and
+  judge evaluations, `served_path` + provider-label suffix on assistant turns.
+- **Assistant chain preserved**: the R7 sequential chain runs first, unchanged;
+  the R12 default retry is the FINAL link before the honest decline.
+- **Honest total-failure states unchanged**: judge → UNAVAILABLE sentinel (-1.0,
+  REVIEW, never 0.00, never blocks); writer → R9 D deterministic template;
+  assistant → honest decline. A judge whose fallback would land on mock returns
+  UNAVAILABLE (mock cannot judge). Publication stays gated only by the
+  deterministic guardrail.
+- **Env Health (D)**: per-role EFFECTIVE mode/model/deployment/api_version +
+  reachability of that exact config + "configured model unreachable → will fall
+  back to <default agent model>" — no secrets (verified programmatically).
+
+### Verification (build box; cdao unreachable — operator checks in ROUND12_ACCEPTANCE)
+
+verify_role_llm 32/32 (all-empty regression ×3 roles, role_config use, fallback w/
+WARNING ×3 roles, honest total-failure states, Env Health incl. no-secrets);
+existing suites re-run clean: attribution PASS, taxonomy PASS, eligibility PASS,
+new_drivers PASS, clawback_scope PASS, per_advisor 33/33, judge 9/9,
+commentary_retry 10/10, assistant 101/101, anomalies PASS, e2e OVERALL PASS with
+reconciliation $0.00; frontend `tsc --noEmit` clean; .env.example ↔ settings
+cross-check 132/132.

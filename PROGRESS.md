@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T18:00:00Z
-Current phase: ROUND 12 (FIX_SPEC_R12.md) — per-role LLM config + auto-fallback
-Resume from: Q-A
+Last updated: 2026-07-25T19:00:00Z
+Current phase: ROUND 12 (FIX_SPEC_R12.md) — COMPLETE (operator acceptance pending: real-cdao per-role config + fallback drill — docs/ROUND12_ACCEPTANCE.md)
+Resume from: — (all Q tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -17,7 +17,7 @@ Resume from: Q-A
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
-| 12 | 2026-07-25 | | round 12 fresh start (FIX_SPEC_R12.md) | per-role LLM config (WRITER_/JUDGE_/ASSISTANT_) + auto-fallback; LLM plumbing only |
+| 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -235,12 +235,12 @@ Resume from: Q-A
 | P-D3 | R11 | standing principle documented: new use cases ship with sample data | DONE | b14799f | CLAUDE.md rule 10 + SOLUTION_GUIDE Round-11 standing rule |
 | P-E1 | R11 | verify R10 Env Health LLM section | DONE | (verify) | live check: writer/judge/assistant all model-found; no regression, nothing rebuilt |
 | P-F1 | R11 | docs/ROUND11_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived ddf1172..HEAD; + ROUND11_ACCEPTANCE.md + BUILD_REPORT §17 |
-| Q-A | R12 | per-role keys (WRITER_/JUDGE_/ASSISTANT_ × MODE/MODEL/DEPLOYMENT/API_VERSION) + .env.example; shared role-resolution helper | IN_PROGRESS | | started 2026-07-25T18:00Z |
-| Q-B | R12 | client builder accepts api_version/deployment overrides; all three roles use the helper+builder | TODO | | |
-| Q-C | R12 | auto-fallback to default agent LLM on role-config failure; served path recorded (config/fallback/unavailable) per role | TODO | | |
-| Q-D | R12 | Env Health shows each role's effective config + reachability + "will fall back" state | TODO | | |
-| Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | TODO | | |
-| Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| Q-A | R12 | per-role keys (WRITER_/JUDGE_/ASSISTANT_ × MODE/MODEL/DEPLOYMENT/API_VERSION) + .env.example; shared role-resolution helper | DONE | 616b887 | app/llm/roles.py resolve_role_config; existing keys reused (ASSISTANT_LLM_MODE = assistant mode key; JUDGE_MODEL kept) |
+| Q-B | R12 | client builder accepts api_version/deployment overrides; all three roles use the helper+builder | DONE | b55047c | Real + Cdao adapters take deployment/api_version; claude/mock/azure ignore with log; guarded cdao import intact |
+| Q-C | R12 | auto-fallback to default agent LLM on role-config failure; served path recorded (config/fallback/unavailable) per role | DONE | 810a006/dcf703a | RoleLLM single-retry wrapper; llm_path on commentary+evaluations; assistant R7 chain preserved, R12 retry = final link; verify_role_llm 32/32 |
+| Q-D | R12 | Env Health shows each role's effective config + reachability + "will fall back" state | DONE | af79044 | per-role mode/model/deployment/api_version + will-fall-back note; no secrets (programmatic check) |
+| Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | DONE | 616b887/f7359e3 | .env.example block in Q-A; ROUND12_ACCEPTANCE config table + operator drill |
+| Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb9b6a2..HEAD; conflict flags on settings/.env.example/client.py/commentary_agent/generation_workflow/env-health-workspace; + BUILD_REPORT §18 |
 
 ## Decisions
 | When | Decision | Why |
@@ -305,6 +305,11 @@ Resume from: Q-A
 | 2026-07-25 | R11: SMPL002 Jun→Jul is a DELIBERATE >15%-MIX transition (asset growth with no source data + 9E carve-out overlap); e2e/attribution exempt exactly that key and assert >15% on it | UNEXPLAINED_RESIDUAL cannot be demonstrated on sample data any other way (the rule's threshold IS the MIX gate) |
 | 2026-07-25 | R11: committed sample demo state = per-advisor commentary v22–v24 + scans 003–005; scan001/002 kept as legacy-global history | supersedes the R6 "scan001 is the committed demo scan" decision; versions/scans are additive, never deleted |
 | 2026-07-25 | R11 DEFECT FIX: assistant figures payload keyed by label collapsed duplicate labels (several same-product rows on one account) and the guardrail rejected honest figures | keys uniquified in service + verify_assistant; figures_json was always complete; surfaced by the July syndicate rows |
+
+| 2026-07-25 | R12: JUDGE_MODEL alone (or ASSISTANT_LLM_MODE alone) does NOT count as R12 role config — the exact R9/R7 code paths are kept; only a NEW key engages RoleLLM + auto-fallback | those keys predate R12 and participated in the old behaviour; treating them as R12 config would change R9/R7 semantics (regression) |
+| 2026-07-25 | R12: a judge whose auto-fallback would land on the MOCK adapter returns None (honest UNAVAILABLE) instead of a RoleLLM | mock's deterministic template cannot judge language; a pseudo-verdict would be fabricated (F4: judge never 0.00, never a fake PASS) |
+| 2026-07-25 | R12: on the Azure-shaped adapters the single OpenAI-SDK `model=` request param IS the deployment routing name — a role's DEPLOYMENT (when set) takes precedence over its MODEL id for the request, logged when they differ | the SDK offers one field; spec A says route by deployment, best-effort single value when only one is set |
+| 2026-07-25 | R12: assistant turns surface "[served: …]" in llm_provider only when R12 config is set or a fallback actually happened | unconfigured clean turns keep byte-identical R7 labels (no regression); served_path is always on the generate() result |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
