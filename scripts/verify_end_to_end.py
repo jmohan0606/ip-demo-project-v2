@@ -147,6 +147,21 @@ def main() -> int:
     check("all reason eligibility states present in transactions",
           buckets >= {"CREDITED", "NON_CREDITED", "EXCLUDED"}, str(sorted(map(str, buckets))))
 
+    # R9 F — the glossary renders in display_order (attribution order): the
+    # catalogued query must return causes ALREADY sorted, every cause (incl.
+    # DEAL_SIZE) must carry a distinct positive display_order.
+    causes_res = c.run_query("get_driver_causes", {})
+    cause_rows = [r.get("attributes", {})
+                  for obj in causes_res.get("results", []) for r in obj.get("causes", [])]
+    orders = [int(float(a.get("display_order") or 0)) for a in cause_rows]
+    check("glossary query returns causes sorted by display_order",
+          orders == sorted(orders) and len(cause_rows) == 17, str(orders))
+    check("every cause has a distinct positive display_order (incl. DEAL_SIZE)",
+          len(set(orders)) == len(orders) and all(o > 0 for o in orders)
+          and any(str(a.get("cause_id")) == "DEAL_SIZE" and int(float(a.get("display_order") or 0)) == 2
+                  for a in cause_rows),
+          str({str(a.get("cause_id")): o for a, o in zip(cause_rows, orders)}))
+
     print("\nOVERALL:", "PASS" if not failures else f"FAIL ({failures})")
     return 1 if failures else 0
 

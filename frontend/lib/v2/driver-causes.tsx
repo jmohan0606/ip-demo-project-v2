@@ -21,7 +21,15 @@ export async function fetchDriverCauses(): Promise<DriverCause[]> {
     inflight = v2Api
       .driverCauses()
       .then((res) => {
-        cache = [...res.causes].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+        // R9 F — glossary order = display_order (attribution order) from
+        // phx_dm_v2_driver_cause. A missing/zero order sorts LAST (not first,
+        // which would scramble the list ahead of seeded causes); ties break
+        // by display name so the order is total and stable.
+        const key = (c: DriverCause) =>
+          c.display_order && c.display_order > 0 ? c.display_order : Number.MAX_SAFE_INTEGER;
+        cache = [...res.causes].sort(
+          (a, b) => key(a) - key(b)
+            || (a.display_name || a.cause_id).localeCompare(b.display_name || b.cause_id));
         return cache;
       })
       .catch((err) => {
