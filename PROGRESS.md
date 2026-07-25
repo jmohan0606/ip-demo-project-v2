@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-24T11:45:00Z
-Current phase: ROUND 8 (FIX_SPEC_R8.md) — COMPLETE (operator acceptance pending: live schema/GQ-004 reinstall + reseed, real-data baseline label + MIX band, account-list client validation, driver-spec reconciliation)
-Resume from: — (all V tasks DONE)
+Last updated: 2026-07-25T00:00:00Z
+Current phase: ROUND 9 (FIX_SPEC_R9.md) — client-environment demo fixes
+Resume from: N-A
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -14,6 +14,7 @@ Resume from: — (all V tasks DONE)
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
+| 9 | 2026-07-25 | | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -195,6 +196,15 @@ Resume from: — (all V tasks DONE)
 | V-C2 | R8 | ranked top-20 with total and Transactions link | DONE | eb67a2b | abs-revenue ranked; showing N of M; ?accounts= filter on Transactions |
 | V-C3 | R8 | classification rule stated from inputs_json | DONE | 8ce2c23/eb67a2b | classification_rule string in inputs_json, rendered above the lists |
 | V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived e42622c..HEAD; prompts/ + data/real + qa_screenshots excluded; conflict flags on attribution/manifest/v2.ts/evidence-modal |
+| N-A | R9 | account presence excludes ONE_TIME/ADJUSTMENT rev_nature | TODO | | |
+| N-B | R9 | account-comparison lists populate for group-level drivers (write+read agree) | TODO | | |
+| N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | TODO | | |
+| N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | TODO | | |
+| N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | TODO | | |
+| N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | TODO | | |
+| N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | TODO | | |
+| N-F | R9 | glossary ordered by display_order | TODO | | |
+| N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
