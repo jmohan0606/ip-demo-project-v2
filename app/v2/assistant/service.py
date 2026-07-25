@@ -142,6 +142,26 @@ class AssistantService:
         resolved = ctx_mod.resolve(
             entities=plan.entities, screen=screen, previous=previous,
             pinned=pinned, month_ids=ref["month_ids"], intent=plan.intent or "")
+
+        # ---- R9 C1: the conversation is BOUND to one advisor. Every query in
+        # it runs as that advisor; a question about another advisor (or a
+        # cross-advisor comparison) is out of scope for this conversation —
+        # one advisor's conversation can never read another advisor's data.
+        conv_advisor = str(conversation.get("advisor_sid") or "")
+        scope_refusal = ""
+        if conv_advisor:
+            named = str(plan.entities.get("advisor_sid") or "")
+            other_sids = [s for s in (plan.compare_sids or []) if s and s != conv_advisor]
+            if plan.intent == "COMPARE_ADVISORS" or (named and named != conv_advisor) or other_sids:
+                name = ref["advisor_names"].get(conv_advisor) or conv_advisor
+                scope_refusal = (
+                    f"This conversation is scoped to advisor {name} ({conv_advisor}), so I "
+                    "can't look at another advisor's data here. To ask about a different "
+                    "advisor, open that advisor's screen and start a new conversation.")
+            else:
+                resolved.advisor_sid = conv_advisor
+                resolved.sources["advisor_sid"] = "conversation"
+
         resolved_dict = resolved.as_dict()
         resolved_dict["intent"] = plan.intent
         resolved_dict["chip"] = ctx_mod.chip_label(
@@ -149,6 +169,10 @@ class AssistantService:
         resolved_dict["pinned"] = bool(pinned)
 
         # ---- honest non-answers (A7)
+        if scope_refusal:
+            return self._finish_simple(
+                conversation, user_message, resolved_dict, "OUT_OF_SCOPE",
+                scope_refusal, gate)
         if plan.unloaded_month:
             return self._finish_simple(
                 conversation, user_message, resolved_dict, "NO_DATA",

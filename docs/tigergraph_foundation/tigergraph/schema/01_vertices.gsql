@@ -323,8 +323,13 @@ CREATE VERTEX phx_dm_v2_anomaly_scan (
 // ------------------------------------------------------- CONVERSATIONAL ASSISTANT (Round 7 Z)
 // One per Ask-iPerform conversation. title derives from the first question;
 // scope_json holds the pinned scope, if any. DERIVED (runtime artifact).
+// R9 C1 — advisor_sid binds the conversation to ONE advisor (set from the
+// screen context at creation); every query in the conversation is scoped to
+// it and cross-advisor questions are declined. One advisor's conversation can
+// never read another advisor's data.
 CREATE VERTEX phx_dm_v2_conversation (
     PRIMARY_ID conversation_id STRING,
+    advisor_sid STRING,
     title STRING,
     created_at DATETIME,
     last_message_at DATETIME,

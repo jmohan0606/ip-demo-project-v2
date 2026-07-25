@@ -196,9 +196,9 @@ Resume from: N-A
 | V-C2 | R8 | ranked top-20 with total and Transactions link | DONE | eb67a2b | abs-revenue ranked; showing N of M; ?accounts= filter on Transactions |
 | V-C3 | R8 | classification rule stated from inputs_json | DONE | 8ce2c23/eb67a2b | classification_rule string in inputs_json, rendered above the lists |
 | V-D1 | R8 | docs/ROUND8_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived e42622c..HEAD; prompts/ + data/real + qa_screenshots excluded; conflict flags on attribution/manifest/v2.ts/evidence-modal |
-| N-A | R9 | account presence excludes ONE_TIME/ADJUSTMENT rev_nature | TODO | | |
-| N-B | R9 | account-comparison lists populate for group-level drivers (write+read agree) | TODO | | |
-| N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | TODO | | |
+| N-A | R9 | account presence excludes ONE_TIME/ADJUSTMENT rev_nature | DONE | 45e6e4a | txn-level filter in activity map + group presence; account drivers claim recurring rows only; R9A fixture (pure one-time, mixed, recurring-then-one-time) PASS; recon $0.00 |
+| N-B | R9 | account-comparison lists populate for group-level drivers (write+read agree) | DONE | 350c158 | QUOTE="double" in generated loading job (JSON shear root cause); builder fail-loud contract; modal logs key path + legacy-accounts fallback; R9B checks PASS |
+| N-C1 | R9 | advisor-scoped conversations (advisor_sid on conversation, queries filtered) | IN_PROGRESS | | started 2026-07-25 |
 | N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | TODO | | |
 | N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | TODO | | |
 | N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | TODO | | |

@@ -37,8 +37,9 @@ DATA_SOURCE = "DERIVED"  # runtime artifacts computed by us over real/loaded dat
 # dropped by the upsert/read-back path, so rows are re-normalized before every
 # write to keep the record complete (ColumnMismatchError otherwise).
 _CONVERSATION_DEFAULTS = {
-    "conversation_id": "", "title": "", "created_at": "", "last_message_at": "",
-    "message_count": 0, "scope_json": "", "data_source": DATA_SOURCE,
+    "conversation_id": "", "advisor_sid": "", "title": "", "created_at": "",
+    "last_message_at": "", "message_count": 0, "scope_json": "",
+    "data_source": DATA_SOURCE,
 }
 
 
@@ -76,6 +77,9 @@ class AssistantStore:
                             scope_json: str = "") -> dict:
         conversation = {
             "conversation_id": uuid.uuid4().hex[:12],
+            # R9 C1 — the conversation is BOUND to this advisor; every query in
+            # it is scoped to advisor_sid and cross-advisor questions decline.
+            "advisor_sid": advisor_sid or "",
             "title": (title or "New conversation")[:80],
             "created_at": _now(),
             "last_message_at": _now(),

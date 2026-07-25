@@ -517,6 +517,7 @@
       "id_column": "conversation_id",
       "columns": {
         "conversation_id": "conversation_id",
+        "advisor_sid": "advisor_sid",
         "title": "title",
         "created_at": "created_at",
         "last_message_at": "last_message_at",

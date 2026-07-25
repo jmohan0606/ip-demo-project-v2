@@ -1,12 +1,16 @@
 /*
  * GQ-020 — get_conversations
  * Purpose: Ask-iPerform conversation list for rehydration (FIX_SPEC_R7 A5).
- *          advisor_id = "" means all conversations (incl. cross-advisor ones,
- *          which have no advisor edge); days <= 0 means no time window,
- *          otherwise only conversations whose last_message_at falls within the
- *          last `days` days (ASSISTANT_HISTORY_DAYS, default 10). Newest first.
+ *          R9 C1 — conversations are ADVISOR-SCOPED: the advisor_sid attribute
+ *          binds each conversation to one advisor, and advisor_id != "" filters
+ *          on it directly (an advisor's list can never contain another
+ *          advisor's conversations). advisor_id = "" means all conversations;
+ *          days <= 0 means no time window, otherwise only conversations whose
+ *          last_message_at falls within the last `days` days
+ *          (ASSISTANT_HISTORY_DAYS, default 10). Newest first.
  * Outputs: conversations vertex set (ordered by last_message_at DESC).
- * Created: V2 round 7 2026-07-23. NEEDS LIVE INSTALL.
+ * Created: V2 round 7 2026-07-23. Updated round 9 (advisor_sid filter).
+ *          NEEDS LIVE REINSTALL.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
@@ -16,16 +20,11 @@ CREATE QUERY get_conversations(STRING advisor_id, INT days, INT result_limit) FO
     cutoff = datetime_add(now(), INTERVAL -days DAY);
 
     all_conversations = {phx_dm_v2_conversation.*};
-    IF advisor_id != "" THEN
-        advisor_set = {phx_dm_v2_advisor.*};
-        seed = SELECT a FROM advisor_set:a WHERE a.advisor_sid == advisor_id;
-        all_conversations = SELECT c
-            FROM seed:a -(reverse_phx_dm_v2_conversation_for_advisor:e)- phx_dm_v2_conversation:c;
-    END;
 
     conversations = SELECT c
         FROM all_conversations:c
-        WHERE days <= 0 OR c.last_message_at >= cutoff
+        WHERE (advisor_id == "" OR c.advisor_sid == advisor_id)
+          AND (days <= 0 OR c.last_message_at >= cutoff)
         ORDER BY c.last_message_at DESC, c.conversation_id DESC
         LIMIT result_limit;
 

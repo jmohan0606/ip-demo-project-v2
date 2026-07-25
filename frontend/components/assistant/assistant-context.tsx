@@ -89,15 +89,17 @@ export function AssistantProvider({ children, advisorId, fromMonth, toMonth }: {
     window.localStorage.setItem("v2.assistant.open", next ? "1" : "0");
   }, []);
 
+  // R9 C1 — the history rail is advisor-scoped: it lists only the current
+  // advisor's conversations (one advisor's rail never shows another's chats).
   const refreshConversations = useCallback(async () => {
     try {
-      const r = await v2Api.assistantConversations();
+      const r = await v2Api.assistantConversations(advisorId ?? "");
       setConversations(r.conversations);
       setServedByTier(r.served_by_tier);
     } catch {
       /* history list is non-critical; the panel still works */
     }
-  }, []);
+  }, [advisorId]);
 
   const openConversation = useCallback(async (id: string) => {
     setError(null);

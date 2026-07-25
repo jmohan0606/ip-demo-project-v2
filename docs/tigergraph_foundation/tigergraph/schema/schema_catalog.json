@@ -376,6 +376,7 @@
       },
       "attributes": {
         "conversation_id": "STRING",
+        "advisor_sid": "STRING",
         "title": "STRING",
         "created_at": "DATETIME",
         "last_message_at": "DATETIME",

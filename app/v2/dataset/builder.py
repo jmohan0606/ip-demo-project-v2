@@ -136,11 +136,33 @@ def write_vertex_csv(path: Path, rows: list[dict], columns: list[str], artifact:
 def preserve_or_create(path: Path, columns: list[str]) -> int:
     """Workflow-generated CSVs (commentary/evidence): keep existing content —
     versions are additive and regeneration must not delete history. Returns the
-    existing row count, or 0 after creating a header-only file."""
+    existing row count, or 0 after creating a header-only file.
+
+    R9 C1 — additive header migration: when the schema gains a column (e.g.
+    advisor_sid on the conversation vertex), an existing file keeps its rows
+    but is rewritten under the new header, blank for the new columns. Without
+    this, later appends would silently DROP the new column (the appender
+    honours the file's header)."""
     if path.exists():
         with path.open(newline="", encoding="utf-8-sig") as f:
-            # csv-aware count: quoted values may contain newlines (R5 A2)
-            return max(0, sum(1 for _ in csv.reader(f)) - 1)
+            reader = csv.reader(f)
+            header = next(reader, None) or []
+            missing = [c for c in columns if c not in header]
+            if not missing:
+                # csv-aware count: quoted values may contain newlines (R5 A2)
+                return sum(1 for _ in reader)
+        with path.open(newline="", encoding="utf-8-sig") as f:
+            rows = list(csv.DictReader(f))
+        merged = header + missing
+        # keep the canonical order when the old header is a subset of it
+        if set(merged) == set(columns):
+            merged = columns
+        with path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=merged, lineterminator="\n")
+            writer.writeheader()
+            for r in rows:
+                writer.writerow({c: r.get(c, "") for c in merged})
+        return len(rows)
     return write_csv(path, [], columns)
 
 
@@ -299,8 +321,8 @@ def build_dataset(
          "title", "detail_text", "metrics_json", "threshold_json", "impact_amt", "group_id",
          "scan_id", "detected_at", "data_source"])
     counts[csv_file_for("vertex", "conversation")] = preserve_or_create(out_dir / csv_file_for("vertex", "conversation"),
-        ["conversation_id", "title", "created_at", "last_message_at", "message_count",
-         "scope_json", "data_source"])
+        ["conversation_id", "advisor_sid", "title", "created_at", "last_message_at",
+         "message_count", "scope_json", "data_source"])
     counts[csv_file_for("vertex", "message")] = preserve_or_create(out_dir / csv_file_for("vertex", "message"),
         ["message_id", "conversation_id", "seq", "role", "text", "resolved_context_json",
          "queries_run_json", "figures_json", "llm_provider", "status",

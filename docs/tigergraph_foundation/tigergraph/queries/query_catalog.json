@@ -32,7 +32,7 @@
    "name": "get_product_hierarchy",
    "file": "GQ-003_get_product_hierarchy.gsql",
    "parameters": [],
-   "purpose": "class -> line -> group -> product with display order — the pivot row structure.",
+   "purpose": "class -> line -> group -> product with display order \u2014 the pivot row structure.",
    "outputs": "classes, lines(+@parent_id=class_id), groups(+@parent_id=line_id), products(+@parent_id=group_id): vset rows",
    "consumers": [
     "Trends pivot rows",
@@ -45,7 +45,7 @@
    "name": "get_driver_causes",
    "file": "GQ-004_get_driver_causes.gsql",
    "parameters": [],
-   "purpose": "The driver-cause vocabulary — glossary, driver tags, evidence labels (FIX_SPEC_R8 A: single source of driver display metadata).",
+   "purpose": "The driver-cause vocabulary \u2014 glossary, driver tags, evidence labels (FIX_SPEC_R8 A: single source of driver display metadata).",
    "outputs": "causes: vset rows {cause_id, cause_name, cause_description, default_data_source, display_order, display_name, description, computation, data_source}",
    "consumers": [
     "AI Insights legend",
@@ -105,7 +105,7 @@
      "required": true
     }
    ],
-   "purpose": "Per-month totals: revenue, recurring, non-recurring, txn count — the stacked bar chart.",
+   "purpose": "Per-month totals: revenue, recurring, non-recurring, txn count \u2014 the stacked bar chart.",
    "outputs": "one object: revenue_by_month, recurring_by_month, non_recurring_by_month, txn_count_by_month (month_id -> value maps)",
    "consumers": [
     "app/v2/revenue/monthly_service.py",
@@ -238,7 +238,7 @@
      "required": true
     }
    ],
-   "purpose": "from/to revenue, change and txn count for one advisor + group + transition — the evidence modal's runnable reproduction query.",
+   "purpose": "from/to revenue, change and txn count for one advisor + group + transition \u2014 the evidence modal's runnable reproduction query.",
    "outputs": "one object {from_revenue, to_revenue, change, txn_count}",
    "consumers": [
     "evidence modal section 5",
@@ -395,7 +395,7 @@
      "required": true
     }
    ],
-   "purpose": "Stored anomalies for the /anomalies screen (R6 Y). Retrieval only — detection is batch. advisor_id/scan_id/severity '' = all/latest/all.",
+   "purpose": "Stored anomalies for the /anomalies screen (R6 Y). Retrieval only \u2014 detection is batch. advisor_id/scan_id/severity '' = all/latest/all.",
    "outputs": "scan_id_used; anomalies: vset rows",
    "consumers": [
     "GET /api/v2/anomalies",
@@ -437,13 +437,13 @@
      "required": true
     }
    ],
-   "purpose": "Ask-iPerform conversation list for rehydration (R7 A5). days<=0 = no window; newest first.",
+   "purpose": "Ask-iPerform conversation list for rehydration (R7 A5). R9 C1: advisor-scoped - advisor_id filters on the conversation's advisor_sid attribute. days<=0 = no window; newest first.",
    "outputs": "conversations: vset rows",
    "consumers": [
     "GET /api/v2/assistant/conversations",
     "assistant history rail"
    ],
-   "status": "created-v2-NEEDS-LIVE-INSTALL"
+   "status": "updated-r9-NEEDS-LIVE-REINSTALL"
   },
   {
    "id": "GQ-021",

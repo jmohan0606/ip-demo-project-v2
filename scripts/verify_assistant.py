@@ -128,7 +128,9 @@ ASK_FIXTURES = [
     ("How much did revenue change in June?", "OK"),
     ("Revenue by product for June", "OK"),
     ("Which accounts drove it?", "OK"),
-    ("Which advisor had the biggest drop in June?", "OK"),
+    # R9 C1: a comparison across advisors is OUT OF SCOPE inside a conversation
+    # scoped to one advisor (see [10]); it still works in an unscoped one.
+    ("Which advisor had the biggest drop in June?", "OUT_OF_SCOPE"),
     ("Anything unusual for SMPL001?", "OK"),
     ("What was my revenue in May?", "OK"),
     ("Tell me about the structured products drop in June", "OK"),
@@ -355,6 +357,53 @@ def check_adversarial(svc_factory) -> None:
               f"gs={user['guardrail_status']} status={r['assistant_message']['status']}")
 
 
+# --------------------------------------------------- 10. R9 C1 advisor scoping
+
+def check_scoping(svc) -> None:
+    from app.v2.assistant.store import AssistantStore
+
+    print("\n[10] R9 C1 — advisor-scoped conversations")
+    r1 = svc.ask("Why did revenue drop in June?", screen={"advisor_sid": "SMPL001"})
+    conv = r1["conversation"]
+    cid = conv["conversation_id"]
+    check("conversation vertex carries advisor_sid from the screen context",
+          str(conv.get("advisor_sid")) == "SMPL001", str(conv.get("advisor_sid")))
+
+    r2 = svc.ask("What about SMPL002's revenue in June?", conversation_id=cid,
+                 screen={"advisor_sid": "SMPL001"})
+    m2 = r2["assistant_message"]
+    check("cross-advisor question declines plainly (OUT_OF_SCOPE, no data shown)",
+          m2["status"] == "OUT_OF_SCOPE" and "scoped to advisor" in m2["text"]
+          and not m2.get("figures_json"),
+          f"{m2['status']} {m2['text'][:80]}")
+
+    r3 = svc.ask("Which advisor had the biggest drop in June?", conversation_id=cid,
+                 screen={"advisor_sid": "SMPL001"})
+    check("cross-advisor comparison declines inside a scoped conversation",
+          r3["assistant_message"]["status"] == "OUT_OF_SCOPE",
+          r3["assistant_message"]["status"])
+
+    r4 = svc.ask("How much did revenue change in June?", conversation_id=cid,
+                 screen={"advisor_sid": "SMPL002"})
+    c4 = json.loads(r4["assistant_message"]["resolved_context_json"] or "{}")
+    check("conversation advisor outranks a changed screen advisor (binding, not drift)",
+          c4.get("advisor_sid") == "SMPL001"
+          and c4.get("sources", {}).get("advisor_sid") == "conversation", str(c4)[:120])
+
+    store = AssistantStore()
+    mine = store.conversations("SMPL001", days=0)["conversations"]
+    theirs = store.conversations("SMPL002", days=0)["conversations"]
+    check("get_conversations filters by advisor_sid (SMPL002's list excludes SMPL001's chat)",
+          any(c.get("conversation_id") == cid for c in mine)
+          and not any(c.get("conversation_id") == cid for c in theirs),
+          f"mine={len(mine)} theirs={len(theirs)}")
+
+    r5 = svc.ask("Which advisor had the biggest drop in June?", screen={})
+    check("comparison still works in an UNSCOPED conversation (no screen advisor)",
+          r5["assistant_message"]["status"] == "OK",
+          r5["assistant_message"]["status"])
+
+
 # ---------------------------------------------------------------- catalog rule
 
 def check_catalog() -> None:
@@ -390,6 +439,7 @@ def main() -> int:
         check_persistence(svc)
         check_ui_surface(svc)
         check_adversarial(AssistantService)
+        check_scoping(AssistantService())
     finally:
         if not keep:
             for p, content in snapshot.items():

@@ -1,1 +1,1 @@
-conversation_id,title,created_at,last_message_at,message_count,scope_json,data_source
+conversation_id,advisor_sid,title,created_at,last_message_at,message_count,scope_json,data_source

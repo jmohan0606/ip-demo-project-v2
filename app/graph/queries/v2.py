@@ -394,8 +394,10 @@ def get_anomaly_scans(store: FoundationGraphStore, params: dict) -> list[dict]:
 
 @mock_query("get_conversations")
 def get_conversations(store: FoundationGraphStore, params: dict) -> list[dict]:
-    """Mirrors GQ-020: rehydration list. advisor_id "" = all (incl. cross-
-    advisor conversations); days <= 0 = no window; newest first."""
+    """Mirrors GQ-020. R9 C1 — advisor-scoped: advisor_id != "" filters on the
+    conversation's advisor_sid attribute (one advisor's list can never contain
+    another advisor's conversations); "" = all; days <= 0 = no window; newest
+    first."""
     from datetime import datetime, timedelta, timezone
 
     advisor_id = str(params.get("advisor_id") or "")
@@ -404,15 +406,11 @@ def get_conversations(store: FoundationGraphStore, params: dict) -> list[dict]:
     cutoff = ""
     if days > 0:
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d %H:%M:%S")
-    advisor_conversations: set[str] | None = None
-    if advisor_id:
-        advisor_conversations = set(store.in_ids("phx_dm_v2_conversation_for_advisor", advisor_id))
     rows = vrows(
         store, CONVERSATION,
-        lambda a: str(a.get("last_message_at") or "") >= cutoff,
+        lambda a: str(a.get("last_message_at") or "") >= cutoff
+        and (not advisor_id or str(a.get("advisor_sid") or "") == advisor_id),
     )
-    if advisor_conversations is not None:
-        rows = [r for r in rows if r["v_id"] in advisor_conversations]
     rows.sort(key=lambda r: (str(_attr(r, "last_message_at") or ""), r["v_id"]), reverse=True)
     return [{"conversations": rows[:limit]}]
 
