@@ -212,9 +212,10 @@ class RealLLMClient:
         import time as _t
         _start = _t.perf_counter()
         system_prompt, user_content = _render_messages(prompt, context)
+        # R13 C — no max_tokens: the GPT-5 series rejects it (no token cap on
+        # the chat-completions path; the Anthropic adapter keeps its required one).
         response = self._client.chat.completions.create(
             model=self.deployment,
-            max_tokens=1024,
             temperature=self.temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -399,9 +400,10 @@ class CdaoOpenAILLMClient:
         import time as _t
         _start = _t.perf_counter()
         system_prompt, user_content = _render_messages(prompt, context)
+        # R13 C — no max_tokens: the GPT-5 series rejects it (no token cap on
+        # the cdao path; the Anthropic adapter keeps its required one).
         response = self._client.chat.completions.create(
             model=self.model,
-            max_tokens=1024,
             temperature=self.temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
