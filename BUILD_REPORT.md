@@ -1073,3 +1073,93 @@ recorded in SOLUTION_GUIDE §10.13, deliberately not coded (FIX_SPEC_R8 §D).
 GQ-004 reinstall + reseed (17 rows); real-data rebuild confirming the baseline label
 on April→May and MIX 0.1–2.3% on later transitions; client validation of the
 account-comparison lists; the driver-spec reconciliation decision.
+
+## 15. Round 9 (FIX_SPEC_R9.md, 2026-07-25) — CLIENT-ENVIRONMENT DEMO FIXES
+
+Five contained defects found running the app in the client environment (real
+data, cdao_openai). No taxonomy/eligibility/driver changes (round 10). Commits
+78cd968..HEAD, tasks N-A..N-G; all suites re-run green after every fix.
+
+**A (45e6e4a) — account presence excludes ONE_TIME/ADJUSTMENT, per transaction.**
+LOST_ACCOUNT fired on Annuities because an annuity-issued commission
+(rev_nature=ONE_TIME) counted as billing presence. Presence sets (advisor-level
+activity map AND group-level sets) are now built from recurring-nature rows
+only; a mixed account stays present via its recurring rows; account drivers
+claim only the recurring rows of claimed accounts, so one-time deltas stay with
+the ONE_TIME step — never double-counted, never in MIX. On top of the
+recurring-CLASS gate (both apply). Settled arithmetic (VOLUME/DEAL_SIZE,
+netting, reconciliation) untouched. Fixture: pure one-time, MIXED, and
+recurring-then-only-one-time accounts — all worked cases pass, recon $0.00.
+
+**B (350c158) — account-comparison lists.** Three-layer fix: the generated GSQL
+loading job had no QUOTE="double", shearing inputs_json at its first comma on
+the bulk-load path (claim column parses, lists don't — the exact symptom);
+the builder now FAILS the build if an account driver's lists are empty or
+don't sum to its claim; the evidence modal logs the exact inputs_json key path
+on failure and falls back to the legacy `accounts` key. Sample regenerated.
+
+**C1 (1b8f980) — advisor-scoped conversations.** `advisor_sid` on
+phx_dm_v2_conversation (the round's only schema change), set from screen
+context at creation; the binding outranks a changed screen advisor;
+cross-advisor questions/comparisons decline plainly; GQ-020 + local tier filter
+on the attribute; history rail scoped; chat-CSV headers migrate additively.
+
+**C2 (be8e827) — no mislabelling; multi-month decomposes.** The shell passed
+loaded-range BOUNDS as a transition (202604→202607); driver_detail matched only
+from_month against a range query and labelled one transition's figure with the
+wider span. Now: the assistant seeds the latest ADJACENT transition (and the
+backend snaps screen-sourced wide spans); driver_detail matches both months;
+multi-month questions decompose per adjacent transition with per-transition
+labels and stored-endpoint revenues (no computed sums); NO_DATA only for
+genuinely-unloaded months.
+
+**C3 (c3e6864) — blocked turns visible.** Chip renders category · severity in
+text (never the matched pattern); a missing workflow CSV is created instead of
+silently skipping the local-tier copy; a failed /ask keeps the turn visible
+locally. Fixture proves the blocked pair in the live payload, the stored
+transcript, and GET /assistant/conversations/{id}.
+
+**D (b2778ba) — commentary never empty.** Prompt v1.2 states the sign
+convention with correct/incorrect examples (root cause); guardrail-failed
+wording regenerates up to COMMENTARY_MAX_ATTEMPTS (3), each attempt validated
+and each failure logged; after the last failure the deterministic template
+(computed drivers + fixed vocabulary) publishes as PUBLISHED_FALLBACK with a
+"Deterministic fallback" tag — never the AI chip (rule 8a), never an empty
+panel, guardrail never bypassed. Also fixed: the template itself parenthesised
+a positive change-%. Live sample regeneration v20 (claude-haiku, v1.2):
+5 PUBLISHED + 1 PUBLISHED_FALLBACK, 0 BLOCKED — the mechanism fired on real
+model output.
+
+**E (430ce7a) — judge.** build_llm_client factory routes the judge through the
+SAME adapters as the agents; JUDGE_MODEL selects the model within the active
+mode (empty = mode default; claude mode keeps claude-sonnet-5); unavailable
+state stores the −1.0 sentinel and renders "Faithfulness — (unavailable)",
+never 0.00; publication gate asserted independent of the judge.
+
+**F (809e0d5) — glossary order.** display_order was already seeded (1–17,
+DEAL_SIZE=2) and GQ-004 sorted; the client sort now sends missing/zero orders
+LAST with a name tiebreak, and e2e asserts the query returns all 17 sorted.
+Root cause in the client env is a stale 6-column driver_cause seed — reseed is
+an operator step.
+
+**Verified here (fixtures/sample/local tier only — NOT real data):**
+verify_attribution (legacy repro + R6 + R9A + R9B) PASS · verify_assistant
+101/101 · verify_commentary_retry 10/10 · verify_judge 9/9 · verify_anomalies
+--rescan PASS · validate_v2_queries ALL PASS · verify_end_to_end OVERALL PASS
+(recon $0.00, MIX ≤14.2%, glossary sorted) · tsc clean · capture_evidence
+15/15 screens zero console errors.
+
+**Known items:** (1) `verify_ingestion_fixes` "delete-all continues past a
+failing entity" fails on the build box — pre-existing at the round-8 baseline
+(re-verified in a clean worktree), ingestion untouched this round; round-10
+item. (2) One UI-walk run showed transient duplicate-key console errors on the
+transactions screen from an accumulated server store; unreproducible after
+restart (two clean walks + clean API); stored data verified duplicate-free.
+
+**Pending OPERATOR acceptance** (`docs/ROUND9_ACCEPTANCE.md`): live ALTER +
+GQ-020 reinstall + driver_cause reseed; real-data rebuild (fix A) with recon
+$0.00 and no LOST_ACCOUNT on annuity-issued rows; populated account lists on a
+real group driver; scoped conversation + visible guardrail block on cdao;
+commentary regeneration on cdao_openai (never-empty panel); judge on the
+working model and the unavailable state on a bad JUDGE_MODEL; glossary order
+after reseed.

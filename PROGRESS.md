@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T00:00:00Z
-Current phase: ROUND 9 (FIX_SPEC_R9.md) — client-environment demo fixes
-Resume from: N-A
+Last updated: 2026-07-25T05:30:00Z
+Current phase: ROUND 9 (FIX_SPEC_R9.md) — COMPLETE (operator acceptance pending: live ALTER conversation vertex + GQ-020 reinstall + driver_cause reseed, real-data rebuild under fix A, cdao commentary regeneration, judge on working model)
+Resume from: — (all N tasks DONE)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -14,7 +14,7 @@ Resume from: N-A
 | 6 | 2026-07-23 | 2026-07-23 | round 6 fresh start | FIX_SPEC_R6.md: X-A1..A5, X-B1..B2, Y-1..Y-7 all DONE; verify_attribution 12/12, verify_anomalies 14/14, e2e OVERALL PASS; 6 screens 0 console errors; real-data MIX gate + live GSQL = operator |
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
-| 9 | 2026-07-25 | | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G |
+| 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -202,9 +202,9 @@ Resume from: N-A
 | N-C2 | R9 | context seeds adjacent transition; no mislabelling; multi-month decomposes | DONE | be8e827 | shell passes month list -> adjacent seed; resolve() snaps screen spans; driver_detail matches both months; span_decompose per-transition labels; verify [11] 6 checks, 96/96 PASS |
 | N-C3 | R9 | blocked turns visible with GUARDRAIL chip; fixture proves it | DONE | c3e6864 | chip renders category·severity; missing chat CSV auto-created; failed send keeps turn visible locally; verify [12] 5 checks incl. transcript endpoint; 101/101 PASS |
 | N-D | R9 | commentary prompt sign-convention fix + 3x retry + deterministic fallback | DONE | b2778ba | prompt v1.2 w/ examples; COMMENTARY_MAX_ATTEMPTS=3 retry in supervisor; PUBLISHED_FALLBACK status + non-AI marking; verify_commentary_retry 10/10; live v20 = 5 PUBLISHED + 1 FALLBACK, 0 BLOCKED |
-| N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | IN_PROGRESS | | started 2026-07-25 |
-| N-F | R9 | glossary ordered by display_order | TODO | | |
-| N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | DONE | 430ce7a | build_llm_client factory; JUDGE_MODEL within active mode (empty=mode default); -1.0 UNAVAILABLE sentinel; modal renders "—(unavailable)"; verify_judge 9/9 |
+| N-F | R9 | glossary ordered by display_order | DONE | 809e0d5 | robust client sort (missing order last + name tiebreak); e2e asserts sorted 17 causes, DEAL_SIZE=2; fixtures regenerated; client reseed = operator |
+| N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 2f1a13e..HEAD; conflict flags on attribution/builder/workflow/settings/manifest/v2.ts/evidence-modal/v2-shell; data/real + prompts + gitignored dirs excluded; + ROUND9_ACCEPTANCE + BUILD_REPORT §15 |
 
 ## Decisions
 | When | Decision | Why |
@@ -247,6 +247,13 @@ Resume from: N-A
 | 2026-07-24 | R8: legacy cause_name/cause_description seeded as mirrors of display_name/description | keeping two independently-editable name fields would recreate the exact drift class this round removes; the legacy columns stay only for schema compatibility |
 | 2026-07-24 | R8: baseline label = FIRST transition only; the other edge keeps the R6 edge-note | FIX_SPEC_R8 B defines THE baseline transition as earliest from_month; the last transition's unevaluable-stop case is a different (persistence) limitation and keeps its existing wording |
 | 2026-07-24 | R8: client's revised driver spec recorded in SOLUTION_GUIDE §10.13, NOT coded | conflicts with the CWM PCR Confluence mapping (FIX_SPEC_R8 §D); needs operator/client reconciliation first |
+
+| 2026-07-25 | R9: account drivers claim only the RECURRING rows of claimed accounts; their one-time/adjustment rows stay in the pool for the ONE_TIME step | FIX_SPEC_R9 A: excluded rows' revenue "is already claimed by the one-time path — do not double-count and do not route to MIX"; removing whole accounts would have dropped a lost account's one-time to-month row into MIX |
+| 2026-07-25 | R9: PUBLISHED_FALLBACK introduced as a commentary status VALUE (data, not schema); rendered with a "Deterministic fallback" tag, never the AI chip | marks the D3 template without a schema change (G forbids); rule 8a is one-directional — non-model text must never carry the AI chip |
+| 2026-07-25 | R9: judge unavailable state stored as -1.0 sentinel in the DOUBLE score columns | schema unchanged (G); UI renders "— (unavailable)" for negative scores — 0.00 can no longer mean "could not run" |
+| 2026-07-25 | R9: JUDGE_MODEL default changed "claude-sonnet-5" -> "" (= active mode's default model; claude mode still resolves to claude-sonnet-5 in code) | the old default was a Claude model name that 404s on cdao — exactly the client-env failure |
+| 2026-07-25 | R9: verify_ingestion_fixes "delete-all continues past failing entity" FAILS pre-existing at the round-8 baseline (verified in clean worktree) | not a round-9 regression; ingestion out of scope this round (G); recorded for round 10 |
+| 2026-07-25 | R9: anomaly rescan artifacts (scan002) reverted before wrap commit | committed sample state stays deterministic at the scan001 demo scan (R6 decision) |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
