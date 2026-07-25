@@ -242,6 +242,7 @@ Resume from: — (all Q tasks DONE)
 | Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | DONE | 616b887/f7359e3 | .env.example block in Q-A; ROUND12_ACCEPTANCE config table + operator drill |
 | Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb9b6a2..HEAD; conflict flags on settings/.env.example/client.py/commentary_agent/generation_workflow/env-health-workspace; + BUILD_REPORT §18 |
 | Q-F | R12 | glossary display_order sorted as STRING (R8/R9 defect): numeric order enforced on every path + regression test | DONE | 8d883d6 | DDL already INT; service re-imposes numeric order (covers STRING-typed live graph via tier 1); local-tier _int via float; frontend explicit Number(); GQ-004 header reinstall note; verify_glossary_order 7/7. LIVE-VERIFIED in Codespace 2026-07-25: app restarted (8001/3001), API returns 1..19 ascending, glossary dialog on /ai-insights renders Volume(1)→Average Transaction Value(2)→…→Baseline Period(19), zero console errors (headless Chromium + screenshot) |
+| Q-G | R12 | cosmetic: collapsed Ask iPerform launcher = labelled pill (MessageCircle + "Ask iPerform"), icon-only circle on small viewports | DONE | (this) | navy/hover/position/z-40/print:hidden/aria-label unchanged; expanded panel header untouched; no logic change; verified headless both viewports, panel opens, 0 console errors |
 
 ## Decisions
 | When | Decision | Why |

@@ -9,6 +9,7 @@
  * button rather than closing, so returning is one click and context is kept.
  * ⤢ expands into /ask — the full-page presentation of the SAME component.
  */
+import { MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -35,14 +36,17 @@ export function AssistantOverlay() {
   if (pathname?.startsWith("/ask")) return null;
 
   if (!open) {
+    // Labelled pill so the assistant is obvious; collapses to the icon-only
+    // circle on small viewports where the label would crowd the content.
     return (
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open Ask iPerform"
-        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-v2-navy text-[13px] font-bold text-white shadow-lg hover:bg-v2-navy-dark print:hidden"
+        className="fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center gap-2 rounded-full bg-v2-navy text-white shadow-lg hover:bg-v2-navy-dark print:hidden sm:w-auto sm:px-4"
       >
-        iP
+        <MessageCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+        <span className="hidden text-[13px] font-bold sm:inline">Ask iPerform</span>
       </button>
     );
   }
