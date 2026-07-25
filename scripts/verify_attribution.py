@@ -72,9 +72,13 @@ _counter = [0]
 
 
 def txn(month: str, product_id: str, account: str, amount: float,
-        rate_bps: float = 0.0) -> dict:
+        rate_bps: float = 0.0, nature: str = "RECURRING") -> dict:
     _counter[0] += 1
     day = f"{month[:4]}-{month[4:6]}-15"
+    file_key = "l_a_ancomm" if nature == "ONE_TIME" else (
+        "manual_adj" if nature == "ADJUSTMENT" else "ace")
+    description = "ANNUITY ISSUED" if nature == "ONE_TIME" else (
+        "ADJUSTMENT" if nature == "ADJUSTMENT" else "FIXTURE ROW")
     return {
         "txn_id": f"FIXTRD{_counter[0]:05d}|1", "trade_ref_no": f"FIXTRD{_counter[0]:05d}",
         "split_seq_no": 1, "advisor_sid": ADVISOR, "month_id": month,
@@ -83,8 +87,8 @@ def txn(month: str, product_id: str, account: str, amount: float,
         "credited_amt": round(amount, 2), "pre_split_amt": round(amount, 2),
         "split_pct": 1.0, "client_rate_bps": rate_bps, "std_tier_rate": rate_bps,
         "concession_type": "None", "discount_amt": 0.0, "eff_disc_pct": 0.0,
-        "avg_balance_amt": 0.0, "file_key": "ace", "trade_description": "FIXTURE ROW",
-        "rev_nature": "RECURRING", "reason_cd": "__NONE__",
+        "avg_balance_amt": 0.0, "file_key": file_key, "trade_description": description,
+        "rev_nature": nature, "reason_cd": "__NONE__",
         "rm_sid": "", "cs_sid": "",
         "revenue_eligibility": elig.reason_eligibility("__NONE__", REASONS),
         "incentive_eligible": elig.incentive_eligible("__NONE__", REASONS),
@@ -250,6 +254,53 @@ def main() -> int:
           "(naive-new accounts were transactional-only, so nothing is unevaluable there)",
           "BASELINE_LIMITED" not in first_f["by_cause"],
           str(first_f["by_cause"].get("BASELINE_LIMITED")))
+
+    # ------------------------------------------------------- 2b. R9 A: one-time exclusion
+    print("\n— R9 A: presence excludes ONE_TIME/ADJUSTMENT rows (annuity-issued bug) —")
+    r9: list[dict] = []
+    for m in MONTHS:
+        for i in range(4):  # stable recurring base
+            r9.append(txn(m, "UMA|FEE", f"FIXA-STAB{i}", 5000.0, 80.0))
+    # pure one-time account: annuity issued in April, never again (the reported bug)
+    r9.append(txn("202604", "UMA|FEE", "FIXA-OT", 2000.0, nature="ONE_TIME"))
+    # MIXED account: recurring billing every month PLUS a one-time annuity in April
+    for m in MONTHS:
+        r9.append(txn(m, "UMA|FEE", "FIXA-MIX", 3000.0, 80.0))
+    r9.append(txn("202604", "UMA|FEE", "FIXA-MIX", 1500.0, nature="ONE_TIME"))
+    # recurring in April, ONLY a one-time row in May -> genuine LOST candidate
+    r9.append(txn("202604", "UMA|FEE", "FIXA-RTOT", 2500.0, 80.0))
+    r9.append(txn("202605", "UMA|FEE", "FIXA-RTOT", 800.0, nature="ONE_TIME"))
+    r9_changes, r9_drivers = attribute(r9, legacy=False)
+    r9_by = per_transition(r9_changes, r9_drivers)
+    r9_first = r9_by[f"{ADVISOR}|202604|202605"]
+    print(f"  Apr->May: total {r9_first['total']:,.2f}  by cause {r9_first['by_cause']}")
+    r9_presence: dict[str, set[str]] = defaultdict(set)
+    for d in r9_drivers:
+        if d["cause_id"] in ("NEW_ACCOUNT", "LOST_ACCOUNT", "BASELINE_LIMITED"):
+            inputs = json.loads(d["inputs_json"])
+            for k in ("accounts", "accounts_present_only_in_to_month",
+                      "accounts_present_only_in_from_month"):
+                r9_presence[d["cause_id"]].update(inputs.get(k) or [])
+    r9_claimed = set().union(*r9_presence.values()) if r9_presence else set()
+    check("R9A: pure one-time account (annuity issued) is never LOST/NEW",
+          "FIXA-OT" not in r9_claimed, sorted(r9_claimed))
+    check("R9A: MIXED account (recurring + one-time same month) is never LOST/NEW",
+          "FIXA-MIX" not in r9_claimed, sorted(r9_claimed))
+    check("R9A: recurring-then-only-one-time account IS lost, claiming its recurring "
+          "revenue only",
+          "FIXA-RTOT" in r9_presence.get("LOST_ACCOUNT", set())
+          and round(r9_first["by_cause"].get("LOST_ACCOUNT", 0.0), 2) == -2500.00,
+          str(r9_first["by_cause"].get("LOST_ACCOUNT")))
+    check("R9A: one-time deltas claimed by the ONE_TIME path (incl. mixed account's "
+          "annuity and the lost account's one-time row), not MIX",
+          round(r9_first["by_cause"].get("ONE_TIME", 0.0), 2) == -2700.00,
+          str(r9_first["by_cause"].get("ONE_TIME")))
+    check("R9A: MIX ~ $0 on Apr->May (nothing routed to MIX)",
+          abs(r9_first["by_cause"].get("MIX", 0.0)) < 1.0,
+          str(r9_first["by_cause"].get("MIX")))
+    r9_rec = reconcile(r9_changes, r9_drivers)
+    check("R9A: reconciliation $0.00 on every transition", r9_rec["all_reconcile"],
+          json.dumps({k: v["discrepancy"] for k, v in r9_rec["transitions"].items()}))
 
     # ---------------------------------------------------------------- 3. guard
     # R8: the R6 A3 abort (|BL| > |NET change| -> AttributionError) was removed —

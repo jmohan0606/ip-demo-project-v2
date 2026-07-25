@@ -16,7 +16,7 @@ import logging
 from collections import defaultdict
 from typing import Iterable
 
-from app.v2.revenue.aggregation import ONE_TIME, RECURRING, TOTAL_GROUP, _num
+from app.v2.revenue.aggregation import ADJUSTMENT, ONE_TIME, RECURRING, TOTAL_GROUP, _num
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,21 @@ MIX_WARNING_FRACTION = 0.15
 # intermittency, not attrition. Config: settings.account_absence_months
 # (ACCOUNT_ABSENCE_MONTHS); this is only the shared default.
 DEFAULT_ACCOUNT_ABSENCE_MONTHS = 2
+
+# R9 A — account PRESENCE is recurring billing activity only. A one-time
+# commission (e.g. "ANNUITY ISSUED") or a manual adjustment appearing in one
+# month and not the next is one-time revenue ending, not an account being
+# lost — those rows never count toward the monthly presence sets that drive
+# NEW_ACCOUNT / LOST_ACCOUNT / BASELINE_LIMITED. The filter is applied per
+# TRANSACTION, not per account: a mixed account (recurring billing + a
+# one-time annuity in the same month) stays present via its recurring rows.
+PRESENCE_EXCLUDED_NATURES = frozenset({ONE_TIME, ADJUSTMENT})
+
+
+def _presence_rows(txns: Iterable[dict]) -> list[dict]:
+    """Rows that count as billing presence (rev_nature neither ONE_TIME nor
+    ADJUSTMENT) — R9 A."""
+    return [t for t in txns if t.get("rev_nature") not in PRESENCE_EXCLUDED_NATURES]
 
 CAUSE_DATA_SOURCE = {
     "VOLUME": "REAL", "DEAL_SIZE": "REAL", "ONE_TIME": "REAL", "ELIGIBILITY": "REAL",
@@ -161,11 +176,17 @@ def attribute_group(
     # because the loaded data does not span enough months on that side of the
     # transition — their movement goes to the honest BASELINE_LIMITED driver
     # (R6 A3), never to NEW/LOST and never silently to MIX.
+    # R9 A — presence is decided from RECURRING rows only (rev_nature neither
+    # ONE_TIME nor ADJUSTMENT), per transaction. The excluded rows stay in the
+    # remainder pool below, so their movement is claimed by the ONE_TIME /
+    # CLAWBACK steps as before — never double-counted, never routed to MIX.
     claimed_accounts: set[str] = set()
     rule = presence_rule or {}
+    from_presence_txns = _presence_rows(from_txns)
+    to_presence_txns = _presence_rows(to_txns)
     if is_recurring_class or not gate_to_recurring:
-        from_accounts = {str(t.get("account_no")) for t in from_txns}
-        to_accounts = {str(t.get("account_no")) for t in to_txns}
+        from_accounts = {str(t.get("account_no")) for t in from_presence_txns}
+        to_accounts = {str(t.get("account_no")) for t in to_presence_txns}
         adv_new = advisor_new_accounts if advisor_new_accounts is not None else (to_accounts - from_accounts)
         adv_lost = advisor_lost_accounts if advisor_lost_accounts is not None else (from_accounts - to_accounts)
         new_accounts = sorted((to_accounts - from_accounts) & adv_new)
@@ -178,11 +199,12 @@ def attribute_group(
         # the contribution arithmetic is unchanged.
         absence = rule.get("absence_months")
         classification_rule = (
-            f"Accounts with no activity for {absence} consecutive months "
-            f"(ACCOUNT_ABSENCE_MONTHS={absence}), evaluated at advisor level "
-            "across recurring product lines")
+            f"Accounts with no recurring billing activity for {absence} consecutive "
+            f"months (ACCOUNT_ABSENCE_MONTHS={absence}), evaluated at advisor level "
+            "across recurring product lines; one-time and adjustment transactions "
+            "(rev_nature ONE_TIME/ADJUSTMENT) never count as presence")
         if new_accounts:
-            new_txns = [t for t in to_txns if str(t.get("account_no")) in new_accounts]
+            new_txns = [t for t in to_presence_txns if str(t.get("account_no")) in new_accounts]
             emit("NEW_ACCOUNT", _sum(new_txns), {
                 "accounts": new_accounts, "txn_count": len(new_txns),
                 "accounts_present_only_in_to_month": new_accounts,
@@ -190,13 +212,14 @@ def attribute_group(
                 "to_month_revenue_of_new_accounts": round(_sum(new_txns), 2),
                 "account_absence_months": absence,
                 "months_confirmed_quiet_before": rule.get("new_months_checked"),
+                "presence_rev_natures_excluded": sorted(PRESENCE_EXCLUDED_NATURES),
                 "classification_rule": classification_rule,
-                "formula": "sum(credited_amt of accounts appearing this month after "
-                           "ACCOUNT_ABSENCE_MONTHS consecutive months of no activity); "
-                           "recurring-class groups only",
+                "formula": "sum(credited_amt of recurring-nature rows of accounts appearing "
+                           "this month after ACCOUNT_ABSENCE_MONTHS consecutive months of no "
+                           "recurring activity); recurring-class groups only",
             })
         if lost_accounts:
-            lost_txns = [t for t in from_txns if str(t.get("account_no")) in lost_accounts]
+            lost_txns = [t for t in from_presence_txns if str(t.get("account_no")) in lost_accounts]
             emit("LOST_ACCOUNT", -_sum(lost_txns), {
                 "accounts": lost_accounts, "txn_count": len(lost_txns),
                 "accounts_present_only_in_from_month": lost_accounts,
@@ -204,14 +227,15 @@ def attribute_group(
                 "from_month_revenue_of_lost_accounts": round(_sum(lost_txns), 2),
                 "account_absence_months": absence,
                 "months_confirmed_quiet_after": rule.get("lost_months_checked"),
+                "presence_rev_natures_excluded": sorted(PRESENCE_EXCLUDED_NATURES),
                 "classification_rule": classification_rule,
-                "formula": "-(sum(credited_amt of accounts with no activity for "
-                           "ACCOUNT_ABSENCE_MONTHS consecutive months after the from-month)); "
-                           "recurring-class groups only",
+                "formula": "-(sum(credited_amt of recurring-nature rows of accounts with no "
+                           "recurring activity for ACCOUNT_ABSENCE_MONTHS consecutive months "
+                           "after the from-month)); recurring-class groups only",
             })
         if bl_new or bl_lost:
-            new_txns = [t for t in to_txns if str(t.get("account_no")) in bl_new]
-            lost_txns = [t for t in from_txns if str(t.get("account_no")) in bl_lost]
+            new_txns = [t for t in to_presence_txns if str(t.get("account_no")) in bl_new]
+            lost_txns = [t for t in from_presence_txns if str(t.get("account_no")) in bl_lost]
             emit("BASELINE_LIMITED", _sum(new_txns) - _sum(lost_txns), {
                 "accounts_present_only_in_to_month": bl_new,
                 "accounts_present_only_in_from_month": bl_lost,
@@ -220,6 +244,7 @@ def attribute_group(
                 "to_month_revenue_of_those_accounts": round(_sum(new_txns), 2),
                 "from_month_revenue_of_those_accounts": round(_sum(lost_txns), 2),
                 "account_absence_months": absence,
+                "presence_rev_natures_excluded": sorted(PRESENCE_EXCLUDED_NATURES),
                 "classification_rule": classification_rule,
                 "reason": rule.get("bl_reason") or (
                     "the loaded data does not span enough months to apply the "
@@ -230,8 +255,15 @@ def attribute_group(
                            "ACCOUNT_ABSENCE_MONTHS loaded months beyond the transition",
             })
         claimed_accounts = set(new_accounts) | set(lost_accounts) | set(bl_new) | set(bl_lost)
-    rem_from = [t for t in from_txns if str(t.get("account_no")) not in claimed_accounts]
-    rem_to = [t for t in to_txns if str(t.get("account_no")) not in claimed_accounts]
+    # R9 A — only the RECURRING rows of claimed accounts are consumed by the
+    # account drivers; their one-time/adjustment rows stay in the pool so the
+    # ONE_TIME step still claims that movement (else it would fall to MIX).
+    rem_from = [t for t in from_txns
+                if str(t.get("account_no")) not in claimed_accounts
+                or t.get("rev_nature") in PRESENCE_EXCLUDED_NATURES]
+    rem_to = [t for t in to_txns
+              if str(t.get("account_no")) not in claimed_accounts
+              or t.get("rev_nature") in PRESENCE_EXCLUDED_NATURES]
 
     # 2. ONE_TIME — rev_nature ONE_TIME delta among remaining rows.
     from_ot = [t for t in rem_from if t.get("rev_nature") == ONE_TIME]
@@ -478,10 +510,17 @@ def attribute_transition(
     # non-credited (e.g. 9E) or processed late is still trading — an
     # ELIGIBILITY / LATE_PROCESSING move, not a lost account. EXCLUDED rows
     # (deleted bookings) are not evidence of trading and do not count.
+    #
+    # R9 A — ONE_TIME and ADJUSTMENT rows never count as presence, filtered per
+    # TRANSACTION: an annuity issued (one-time commission) in a month does not
+    # make the account "present" that month, but a mixed account with recurring
+    # billing in the same month stays present via its recurring rows.
     activity: dict[str, set[str]] = defaultdict(set)
     for source in (txns_by_group_month, nc_txns_by_group_month, late_txns_by_group_month):
         for (_g, month), txns in source.items():
             for t in txns:
+                if t.get("rev_nature") in PRESENCE_EXCLUDED_NATURES:
+                    continue
                 activity[str(t.get("account_no"))].add(month)
     months = sorted(loaded_month_ids) if loaded_month_ids else sorted(
         {m for ms in activity.values() for m in ms} | {from_month, to_month})
