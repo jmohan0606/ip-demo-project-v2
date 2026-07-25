@@ -439,25 +439,36 @@ def _credited_breakdown(svc: V2RevenueService, advisor_id: str, group_id: str,
             non_credited += float(r.get("non_credited_amt") or 0)
             excluded += float(r.get("excluded_amt") or 0)
             late += float(r.get("late_excluded_amt") or 0)
+        # Reason-code annotations for the non-credited AND excluded ladder
+        # lines (R10 B2 adds the excluded one — rendering only, the amounts
+        # are already in the stored mpr rows).
         detail: dict[str, dict] = {}
+        excluded_detail: dict[str, dict] = {}
         for t in txns_by_month.get(month_id, []):
-            if t.get("eligibility_bucket") != elig.NON_CREDITED:
+            bucket = t.get("eligibility_bucket")
+            if bucket == elig.NON_CREDITED:
+                target = detail
+            elif bucket == elig.EXCLUDED:
+                target = excluded_detail
+            else:
                 continue
             code = elig.normalize_reason(t.get("reason_cd"))
-            row = detail.setdefault(code, {
+            row = target.setdefault(code, {
                 "reason_code": code,
                 "ui_mapping": str((reasons.get(code) or {}).get("ui_mapping") or ""),
+                "description": str((reasons.get(code) or {}).get("description") or ""),
                 "count": 0, "amount": 0.0,
             })
             row["count"] += 1
             row["amount"] += float(t.get("credited_amt") or 0)
-        for row in detail.values():
+        for row in list(detail.values()) + list(excluded_detail.values()):
             row["amount"] = round(row["amount"], 2)
         months.append({
             "month_id": month_id,
             "total_revenue": round(total, 2),
             "non_credited": round(non_credited, 2),
             "non_credited_detail": sorted(detail.values(), key=lambda r: r["reason_code"]),
+            "excluded_detail": sorted(excluded_detail.values(), key=lambda r: r["reason_code"]),
             "excluded": round(excluded, 2),
             "late_excluded": round(late, 2),
             # credited = total - non_credited - late_excluded (the client's definition;

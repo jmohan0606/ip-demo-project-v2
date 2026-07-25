@@ -63,6 +63,9 @@ interface CreditedMonthRow {
   total_revenue: number;
   non_credited: number;
   non_credited_detail: { reason_code: string; ui_mapping: string; count: number; amount: number }[];
+  /* R10 B2 — reason-code breakdown behind the `less excluded` line (older
+     stored evidence predates it, so it is optional). */
+  excluded_detail?: { reason_code: string; ui_mapping: string; description?: string; count: number; amount: number }[];
   excluded: number;
   late_excluded: number;
   credited: number;
@@ -1177,10 +1180,15 @@ export function EvidenceModal({
                           const annotation = m.non_credited_detail
                             .map((d) => `${d.reason_code} ${d.ui_mapping} ×${d.count}`)
                             .join(", ");
+                          // R10 B2 — which excluded codes produced the figure
+                          // (e.g. "9X A delete of the transaction ×1")
+                          const excludedAnnotation = (m.excluded_detail ?? [])
+                            .map((d) => `${d.reason_code} ${d.description || d.ui_mapping} ×${d.count}`)
+                            .join(", ");
                           const lines: { label: string; amount: string; note?: string; total?: boolean }[] = [
                             { label: "In-scope revenue", amount: ledgerAmt(m.total_revenue), note: "total within credited product grid types" },
                             { label: "less non-credited", amount: ledgerAmt(-m.non_credited), note: annotation || undefined },
-                            { label: "less excluded", amount: ledgerAmt(-m.excluded) },
+                            { label: "less excluded", amount: ledgerAmt(-m.excluded), note: excludedAnnotation || undefined },
                             { label: "less >90-day processing", amount: ledgerAmt(-m.late_excluded) },
                             { label: "= Credited revenue", amount: ledgerAmt(m.credited), total: true },
                           ];

@@ -1,26 +1,29 @@
-"""Revenue eligibility (FIX_SPEC R1) — the credited-revenue definition.
+"""Revenue eligibility (FIX_SPEC R1, rule replaced by FIX_SPEC_R10 B) — the
+credited-revenue definition.
 
-Client's authoritative definition (Confluence "Revenue Summary Data Mapping"):
+Client's rule as of round 10 (supersedes the prior Confluence-based split):
 
-    Total Revenue    = post_split_credited_amt  (regardless of reason code)
-    Credited Revenue = post_split_credited_amt  WHERE the reason code is not one
-                       of the ineligible codes, AND the product's grid_type is a
-                       credited grid type, AND days_to_process <= 90
+    Eligible / credited:      reason code NULL, empty, or __NONE__ — ONLY.
+    Ineligible / non-credited: ANY reason code starting with 9 (9E, 9G, 9C, 9S,
+                               94, 91, 92, 9L, ...), except the excluded set.
+    Excluded:                 the reversal/error codes 9R, 98, 99, 9H, 9X, XX —
+                              unchanged; outside Total Revenue entirely.
+
+    Credited Revenue additionally requires the product's grid_type to be a
+    credited grid type AND days_to_process <= 90 (both unchanged this round).
+
+The ONLY round-10 change: 91/92/9L — previously credited-but-incentive-
+ineligible — are now NON_CREDITED like every other 9… code. The three-state
+model is preserved; the excluded set is untouched.
 
 Eligibility is DATA-DRIVEN: the reason set is read from phx_dm_v2_reason_code
 rows (seeded below, loaded like any other vertex), and the grid-type / 90-day
 filters come from settings (CREDITED_GRID_TYPES, MAX_PROCESSING_DAYS). Seeding
 a new code or changing config changes behaviour with NO code change.
 
-Three eligibility states, deliberately:
-  CREDITED      counts in credited revenue (subject to grid + 90-day rules)
-  NON_CREDITED  revenue, but not credited (9E, 9G, 9C, 9S, 94)
-  EXCLUDED      not revenue at all — appears in NO total (9R, 98, 99, 9H, 9X, XX).
-                The client doc names only two states; EXCLUDED is our reading of
-                "no UI mapping" — recorded in BUILD_REPORT as an interpretation.
-
-ASSUMPTION (client-confirmed for now, flagged for re-confirmation): 91/92/9L are
-credited revenue that is merely incentive-ineligible.
+A genuinely NULL/blank reason code normalises to __NONE__ and is ELIGIBLE
+(normalize_reason) — a missing code must never land in a spurious
+non-credited bucket.
 """
 from __future__ import annotations
 
@@ -42,17 +45,19 @@ REASON_CODE_SEED: list[dict] = [
     {"reason_code": NO_REASON, "description": "No reason code — Grid transaction",
      "ui_mapping": "Grid", "owned_by": "PCE", "eligibility": CREDITED,
      "include_in_credited": True, "incentive_eligible": True, "display_order": 1},
+    # R10 B — 91/92/9L flipped Credited -> Non-Credited: every 9… code outside
+    # the excluded set is ineligible; only NULL/empty/__NONE__ is credited.
     {"reason_code": "91", "description": "Less than Minimum – Equity",
-     "ui_mapping": "Incentive non-eligible > Equity – below minimum", "owned_by": "PCE",
-     "eligibility": CREDITED, "include_in_credited": True, "incentive_eligible": False,
+     "ui_mapping": "Equity – below minimum", "owned_by": "PCE",
+     "eligibility": NON_CREDITED, "include_in_credited": False, "incentive_eligible": False,
      "display_order": 2},
     {"reason_code": "92", "description": "Less than Minimum – Mutual Fund",
-     "ui_mapping": "Incentive non-eligible > Mutual funds – below minimum", "owned_by": "PCE",
-     "eligibility": CREDITED, "include_in_credited": True, "incentive_eligible": False,
+     "ui_mapping": "Mutual funds – below minimum", "owned_by": "PCE",
+     "eligibility": NON_CREDITED, "include_in_credited": False, "incentive_eligible": False,
      "display_order": 3},
     {"reason_code": "9L", "description": "Full Month LOA",
-     "ui_mapping": "Incentive non-eligible > LOA", "owned_by": "iComp",
-     "eligibility": CREDITED, "include_in_credited": True, "incentive_eligible": False,
+     "ui_mapping": "LOA", "owned_by": "iComp",
+     "eligibility": NON_CREDITED, "include_in_credited": False, "incentive_eligible": False,
      "display_order": 4},
     {"reason_code": "9E", "description": "Minimum Household Policy",
      "ui_mapping": "Small households", "owned_by": "PCE", "eligibility": NON_CREDITED,

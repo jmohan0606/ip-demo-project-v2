@@ -1,8 +1,8 @@
 reason_code,description,ui_mapping,owned_by,eligibility,include_in_credited,incentive_eligible,display_order,data_source
 __NONE__,No reason code — Grid transaction,Grid,PCE,CREDITED,True,True,1,REAL
-91,Less than Minimum – Equity,Incentive non-eligible > Equity – below minimum,PCE,CREDITED,True,False,2,REAL
-92,Less than Minimum – Mutual Fund,Incentive non-eligible > Mutual funds – below minimum,PCE,CREDITED,True,False,3,REAL
-9L,Full Month LOA,Incentive non-eligible > LOA,iComp,CREDITED,True,False,4,REAL
+91,Less than Minimum – Equity,Equity – below minimum,PCE,NON_CREDITED,False,False,2,REAL
+92,Less than Minimum – Mutual Fund,Mutual funds – below minimum,PCE,NON_CREDITED,False,False,3,REAL
+9L,Full Month LOA,LOA,iComp,NON_CREDITED,False,False,4,REAL
 9E,Minimum Household Policy,Small households,PCE,NON_CREDITED,False,False,5,REAL
 9G,Inherited Account,Transferred accounts,PCE,NON_CREDITED,False,False,6,REAL
 9C,Personal Transactions,Personal accounts,PCE,NON_CREDITED,False,False,7,REAL

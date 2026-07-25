@@ -344,7 +344,7 @@
         "driver_id",
         "data_source"
       ],
-      "expected_rows": 152,
+      "expected_rows": 164,
       "workflow_generated": false
     },
     {
@@ -792,7 +792,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 152,
+      "expected_rows": 164,
       "workflow_generated": false
     },
     {
@@ -805,7 +805,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 152,
+      "expected_rows": 164,
       "workflow_generated": false
     },
     {
@@ -818,7 +818,7 @@
       "from_column": "from_id",
       "to_column": "to_id",
       "columns": {},
-      "expected_rows": 140,
+      "expected_rows": 152,
       "workflow_generated": false
     },
     {
