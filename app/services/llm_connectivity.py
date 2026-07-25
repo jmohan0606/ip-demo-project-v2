@@ -2,24 +2,29 @@
 
 One row per configured LLM role — commentary writer, judge, assistant —
 showing the EFFECTIVE config that role will use (mode, model, deployment,
-api_version — resolved by the shared R12 helper app/llm/roles) and a live
-reachability result for THAT specific configuration, from the CHEAPEST
-possible check: a models-list / model-retrieve lookup on the adapter's own SDK
-client, never a real generation. The judge row specifically surfaces "model
-not found in subscription" (the gpt-4o-mini 404 seen in the client env) so a
-bad role config shows red here BEFORE a commentary run.
+api_version, temperature — resolved by the shared R12/R13 helper
+app/llm/roles) and a live reachability result for THAT specific
+configuration. Non-cdao modes use the CHEAPEST possible check: a models-list /
+model-retrieve lookup on the adapter's own SDK client, never a real
+generation. On cdao (R13 D) the probe is a MINIMAL completion through the
+SAME corrected runtime construction/call the role uses (api_version omitted
+when empty, temperature from config, no max_tokens) — the only check that
+proves a GPT-5 deployment actually serves. The judge row specifically
+surfaces "model not found in subscription" (the gpt-4o-mini 404 seen in the
+client env) so a bad role config shows red here BEFORE a commentary run.
 
 R12 D — when a role's own config is unreachable, the row also says
 "configured model unreachable → will fall back to <default agent model>", so
 the operator sees the true state of all three roles before running anything.
 
 Read-only diagnostic: constructs clients through the SAME guarded adapters
-the agents use (app/llm/client.build_llm_client), mutates nothing, generates
-nothing, and never prints secrets — mode, model/deployment name and
-api_version only.
+the agents use (app/llm/client.build_llm_client), mutates nothing, and never
+prints secrets — mode, model/deployment name and api_version only. The cdao
+probe's one-word completion is discarded; nothing else generates.
 
 Statuses:
-    model-found   the specific model was confirmed via the models endpoint
+    model-found   the specific model was confirmed (models endpoint, or the
+                  cdao minimal completion succeeded)
     reachable     the adapter is usable but exposes no cheap model lookup
                   (mock; SmartSDK gateway) — noted in `check`
     unavailable   the client cannot be constructed or the model lookup failed;
@@ -67,9 +72,12 @@ def _cheap_check(cfg: RoleLLMConfig) -> dict[str, Any]:
                 "check": "mock adapter — local and deterministic, no external call"}
     try:
         from app.llm.client import build_llm_client
+        # R13 D — the SAME corrected construction the role uses at run time:
+        # api_version omitted when empty, temperature from config.
         client = build_llm_client(cfg.mode, model_override=cfg.model,
                                   deployment_override=cfg.deployment,
-                                  api_version_override=cfg.api_version)
+                                  api_version_override=cfg.api_version,
+                                  temperature_override=cfg.temperature)
     except Exception as exc:  # noqa: BLE001 — the row must show the real reason
         return {"status": "unavailable", "check": "client construction",
                 "error": _sanitize(exc)}
@@ -79,6 +87,30 @@ def _cheap_check(cfg: RoleLLMConfig) -> dict[str, Any]:
     # The name the request routes by: deployment on the Azure-shaped adapters
     # (RealLLMClient.deployment / CdaoOpenAILLMClient.model), model elsewhere.
     resolved = getattr(client, "deployment", None) or getattr(client, "model", cfg.model)
+
+    # R13 D — on cdao the probe is a MINIMAL completion through the adapter's
+    # own generate(): the exact corrected runtime call (temperature from
+    # config, no max_tokens, api_version omitted when empty). A models lookup
+    # cannot prove a GPT-5 deployment serves completions — the corrected
+    # create can, so a working role shows green. Still read-only: nothing
+    # mutated, no secrets shown.
+    if cfg.mode == "cdao_openai":
+        try:
+            client.generate(
+                "Reply with the single word OK.",
+                {"system_prompt": "You are a connectivity probe. Reply with the single word OK."},
+            )
+            return {"status": "model-found", "error": None,
+                    "check": f"minimal chat.completions.create({resolved!r}) via the "
+                             "corrected runtime path (R13) — temperature from config, "
+                             "no max_tokens, api_version omitted when empty"}
+        except Exception as exc:  # noqa: BLE001 — the row must show the real reason
+            error = (f"{MODEL_NOT_FOUND} — {_sanitize(exc)}" if _is_not_found(exc)
+                     else _sanitize(exc))
+            return {"status": "unavailable",
+                    "check": f"minimal chat.completions.create({resolved!r})",
+                    "error": error}
+
     if models_api is None:
         return {"status": "reachable", "error": None,
                 "check": "client constructed; this adapter exposes no models "

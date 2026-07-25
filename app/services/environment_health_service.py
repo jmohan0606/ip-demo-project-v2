@@ -44,9 +44,10 @@ class EnvironmentHealthService:
                 "guardrail_client_mode": getattr(settings, "guardrail_client_mode", "local"),
             },
             "checks": checks,
-            # R10 E — one row per LLM role (writer / judge / assistant):
-            # provider, resolved model, cheapest-possible reachability (a
-            # models lookup, never a generation). Read-only; no secrets.
+            # R10 E / R13 D — one row per LLM role (writer / judge /
+            # assistant): provider, resolved model, reachability (models
+            # lookup; on cdao a minimal completion through the corrected
+            # runtime path). Read-only; no secrets.
             "llm_connectivity": self._llm_connectivity(),
             # A7: where the app is ACTUALLY reading/writing — absolute, launch-dir independent
             "resolved_paths": settings.resolved_paths_report(),

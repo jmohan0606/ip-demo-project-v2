@@ -252,14 +252,17 @@ export function EnvHealthWorkspace() {
             </HealthCard>
           )}
 
-          {/* R10 E / R12 D — LLM connectivity per role: the EFFECTIVE config
-              (mode, model, deployment, api_version — per-role WRITER_/JUDGE_/
-              ASSISTANT_ keys resolved per-field against the active mode) and the
-              cheapest reachability check for that config (models lookup, never a
-              generation). A bad role config (e.g. a 404ing deployment) shows red
-              HERE before a run, with the "will fall back" note saying what the
-              role will actually run on. The mock-mode judge row is unavailable
-              by design and does not redden the card. No secrets ever shown. */}
+          {/* R10 E / R12 D / R13 D — LLM connectivity per role: the EFFECTIVE
+              config (mode, model, deployment, api_version — per-role WRITER_/
+              JUDGE_/ASSISTANT_ keys resolved per-field against the active mode)
+              and a reachability check for that config: a models lookup on most
+              adapters; on cdao a MINIMAL one-word completion through the SAME
+              corrected runtime path (api_version omitted when empty, temperature
+              from config, no max_tokens) so a working GPT-5 role shows green. A
+              bad role config (e.g. a 404ing deployment) shows red HERE before a
+              run, with the "will fall back" note saying what the role will
+              actually run on. The mock-mode judge row is unavailable by design
+              and does not redden the card. No secrets ever shown. */}
           {report?.llm_connectivity && report.llm_connectivity.length > 0 && (
             <HealthCard
               title="LLM connectivity"
@@ -316,8 +319,9 @@ export function EnvHealthWorkspace() {
                 </table>
               </div>
               <p className="mt-2 text-[10.5px] italic text-v2-faint">
-                Read-only checks via each adapter&rsquo;s models endpoint — nothing is generated,
-                nothing is mutated, and no keys or tokens are ever shown.
+                Read-only checks — a models-endpoint lookup on most adapters; on cdao a minimal
+                one-word completion through the same corrected runtime path (discarded). Nothing
+                is mutated, and no keys or tokens are ever shown.
               </p>
             </HealthCard>
           )}
