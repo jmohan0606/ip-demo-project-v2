@@ -108,10 +108,28 @@ class AnswerEngine:
                      and str(r.get("from_month_id")) == from_m
                      and str(r.get("to_month_id")) == to_m), None)
 
+    def _adjacent_pairs(self, from_m: str, to_m: str) -> list[tuple[str, str]]:
+        """The adjacent transitions covering [from_m, to_m] when the span is
+        wider than one transition and both ends are loaded; [] otherwise."""
+        if from_m in self.months and to_m in self.months:
+            i, j = self.months.index(from_m), self.months.index(to_m)
+            if j - i > 1:
+                return list(zip(self.months[i:j], self.months[i + 1:j + 1]))
+        return []
+
     # ------------------------------------------------------------ intents
 
     def build(self, intent: str, ctx: ResolvedContext, *, question: str = "",
               reference_term: str = "", compare_sids: list[str] | None = None) -> AnswerData:
+        # R9 C2 — a span covering several transitions DECOMPOSES into its
+        # adjacent transitions (each figure labelled with exactly the
+        # transition it came from) instead of returning a bare NO_DATA.
+        # NO_DATA remains for months that genuinely are not loaded.
+        if intent in ("MOM_CHANGE", "WHY_CHANGE", "DRIVER_DETAIL") and ctx.advisor_sid:
+            pairs = self._adjacent_pairs(ctx.from_month, ctx.to_month)
+            if pairs:
+                return self.span_decompose(ctx, pairs=pairs,
+                                           want_drivers=intent != "MOM_CHANGE")
         builder = {
             "REVENUE_TREND": self.revenue_trend,
             "REVENUE_BY_PRODUCT": self.revenue_by_product,
@@ -275,6 +293,85 @@ class AnswerEngine:
         out.links = [{"label": "Open in AI Insights ›", "href": "/ai-insights"}]
         return out
 
+    def span_decompose(self, ctx: ResolvedContext, *, pairs: list[tuple[str, str]],
+                       want_drivers: bool) -> AnswerData:
+        """R9 C2 — a multi-month span answered by composing its ADJACENT
+        transitions. Every figure is a stored row labelled with exactly the
+        transition it came from — a one-transition figure never carries the
+        wider span's label. The span's endpoints are stated from the stored
+        from_revenue / to_revenue of the first and last transitions (no
+        computed sums)."""
+        out = AnswerData()
+        group_id = ctx.group_id or TOTAL_GROUP
+        gname = self._gname(ctx.group_id) if ctx.group_id else ""
+        q = "get_revenue_changes"
+        steps: list[str] = []
+        first_row: dict | None = None
+        last_row: dict | None = None
+        for f, t in pairs:
+            rows = self._run(out, q, {"advisor_id": ctx.advisor_sid,
+                                      "from_month": f, "to_month": t}, "changes")
+            row = next((r for r in rows
+                        if str(r.get("group_id")) == group_id
+                        and str(r.get("from_month_id")) == f
+                        and str(r.get("to_month_id")) == t), None)
+            if row is None:
+                steps.append(f"{self._mname(f)}→{self._mname(t)}: no stored change row")
+                continue
+            first_row = first_row or row
+            last_row = row
+            src = str(row.get("data_source") or "DERIVED")
+            amt, pct = _num(row.get("change_amt")), _num(row.get("change_pct"))
+            self._fig(out, f"Change {self._mname(f)}→{self._mname(t)}",
+                      amt, fmt_money(amt), q, src)
+            verb = "fell" if amt < 0 else "rose"
+            step = (f"{self._mname(f)}→{self._mname(t)}: {verb} "
+                    f"{fmt_money(abs(amt))} ({fmt_pct(abs(pct))})")
+            if want_drivers:
+                drivers = self._run(out, "get_change_drivers",
+                                    {"advisor_id": ctx.advisor_sid, "from_month": f,
+                                     "to_month": t, "result_limit": 100}, "drivers")
+                mine = [d for d in drivers
+                        if str(d.get("cause_id")) != "MIX"
+                        and (not ctx.group_id or str(d.get("group_id")) == ctx.group_id)]
+                top = max(mine, key=lambda d: abs(_num(d.get("contribution_amt"))),
+                          default=None)
+                if top is not None:
+                    c = _num(top.get("contribution_amt"))
+                    cause = self.cause_names.get(str(top.get("cause_id")),
+                                                 str(top.get("cause_id")))
+                    self._fig(out, f"{self._gname(str(top.get('group_id') or TOTAL_GROUP))} — "
+                                   f"{cause} ({self._mname(f)}→{self._mname(t)})",
+                              c, fmt_money(c), "get_change_drivers",
+                              str(top.get("data_source") or "DERIVED"))
+                    step += (f", largest driver "
+                             f"{self._gname(str(top.get('group_id') or TOTAL_GROUP))} "
+                             f"{cause} {fmt_money(c)}")
+            steps.append(step)
+        if first_row is None:
+            out.status = "NO_DATA"
+            out.no_data_reason = (f"no stored change rows inside "
+                                  f"{ctx.from_month}->{ctx.to_month}")
+            return out
+        frm = _num(first_row.get("from_revenue"))
+        to = _num(last_row.get("to_revenue"))
+        f0 = str(first_row.get("from_month_id"))
+        t1 = str(last_row.get("to_month_id"))
+        self._fig(out, f"{self._mname(f0)} revenue", frm, fmt_money(frm), q,
+                  str(first_row.get("data_source") or "DERIVED"))
+        self._fig(out, f"{self._mname(t1)} revenue", to, fmt_money(to), q,
+                  str(last_row.get("data_source") or "DERIVED"))
+        scope = f"{gname} " if gname else ""
+        out.text = (f"{self._mname(ctx.from_month)}→{self._mname(ctx.to_month)} spans "
+                    f"{len(pairs)} monthly transitions for {self._aname(ctx.advisor_sid)}"
+                    f"{f' ({gname})' if gname else ''} — each step: " + "; ".join(steps)
+                    + f". {scope.capitalize() if scope else ''}Credited revenue was "
+                      f"{fmt_money(frm)} in {self._mname(f0)} and {fmt_money(to)} in "
+                      f"{self._mname(t1)}.")
+        out.suggestions = [f"Why did revenue change in {self._mname(t1).split()[0]}?",
+                           "Which accounts drove it?"]
+        return out
+
     def driver_detail(self, ctx: ResolvedContext) -> AnswerData:
         out = AnswerData()
         if not ctx.advisor_sid:
@@ -286,9 +383,13 @@ class AnswerEngine:
         rows = self._run(out, "get_revenue_changes",
                          {"advisor_id": ctx.advisor_sid, "from_month": ctx.from_month,
                           "to_month": ctx.to_month}, "changes")
+        # R9 C2 — match BOTH months. get_revenue_changes returns every
+        # transition in [from, to]; matching only from_month_id could pick one
+        # transition's row and label it with the context's wider span.
         grp = next((r for r in rows
                     if str(r.get("group_id")) == (ctx.group_id or TOTAL_GROUP)
-                    and str(r.get("from_month_id")) == ctx.from_month), None)
+                    and str(r.get("from_month_id")) == ctx.from_month
+                    and str(r.get("to_month_id")) == ctx.to_month), None)
         drivers = self._run(out, "get_change_drivers",
                             {"advisor_id": ctx.advisor_sid, "from_month": ctx.from_month,
                              "to_month": ctx.to_month, "result_limit": 100}, "drivers")

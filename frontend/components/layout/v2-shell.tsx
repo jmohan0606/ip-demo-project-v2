@@ -106,7 +106,11 @@ export function V2Shell({ children }: { children: ReactNode }) {
 
   return (
     <V2Context.Provider value={value}>
-      <AssistantProvider advisorId={value.advisorId} fromMonth={value.fromMonth} toMonth={value.toMonth}>
+      {/* R9 C2 — the assistant is seeded with the FULL loaded month list so it
+          can pick the latest ADJACENT transition; passing the shell's
+          fromMonth/toMonth (the display bounds, e.g. Apr–Jul) made the screen
+          seed a non-adjacent span and answers carry a wider label. */}
+      <AssistantProvider advisorId={value.advisorId} monthIds={months.map((m) => m.month_id)}>
         <div className="min-h-screen bg-v2-page font-v2 text-v2-text print:bg-white">
           {/* T6-2 — chrome is hidden in print; the page content prints clean. */}
           <div className="print:hidden">

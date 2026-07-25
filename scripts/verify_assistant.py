@@ -404,6 +404,56 @@ def check_scoping(svc) -> None:
           r5["assistant_message"]["status"])
 
 
+# ------------------------------------ 11. R9 C2 span seeding + decomposition
+
+def check_span(svc) -> None:
+    from app.v2.assistant import context as ctx_mod
+
+    print("\n[11] R9 C2 — adjacent seeding, no mislabelling, multi-month decomposition")
+    resolved = ctx_mod.resolve(
+        entities={}, screen={"advisor_sid": "SMPL001", "from_month": "202604",
+                             "to_month": "202606"},
+        previous=None, pinned=None,
+        month_ids=["202604", "202605", "202606"], intent="MOM_CHANGE")
+    check("a wide SCREEN-sourced span snaps to the adjacent transition (May→Jun)",
+          resolved.from_month == "202605" and resolved.to_month == "202606",
+          f"{resolved.from_month}->{resolved.to_month}")
+    resolved_q = ctx_mod.resolve(
+        entities={"from_month": "202604", "to_month": "202606"},
+        screen={"advisor_sid": "SMPL001"}, previous=None, pinned=None,
+        month_ids=["202604", "202605", "202606"], intent="MOM_CHANGE")
+    check("a QUESTION-sourced span is kept (decomposed in the answer, not snapped)",
+          resolved_q.from_month == "202604" and resolved_q.to_month == "202606",
+          f"{resolved_q.from_month}->{resolved_q.to_month}")
+
+    r = svc.ask("How much did revenue change from April to June?",
+                screen={"advisor_sid": "SMPL001"})
+    m = r["assistant_message"]
+    labels = [f["label"] for f in json.loads(m.get("figures_json") or "[]")]
+    check("multi-month question decomposes into adjacent transitions (not NO_DATA)",
+          m["status"] == "OK"
+          and any("April 2026→May 2026" in l for l in labels)
+          and any("May 2026→June 2026" in l for l in labels),
+          f"{m['status']} labels={labels[:4]}")
+    check("no change figure carries the wider span's label (the mislabelling bug)",
+          not any(l.startswith("Change April 2026→June 2026") for l in labels),
+          str([l for l in labels if "April 2026→June" in l]))
+    check("span endpoints stated from stored revenues (April + June figures present)",
+          any(l == "April 2026 revenue" for l in labels)
+          and any(l == "June 2026 revenue" for l in labels), str(labels))
+
+    r2 = svc.ask("Why did revenue drop from April to June?",
+                 screen={"advisor_sid": "SMPL001"})
+    m2 = r2["assistant_message"]
+    labels2 = [f["label"] for f in json.loads(m2.get("figures_json") or "[]")]
+    check("multi-month WHY decomposes with a largest driver per transition "
+          "(driver figures labelled with their own transition)",
+          m2["status"] == "OK"
+          and any("(April 2026→May 2026)" in l for l in labels2)
+          and any("(May 2026→June 2026)" in l for l in labels2),
+          f"{m2['status']} labels={labels2[:6]}")
+
+
 # ---------------------------------------------------------------- catalog rule
 
 def check_catalog() -> None:
@@ -440,6 +490,7 @@ def main() -> int:
         check_ui_surface(svc)
         check_adversarial(AssistantService)
         check_scoping(AssistantService())
+        check_span(AssistantService())
     finally:
         if not keep:
             for p, content in snapshot.items():

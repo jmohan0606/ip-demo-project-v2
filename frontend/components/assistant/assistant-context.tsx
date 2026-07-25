@@ -55,12 +55,13 @@ export function useAssistant(): AssistantState {
   return ctx;
 }
 
-export function AssistantProvider({ children, advisorId, fromMonth, toMonth }: {
+export function AssistantProvider({ children, advisorId, monthIds }: {
   children: ReactNode;
   // screen state passed down from the shell (avoids a shell<->assistant import cycle)
   advisorId: string | null;
-  fromMonth: string;
-  toMonth: string;
+  // R9 C2 — the full loaded month list, so the screen context seeds the latest
+  // ADJACENT transition (never the loaded-range bounds, which can span months)
+  monthIds: string[];
 }) {
   const [open, setOpenState] = useState(false);
   const [conversationId, setConversationId] = useState("");
@@ -74,15 +75,17 @@ export function AssistantProvider({ children, advisorId, fromMonth, toMonth }: {
   const [servedByTier, setServedByTier] = useState<number | null>(null);
 
   // The screen context that seeds resolution: the advisor bar's selection and
-  // the latest loaded transition (A4 — "why did this drop?" resolves).
+  // the latest loaded ADJACENT transition (A4 — "why did this drop?" resolves;
+  // R9 C2 — never the full loaded span).
+  const monthKey = monthIds.filter(Boolean).sort().join(",");
   const screen = useMemo<ScreenContext>(() => {
-    const months = [fromMonth, toMonth].filter(Boolean).sort();
+    const months = monthKey ? monthKey.split(",") : [];
     return {
       advisor_sid: advisorId ?? undefined,
       from_month: months.length > 1 ? months[months.length - 2] : undefined,
       to_month: months[months.length - 1],
     };
-  }, [advisorId, fromMonth, toMonth]);
+  }, [advisorId, monthKey]);
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next);

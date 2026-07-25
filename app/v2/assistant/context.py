@@ -64,6 +64,21 @@ def resolve(*, entities: dict, screen: dict | None, previous: dict | None,
                 setattr(ctx, f, str(v))
                 ctx.sources[f] = source
 
+    # R9 C2 — a SCREEN-sourced span must be a valid ADJACENT transition. The
+    # screen bar shows the loaded range (e.g. Apr–Jul), which is a display
+    # bound, not a transition; seeding it verbatim made answers about one
+    # transition carry a wider label. Snap a screen-sourced from_month to the
+    # month immediately before to_month. Question-sourced spans are left
+    # alone — multi-month questions decompose in the answer engine instead.
+    if (ctx.sources.get("from_month") == "screen"
+            and ctx.sources.get("to_month") in ("screen", "default")
+            and ctx.from_month and ctx.to_month
+            and ctx.from_month != _prior_month(ctx.to_month, month_ids)):
+        prior = _prior_month(ctx.to_month, month_ids)
+        if prior:
+            ctx.from_month = prior
+            ctx.sources["from_month"] = "screen"
+
     # A month named alone ("what about May?") re-anchors the transition:
     # to_month = that month, from_month = the prior loaded month.
     if entities.get("to_month") and not entities.get("from_month"):
