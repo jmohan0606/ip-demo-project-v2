@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T05:30:00Z
-Current phase: ROUND 9 (FIX_SPEC_R9.md) — COMPLETE (operator acceptance pending: live ALTER conversation vertex + GQ-020 reinstall + driver_cause reseed, real-data rebuild under fix A, cdao commentary regeneration, judge on working model)
-Resume from: — (all N tasks DONE)
+Last updated: 2026-07-25T07:00:00Z
+Current phase: ROUND 10 (FIX_SPEC_R10.md) — taxonomy, eligibility, new drivers
+Resume from: T-A1
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -15,6 +15,7 @@ Resume from: — (all N tasks DONE)
 | 7 | 2026-07-23 | 2026-07-23 | round 7 fresh start | FIX_SPEC_R7.md: Z-A1..A13, Z-B1..B3, Z-C1..C3 all DONE; verify_assistant 84/84, UI walk 7/7 zero console errors, e2e OVERALL PASS; live install + cdao = operator |
 | 8 | 2026-07-24 | 2026-07-24 | round 8 fresh start | FIX_SPEC_R8.md: V-A1..A5, V-B1..B4, V-C1..C3, V-D1 all DONE; all suites PASS (attribution, queries, anomalies, e2e 17-cause, assistant 84/84); recon $0.00; 15/15 shots 0 console errors; commentary v19 6/6 PUBLISHED; live reinstall + real-data checks = operator |
 | 9 | 2026-07-25 | 2026-07-25 | round 9 fresh start | FIX_SPEC_R9.md: N-A..N-G all DONE; verify_attribution (R9A/R9B) PASS, verify_assistant 101/101, verify_commentary_retry 10/10, verify_judge 9/9, e2e PASS recon $0.00, 15/15 shots zero console errors; commentary v20 = 5 PUBLISHED + 1 PUBLISHED_FALLBACK; live reinstall/reseed/rebuild = operator |
+| 10 | 2026-07-25 | | round 10 fresh start | FIX_SPEC_R10.md: A taxonomy → B eligibility → C new drivers → D chargeback → E LLM health → F glossary/verify |
 
 ## Tasks
 | ID | Phase | Task | Status | Commit | Notes |
@@ -205,6 +206,19 @@ Resume from: — (all N tasks DONE)
 | N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | DONE | 430ce7a | build_llm_client factory; JUDGE_MODEL within active mode (empty=mode default); -1.0 UNAVAILABLE sentinel; modal renders "—(unavailable)"; verify_judge 9/9 |
 | N-F | R9 | glossary ordered by display_order | DONE | 809e0d5 | robust client sort (missing order last + name tiebreak); e2e asserts sorted 17 causes, DEAL_SIZE=2; fixtures regenerated; client reseed = operator |
 | N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 2f1a13e..HEAD; conflict flags on attribution/builder/workflow/settings/manifest/v2.ts/evidence-modal/v2-shell; data/real + prompts + gitignored dirs excluded; + ROUND9_ACCEPTANCE + BUILD_REPORT §15 |
+| T-A1 | R10 | re-seed taxonomy to the verbatim hierarchy (A1) | TODO | | |
+| T-A2 | R10 | classify by hierarchy path, not name; dual-name cases correct | TODO | | |
+| T-A3 | R10 | propagate taxonomy through DDL→catalog→loading→manifest→both builders→both tiers | TODO | | |
+| T-B1 | R10 | eligibility: NULL/empty/__NONE__ credited; 91/92/9L flip to non-credited; excluded set unchanged | TODO | | |
+| T-B2 | R10 | evidence: annotate the `less excluded` line with its reason-code breakdown | TODO | | |
+| T-C0 | R10 | confirm per-month reason-code availability; report gap if missing | TODO | | |
+| T-C1 | R10 | INHERITANCE driver (9G flip) + 6-month cooling-period code note | TODO | | |
+| T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | TODO | | |
+| T-C3 | R10 | attribution order + reconciliation with new drivers | TODO | | |
+| T-D1 | R10 | CLAWBACK scoped to Annuities/Insurance/Life (real hierarchy names confirmed) | TODO | | |
+| T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | TODO | | |
+| T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | TODO | | |
+| T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
