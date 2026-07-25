@@ -82,6 +82,10 @@ class RoleLLMConfig:
     deployment: str | None
     api_version: str | None
     configured_fields: tuple[str, ...] = field(default=())
+    # R13 B — the role's *_TEMPERATURE (default 1: GPT-5 rejects < 1). Always
+    # present, so it never counts toward `configured_fields` — setting a
+    # temperature alone must not flip a role onto the R12 RoleLLM path.
+    temperature: float = 1.0
 
     @property
     def configured(self) -> bool:
@@ -138,6 +142,7 @@ def resolve_role_config(role: str, settings=None) -> RoleLLMConfig:
         role=role, mode=mode, model=model, deployment=deployment,
         api_version=raw["api_version"] or None,
         configured_fields=configured_fields,
+        temperature=float(getattr(settings, f"{role}_temperature", 1.0)),
     )
 
 
@@ -185,6 +190,7 @@ def build_configured_role_client(cfg: RoleLLMConfig):
         model_override=cfg.model,
         deployment_override=cfg.deployment,
         api_version_override=cfg.api_version,
+        temperature_override=cfg.temperature,
     )
 
 

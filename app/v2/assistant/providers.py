@@ -88,6 +88,13 @@ class AssistantLLM:
             from app.llm.roles import build_configured_role_client
 
             return build_configured_role_client(self._cfg)
+        if mode == self.chain[0] and mode in ("real", "cdao_openai"):
+            # R13 B — ASSISTANT_TEMPERATURE (default 1) applies to the primary
+            # link even without R12 config: a chat-completions call detail,
+            # not a chain change (later fallback links keep CDAO_TEMPERATURE).
+            from app.llm.client import build_llm_client
+
+            return build_llm_client(mode, temperature_override=self._cfg.temperature)
         return _build(mode)
 
     def generate(self, prompt: str, context: dict | None = None) -> dict:

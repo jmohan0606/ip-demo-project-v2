@@ -176,6 +176,15 @@ class Settings(BaseSettings):
     assistant_model: str = Field(default="", alias="ASSISTANT_MODEL")
     assistant_deployment: str = Field(default="", alias="ASSISTANT_DEPLOYMENT")
     assistant_api_version: str = Field(default="", alias="ASSISTANT_API_VERSION")
+    # R13 B — per-role temperature for the chat-completions adapters
+    # (real / cdao_openai). Default 1: the GPT-5 series rejects temperature < 1,
+    # so the roles work on GPT-5 out of the box; override per role for GPT-4
+    # testing. Setting a temperature alone does NOT make a role "R12 configured"
+    # (the value is always present) — it applies whenever the role's client is
+    # built from its resolved config (app/llm/roles).
+    writer_temperature: float = Field(default=1.0, alias="WRITER_TEMPERATURE")
+    judge_temperature: float = Field(default=1.0, alias="JUDGE_TEMPERATURE")
+    assistant_temperature: float = Field(default=1.0, alias="ASSISTANT_TEMPERATURE")
 
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],
@@ -188,6 +197,10 @@ class Settings(BaseSettings):
     cdao_api_version: str = Field(default="2024-02-01", alias="CDAO_API_VERSION")
     cdao_workspace_id: str | None = Field(default=None, alias="CDAO_WORKSPACE_ID")
     cdao_model: str = Field(default="gpt-4o-2024-08-06", alias="CDAO_MODEL")
+    # R13 B — temperature for the MAIN chat-completions LLM (modes real /
+    # cdao_openai; also the default when a role sets no temperature of its
+    # own). Default 1: the GPT-5 series rejects temperature < 1.
+    cdao_temperature: float = Field(default=1.0, alias="CDAO_TEMPERATURE")
     # Embedding deployment via the SAME cdao client (EMBEDDING_CLIENT_MODE=cdao_openai — PRIMARY).
     # text-embedding-3-large-1 returns 3072-dim vectors (confirmed by the developer's real run),
     # so EMBEDDING_DIM must be set to 3072 when this model is active (vs local=384). See §1b.

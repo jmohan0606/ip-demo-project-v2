@@ -100,7 +100,10 @@ def get_judge_llm():
     try:
         from app.llm.client import build_llm_client
 
-        return build_llm_client(mode, model_override=model or None)
+        # R13 B — JUDGE_TEMPERATURE (default 1) applies on the exact R9 E
+        # path too: a cdao/real call detail, not a construction-path change.
+        return build_llm_client(mode, model_override=model or None,
+                                temperature_override=cfg.temperature)
     except Exception as exc:  # noqa: BLE001 — judge is advisory; never blocks the run
         _log.warning("judge LLM unavailable (%s); using UNAVAILABLE fallback", exc)
         return None

@@ -180,7 +180,8 @@ class RealLLMClient:
 
     def __init__(self, model_override: str | None = None,
                  deployment_override: str | None = None,
-                 api_version_override: str | None = None) -> None:
+                 api_version_override: str | None = None,
+                 temperature_override: float | None = None) -> None:
         settings = get_settings()
         if not settings.azure_openai_endpoint or not settings.azure_openai_api_key:
             raise LLMClientError(
@@ -200,6 +201,11 @@ class RealLLMClient:
         # R12 — Azure routes by DEPLOYMENT NAME; when a role sets both a
         # deployment and a model id, the deployment routes the request.
         self.deployment = deployment_override or model_override or settings.azure_openai_deployment
+        # R13 B — GPT-5-series deployments reject temperature < 1; the config
+        # default (CDAO_TEMPERATURE, or a role's *_TEMPERATURE) is 1 so they
+        # work out of the box, overridable for GPT-4 testing.
+        self.temperature = (settings.cdao_temperature if temperature_override is None
+                            else float(temperature_override))
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:
@@ -209,6 +215,7 @@ class RealLLMClient:
         response = self._client.chat.completions.create(
             model=self.deployment,
             max_tokens=1024,
+            temperature=self.temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
@@ -365,14 +372,21 @@ class CdaoOpenAILLMClient:
 
     def __init__(self, model_override: str | None = None,
                  deployment_override: str | None = None,
-                 api_version_override: str | None = None) -> None:
+                 api_version_override: str | None = None,
+                 temperature_override: float | None = None) -> None:
         settings = get_settings()
         # Construct once (shared cdao client builder); reused for every generate() call.
         # R12 B — a role can carry its own api_version; empty keeps CDAO_API_VERSION.
+        # R13 A — when BOTH resolve empty, the builder OMITS the api_version
+        # argument entirely (workspace_id only): the operator's config-driven
+        # signal for a GPT-5-series deployment. Never model-name detection.
         self._client = build_cdao_openai_client(
             api_version=api_version_override or settings.cdao_api_version,
             workspace_id=settings.cdao_workspace_id,
         )
+        # R13 B — GPT-5 rejects temperature < 1; config default is 1.
+        self.temperature = (settings.cdao_temperature if temperature_override is None
+                            else float(temperature_override))
         # R9 E — model_override lets a second role (the judge) run on a
         # different model via the SAME adapter (JUDGE_MODEL config).
         # R12 — cdao/Azure route by DEPLOYMENT NAME; the OpenAI SDK's `model=`
@@ -388,6 +402,7 @@ class CdaoOpenAILLMClient:
         response = self._client.chat.completions.create(
             model=self.model,
             max_tokens=1024,
+            temperature=self.temperature,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
@@ -406,7 +421,8 @@ class CdaoOpenAILLMClient:
 
 def build_llm_client(mode: str, model_override: str | None = None,
                      deployment_override: str | None = None,
-                     api_version_override: str | None = None) -> LLMClient:
+                     api_version_override: str | None = None,
+                     temperature_override: float | None = None) -> LLMClient:
     """Construct a client for `mode` through the SAME adapters get_llm_client
     uses (R9 E) — no separate hardcoded transports anywhere. `model_override`
     lets a second role (the LLM-as-judge) run on a different model/deployment
@@ -417,7 +433,13 @@ def build_llm_client(mode: str, model_override: str | None = None,
     route by deployment name and may need a per-model api_version. Adapters
     that have no such concept ignore them with a log line: claude/mock have no
     deployment or api_version; `azure` (SmartSDK) fixes its model at
-    construction from its own settings."""
+    construction from its own settings.
+
+    R13 B — `temperature_override` threads a role's *_TEMPERATURE into the
+    chat-completions adapters (real / cdao_openai); None keeps the main
+    CDAO_TEMPERATURE default (1). It always carries a value once resolved, so
+    the non-chat adapters (mock/claude/azure) simply don't take it — no
+    ignored-override log line (it would fire on every call)."""
     import logging
 
     mode = mode.lower()
@@ -433,11 +455,13 @@ def build_llm_client(mode: str, model_override: str | None = None,
     if mode == "real":
         return RealLLMClient(model_override=model_override,
                              deployment_override=deployment_override,
-                             api_version_override=api_version_override)
+                             api_version_override=api_version_override,
+                             temperature_override=temperature_override)
     if mode == "cdao_openai":
         return CdaoOpenAILLMClient(model_override=model_override,
                                    deployment_override=deployment_override,
-                                   api_version_override=api_version_override)
+                                   api_version_override=api_version_override,
+                                   temperature_override=temperature_override)
     if mode == "azure":
         if model_override or _ignored:
             logging.getLogger("app.llm.client").info(
