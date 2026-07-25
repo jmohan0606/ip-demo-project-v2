@@ -169,7 +169,9 @@ class RealLLMClient:
     """Azure OpenAI-backed client — what runs at the client site. Uses the exact
     same assembled prompts as ClaudeLLMClient so cutover is env-only."""
 
-    def __init__(self, model_override: str | None = None) -> None:
+    def __init__(self, model_override: str | None = None,
+                 deployment_override: str | None = None,
+                 api_version_override: str | None = None) -> None:
         settings = get_settings()
         if not settings.azure_openai_endpoint or not settings.azure_openai_api_key:
             raise LLMClientError(
@@ -177,14 +179,18 @@ class RealLLMClient:
             )
         from openai import AzureOpenAI  # imported here so nothing outside this class depends on the SDK
 
+        # R12 B — a role can carry its own api_version (some models need a newer
+        # one than the default deployment's); empty keeps the .env default.
         self._client = AzureOpenAI(
             azure_endpoint=settings.azure_openai_endpoint,
             api_key=settings.azure_openai_api_key,
-            api_version=settings.azure_openai_api_version,
+            api_version=api_version_override or settings.azure_openai_api_version,
         )
         # R9 E — model_override lets a second role (the judge) run on a
         # different deployment via the SAME adapter (JUDGE_MODEL config).
-        self.deployment = model_override or settings.azure_openai_deployment
+        # R12 — Azure routes by DEPLOYMENT NAME; when a role sets both a
+        # deployment and a model id, the deployment routes the request.
+        self.deployment = deployment_override or model_override or settings.azure_openai_deployment
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:
@@ -348,16 +354,22 @@ class CdaoOpenAILLMClient:
     cdao authenticates from that ambient AWS session, not from code/.env credentials.
     """
 
-    def __init__(self, model_override: str | None = None) -> None:
+    def __init__(self, model_override: str | None = None,
+                 deployment_override: str | None = None,
+                 api_version_override: str | None = None) -> None:
         settings = get_settings()
         # Construct once (shared cdao client builder); reused for every generate() call.
+        # R12 B — a role can carry its own api_version; empty keeps CDAO_API_VERSION.
         self._client = build_cdao_openai_client(
-            api_version=settings.cdao_api_version,
+            api_version=api_version_override or settings.cdao_api_version,
             workspace_id=settings.cdao_workspace_id,
         )
         # R9 E — model_override lets a second role (the judge) run on a
         # different model via the SAME adapter (JUDGE_MODEL config).
-        self.model = model_override or settings.cdao_model
+        # R12 — cdao/Azure route by DEPLOYMENT NAME; the OpenAI SDK's `model=`
+        # parameter is that routing name, so a role's deployment (when set)
+        # takes precedence over its model id for the request.
+        self.model = deployment_override or model_override or settings.cdao_model
 
     @logged_adapter_call("llm")
     def generate(self, prompt: str, context: dict | None = None) -> str:
@@ -383,23 +395,45 @@ class CdaoOpenAILLMClient:
         return {"mode": "cdao_openai", "model": f"cdao:{self.model}"}
 
 
-def build_llm_client(mode: str, model_override: str | None = None) -> LLMClient:
+def build_llm_client(mode: str, model_override: str | None = None,
+                     deployment_override: str | None = None,
+                     api_version_override: str | None = None) -> LLMClient:
     """Construct a client for `mode` through the SAME adapters get_llm_client
     uses (R9 E) — no separate hardcoded transports anywhere. `model_override`
     lets a second role (the LLM-as-judge) run on a different model/deployment
-    in the SAME mode; None keeps the mode's configured default. `azure`
-    (SmartSDK) has no per-call model override — the override is ignored there
-    (the SDK model is fixed at construction from its own settings)."""
+    in the SAME mode; None keeps the mode's configured default.
+
+    R12 B — `deployment_override` and `api_version_override` thread a role's
+    resolved config (app/llm/roles) into the Azure-shaped adapters, which
+    route by deployment name and may need a per-model api_version. Adapters
+    that have no such concept ignore them with a log line: claude/mock have no
+    deployment or api_version; `azure` (SmartSDK) fixes its model at
+    construction from its own settings."""
+    import logging
+
     mode = mode.lower()
+    _ignored = [n for n, v in (("deployment_override", deployment_override),
+                               ("api_version_override", api_version_override)) if v]
     if mode == "mock":
         return MockLLMClient()
     if mode == "claude":
+        if _ignored:
+            logging.getLogger("app.llm.client").info(
+                "claude adapter has no %s — ignored", ", ".join(_ignored))
         return ClaudeLLMClient(model_override=model_override)
     if mode == "real":
-        return RealLLMClient(model_override=model_override)
+        return RealLLMClient(model_override=model_override,
+                             deployment_override=deployment_override,
+                             api_version_override=api_version_override)
     if mode == "cdao_openai":
-        return CdaoOpenAILLMClient(model_override=model_override)
+        return CdaoOpenAILLMClient(model_override=model_override,
+                                   deployment_override=deployment_override,
+                                   api_version_override=api_version_override)
     if mode == "azure":
+        if model_override or _ignored:
+            logging.getLogger("app.llm.client").info(
+                "azure (SmartSDK) adapter fixes its model at construction — "
+                "per-role overrides ignored")
         return AzureOpenAILLMClient()
     raise LLMClientError(
         f"Unknown LLM_CLIENT_MODE '{mode}' (expected mock|claude|real|cdao_openai|azure)"
