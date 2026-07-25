@@ -252,6 +252,68 @@ export function EnvHealthWorkspace() {
             </HealthCard>
           )}
 
+          {/* R10 E — LLM connectivity per role: provider, resolved model and the
+              cheapest reachability check (models lookup, never a generation).
+              A bad JUDGE_MODEL (e.g. a 404ing deployment) shows red HERE before
+              a commentary run. The mock-mode judge row is unavailable by design
+              and does not redden the card. */}
+          {report?.llm_connectivity && report.llm_connectivity.length > 0 && (
+            <HealthCard
+              title="LLM connectivity"
+              status={
+                report.llm_connectivity.some(
+                  (r) => r.status === "unavailable" && !(r.role === "judge" && r.provider === "mock"),
+                )
+                  ? "red"
+                  : "green"
+              }
+              error={null}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[11.5px]">
+                  <thead>
+                    <tr className="bg-v2-header-bg text-left">
+                      {["Role", "Provider / mode", "Resolved model", "Status", "Check"].map((h) => (
+                        <th key={h} className="px-3 py-[6px] text-[10px] font-semibold uppercase tracking-[0.5px]">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.llm_connectivity.map((r) => (
+                      <tr key={r.role} className="border-b border-v2-border-subtle align-top">
+                        <td className="px-3 py-[6px] font-semibold">{r.role}</td>
+                        <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.provider || "—"}</td>
+                        <td className="px-3 py-[6px] font-mono text-[10.5px]">{r.model || "—"}</td>
+                        <td className="px-3 py-[6px]">
+                          <span
+                            className={
+                              r.status === "unavailable"
+                                ? "font-semibold text-v2-negative"
+                                : r.status === "model-found"
+                                  ? "font-semibold text-v2-positive"
+                                  : "text-v2-text"
+                            }
+                          >
+                            {r.status === "unavailable" ? "UNAVAILABLE" : r.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-[6px] text-[10.5px] text-v2-muted">
+                          {r.error ?? r.check ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-[10.5px] italic text-v2-faint">
+                Read-only checks via each adapter&rsquo;s models endpoint — nothing is generated,
+                nothing is mutated, and no keys or tokens are ever shown.
+              </p>
+            </HealthCard>
+          )}
+
           {/* Local store */}
           <HealthCard title="Local store" status={counts ? "green" : "red"} error={counts ? null : "V2 ops counts unavailable — /api/v2/ops/counts did not respond."}>
             {counts && (

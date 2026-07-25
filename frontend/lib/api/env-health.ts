@@ -28,11 +28,25 @@ export interface EnvHealthCheck {
   [key: string]: unknown;
 }
 
+/** R10 E — one row per LLM role (commentary writer / judge / assistant):
+ * provider, resolved model, and the cheapest-possible reachability result
+ * (a models lookup — never a generation). No secrets are ever included. */
+export interface LlmConnectivityRow {
+  role: string;
+  provider: string;
+  model: string;
+  source?: string;
+  status: "model-found" | "reachable" | "unavailable";
+  check?: string;
+  error: string | null;
+}
+
 export interface EnvHealthReport {
   overall: "green" | "red";
   generated_at: string;
   modes: Record<string, string>;
   checks: EnvHealthCheck[];
+  llm_connectivity?: LlmConnectivityRow[];
 }
 
 export function fetchEnvHealth(): Promise<EnvHealthReport> {

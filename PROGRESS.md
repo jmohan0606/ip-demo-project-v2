@@ -215,7 +215,7 @@ Resume from: T-A1
 | T-C1 | R10 | INHERITANCE driver (9G flip) + 6-month cooling-period code note | DONE | 8218f0e | -(Δ nc 9G); flip lists in inputs; cooling note in attribution.py; DERIVED |
 | T-C2 | R10 | HOUSEHOLD driver (9E flip), not double-counted with ELIGIBILITY | DONE | 8218f0e | -(Δ nc 9E); ELIGIBILITY excludes 9G/9E — three sum exactly to -(Δ total nc) |
 | T-C3 | R10 | attribution order + reconciliation with new drivers | DONE | 8218f0e | before ELIGIBILITY remainder; verify_new_drivers PASS; recon $0.00; MIX clean |
-| T-D1 | R10 | CLAWBACK scoped to Annuities/Insurance/Life (real hierarchy names confirmed) | TODO | | |
+| T-D1 | R10 | CLAWBACK scoped to Annuities/Insurance/Life (real hierarchy names confirmed) | DONE | de0f7ea | scope by hierarchy position (taxonomy.clawback_group_ids); verify_clawback_scope 12/12; DATA GAP: 'Life' product code = assumed 'LIFE' — real hierarchy operator-local (see Decisions) |
 | T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | TODO | | |
 | T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | TODO | | |
 | T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
@@ -272,6 +272,8 @@ Resume from: T-A1
 | 2026-07-25 | R10: unknown product lines (absent from every A1 path) default to NON_RECURRING with a loud stderr warning listing them | class by ABSENCE from the recurring paths is a position decision, not a name match; non-recurring is the conservative class (no account-presence gating); dual-name lines still STOP the build |
 | 2026-07-25 | R10: quarterly TIMING story moved from Alternative Investments (not in A1) to MAC under Trails; legacy group ids kept in QUARTERLY_BILLED_GROUPS for pre-R10 fixtures | A1 is authoritative and has no Alternatives line; TIMING group membership is config, not the settled VOLUME/DEAL_SIZE arithmetic |
 | 2026-07-25 | R10 DATA GAP: the REAL raw_product_hierarchy.csv is operator-local — dual-name distinguishability is proven on the extract SHAPE ((level_one, level_two) path) and fixtures; if the client extract carries a dual-name line with a group A1 does not list, build_real_data STOPS with the exact paths | never guess by name (A2); the operator sees the ambiguous paths verbatim |
+
+| 2026-07-25 | R10 DATA GAP (D): the "Life" product-code identifier could not be verified against the real product hierarchy (operator-local); coded as case-insensitive product_cd == "LIFE" in taxonomy.CLAWBACK_PRODUCT_CODES with a code comment | spec D requires confirming identifiers against raw_product_hierarchy.csv — unavailable in this environment; the Annuities/Insurance group scope IS confirmed against the A1 hierarchy positions |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |

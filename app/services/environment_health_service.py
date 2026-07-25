@@ -44,9 +44,23 @@ class EnvironmentHealthService:
                 "guardrail_client_mode": getattr(settings, "guardrail_client_mode", "local"),
             },
             "checks": checks,
+            # R10 E — one row per LLM role (writer / judge / assistant):
+            # provider, resolved model, cheapest-possible reachability (a
+            # models lookup, never a generation). Read-only; no secrets.
+            "llm_connectivity": self._llm_connectivity(),
             # A7: where the app is ACTUALLY reading/writing — absolute, launch-dir independent
             "resolved_paths": settings.resolved_paths_report(),
         }
+
+    @staticmethod
+    def _llm_connectivity() -> list[dict]:
+        from app.services.llm_connectivity import llm_connectivity_report
+        try:
+            return llm_connectivity_report()
+        except Exception as exc:  # noqa: BLE001 — the section must never sink the report
+            return [{"role": "llm connectivity", "provider": "", "model": "",
+                     "status": "unavailable", "check": "report", "source": "",
+                     "error": f"{type(exc).__name__}: {exc}"}]
 
     # --- TigerGraph: reachable, auth/SSL, graph name, schema installed, per-type row counts ------
     @staticmethod
