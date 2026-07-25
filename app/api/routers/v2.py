@@ -80,11 +80,13 @@ def insights_commentary(advisor_id: str, version_id: str = ""):
 
 
 @router.get("/insights/versions")
-def insights_versions():
+def insights_versions(advisor_id: str = ""):
+    """R11 B1 — versions are per-advisor: advisor_id filters to the selected
+    advisor's versions (plus legacy global ones); "" = full history."""
     from app.graph.client import get_graph_client
     from app.graph.queries.common import v2_served_by_tier
 
-    result = get_graph_client().run_query("get_commentary_versions", {})
+    result = get_graph_client().run_query("get_commentary_versions", {"advisor_id": advisor_id})
     rows = []
     for obj in result.get("results", []):
         rows = [r.get("attributes", {}) for r in obj.get("versions", [])]
@@ -99,12 +101,16 @@ def insights_evaluations(version_id: str = ""):
 
 
 @router.post("/insights/generate")
-def insights_generate(notes: str = ""):
-    """Trigger the batch generation workflow — a NEW version every run; prior
-    versions are never deleted. The ONLY path that reaches the LLM."""
-    from app.v2.commentary.generation_workflow import run_generation
+def insights_generate(notes: str = "", advisor_id: str = ""):
+    """Start the batch generation workflow ASYNC (R11 C1) — returns a job id
+    immediately; poll GET /insights/generate/status. advisor_id scopes the run
+    to one advisor (R11 B); "" regenerates every advisor, each getting its OWN
+    per-advisor version. Prior versions are never deleted. The ONLY path that
+    reaches the LLM. A POST while a job runs returns that job's id and never
+    starts a second run."""
+    from app.v2.commentary.generation_workflow import start_generation
 
-    return ok(data=run_generation(notes))
+    return ok(data=start_generation(notes, advisor_id))
 
 
 @router.get("/insights/generate/status")
@@ -171,17 +177,22 @@ def anomalies(advisor_id: str = "", scan_id: str = "", severity: str = "",
 
 
 @router.get("/anomalies/scans")
-def anomaly_scans():
+def anomaly_scans(advisor_id: str = ""):
+    """R11 B2 — scans are per-advisor: advisor_id filters to the selected
+    advisor's scans (plus legacy global ones); "" = full history."""
     from app.v2.anomalies.service import V2AnomalyService
-    return ok(data=V2AnomalyService().scans())
+    return ok(data=V2AnomalyService().scans(advisor_id))
 
 
 @router.post("/anomalies/scan")
-def anomaly_scan(notes: str = ""):
-    """Trigger a batch scan — a NEW scan_id every run; prior scans remain
-    queryable (additive, like commentary versions)."""
-    from app.v2.anomalies.detection import run_scan
-    return ok(data=run_scan(notes))
+def anomaly_scan(notes: str = "", advisor_id: str = ""):
+    """Start a batch scan ASYNC (R11 C1) — returns a job id immediately; poll
+    GET /anomalies/scan/status. advisor_id scopes the scan to one advisor
+    (R11 B2); "" scans every advisor, each getting its OWN per-advisor scan.
+    Prior scans remain queryable (additive). A POST while a job runs returns
+    that job's id and never starts a second run."""
+    from app.v2.anomalies.detection import start_scan
+    return ok(data=start_scan(notes, advisor_id))
 
 
 @router.get("/anomalies/scan/status")

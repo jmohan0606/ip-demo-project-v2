@@ -5,6 +5,9 @@
  *          RETRIEVES; the screen never detects on page load.
  *          advisor_id = "" means all advisors; scan_id = "" means the latest
  *          scan (highest started_at); severity = "" means all severities.
+ *          R11 B2 — scans are per-advisor: with advisor_id set, scan_id = ""
+ *          resolves among that advisor's scans plus legacy global scans
+ *          (advisor_sid == "") only.
  *          Rows are ordered by anomaly_id ASC in BOTH tiers; the service layer
  *          applies the severity display ranking (HIGH>MEDIUM>LOW>INFO) so the
  *          two tiers stay byte-comparable.
@@ -21,9 +24,11 @@ CREATE QUERY get_anomalies(STRING advisor_id, STRING scan_id, STRING severity, I
     all_scans = {phx_dm_v2_anomaly_scan.*};
     IF scan_id == "" THEN
         s1 = SELECT s FROM all_scans:s
+             WHERE advisor_id == "" OR s.advisor_sid == "" OR s.advisor_sid == advisor_id
              ACCUM @@latest_started += to_string(s.started_at);
         s2 = SELECT s FROM all_scans:s
              WHERE to_string(s.started_at) == @@latest_started
+               AND (advisor_id == "" OR s.advisor_sid == "" OR s.advisor_sid == advisor_id)
              ACCUM @@scan_id_used += s.scan_id;
     ELSE
         @@scan_id_used += scan_id;

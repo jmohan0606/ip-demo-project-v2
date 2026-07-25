@@ -356,6 +356,7 @@
       "columns": {
         "version_id": "version_id",
         "version_no": "version_no",
+        "advisor_sid": "advisor_sid",
         "generated_at": "generated_at",
         "model": "model",
         "prompt_version": "prompt_version",
@@ -464,6 +465,7 @@
       "id_column": "scan_id",
       "columns": {
         "scan_id": "scan_id",
+        "advisor_sid": "advisor_sid",
         "started_at": "started_at",
         "advisors_reviewed": "advisors_reviewed",
         "transitions_reviewed": "transitions_reviewed",

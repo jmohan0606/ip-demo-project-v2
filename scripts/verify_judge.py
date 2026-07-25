@@ -121,7 +121,8 @@ def main() -> int:
     import inspect
 
     from app.v2.commentary import generation_workflow as wf
-    src = inspect.getsource(wf._run)
+    # R11 B moved the per-transition gate into _run_for_advisor.
+    src = inspect.getsource(wf._run) + inspect.getsource(wf._run_for_advisor)
     gate_lines = [ln for ln in src.splitlines() if "status =" in ln and "BLOCKED" in ln]
     check("workflow status is derived from guardrail validation only "
           "(no judge/evaluation term in the gate)",

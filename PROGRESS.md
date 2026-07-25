@@ -220,8 +220,8 @@ Resume from: P-A1
 | T-E1 | R10 | Env Health LLM connectivity section (writer/judge/assistant), cheap ping, no secrets | DONE | bbe5dca | models.retrieve/list only; judge 404 -> "model not found in subscription" proven live; card red on any non-mock-judge UNAVAILABLE |
 | T-F1 | R10 | seed + glossary order for INHERITANCE/HOUSEHOLD | DONE | 8218f0e | display_name/description/computation seeded; display_order 4/5 before ELIGIBILITY; e2e asserts sorted 1..19; frontend literal-free (grep: only a V1 search icon label matches "Household") |
 | T-G1 | R10 | docs/ROUND10_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived c1b0f72..HEAD; + ROUND10_ACCEPTANCE.md + BUILD_REPORT §16; commentary v21 additive |
-| P-A1 | R11 | taxonomy: add Alternative Investments (non-recurring, assumption noted) | TODO | | |
-| P-A2 | R11 | only PRODUCT_TYPE rows reach resolve_path; guard + loud log otherwise | TODO | | |
+| P-A1 | R11 | taxonomy: add Alternative Investments (non-recurring, assumption noted) | DONE | 360b19a | ALTI leaf, NON_RECURRING assumed (comment); sample 13 lines/35 groups; verify_taxonomy [4b] |
+| P-A2 | R11 | only PRODUCT_TYPE rows reach resolve_path; guard + loud log otherwise | DONE | 360b19a | grid_type kwarg guard (NonProductGridRowError + stderr); build_real_data filters pre-classification, nongrid_* holding lines; verify_taxonomy [7] 42-path fixture |
 | P-B1 | R11 | commentary versions per-advisor (advisor_sid on version, propagated, supersede within advisor) | TODO | | |
 | P-B2 | R11 | anomaly scans per-advisor | TODO | | |
 | P-B3 | R11 | two buttons each (this advisor / all) on both screens, clearly labelled | TODO | | |

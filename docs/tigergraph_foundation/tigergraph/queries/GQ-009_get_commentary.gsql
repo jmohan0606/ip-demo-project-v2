@@ -1,7 +1,9 @@
 /*
  * GQ-009 — get_commentary
  * Purpose: Commentary rows for every transition of an advisor in one version.
- *          version_id = "" resolves to the latest PUBLISHED version.
+ *          version_id = "" resolves to the latest PUBLISHED version FOR THIS
+ *          ADVISOR (R11 B1 — versions are per-advisor: the advisor's own
+ *          versions plus legacy global versions with advisor_sid == "").
  *          Powers 03_ai_insights_walk cards and 06_ai_commentary_table.
  * Outputs: commentaries vertex set + resolved_version (the version actually used).
  * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
@@ -17,6 +19,7 @@ CREATE QUERY get_commentary(STRING advisor_id, STRING version_id) FOR GRAPH iper
     published = SELECT v
         FROM all_versions:v
         WHERE v.status == "PUBLISHED"
+          AND (v.advisor_sid == "" OR v.advisor_sid == advisor_id)
         ACCUM @@latest_no += v.version_no;
 
     IF version_id == "" THEN

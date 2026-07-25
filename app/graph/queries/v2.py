@@ -197,11 +197,16 @@ def get_commentary(store: FoundationGraphStore, params: dict) -> list[dict]:
     advisor_id = str(params.get("advisor_id") or "")
     version_id = str(params.get("version_id") or "")
     if version_id == "":
-        latest_no = 0
-        for a in store.all_vertices(COMMENTARY_VERSION).values():
-            if str(a.get("status")) == "PUBLISHED":
-                latest_no = max(latest_no, _int(a.get("version_no")))
-        target_version = f"v{latest_no}"
+        # R11 B1 — "" resolves to the latest PUBLISHED version FOR THIS
+        # ADVISOR: advisor-scoped versions (advisor_sid == advisor_id) and
+        # legacy global versions (advisor_sid == "") both qualify.
+        latest_no, target_version = 0, "v0"
+        for vid, a in store.all_vertices(COMMENTARY_VERSION).items():
+            if (str(a.get("status")) == "PUBLISHED"
+                    and str(a.get("advisor_sid") or "") in ("", advisor_id)
+                    and _int(a.get("version_no")) > latest_no):
+                latest_no = _int(a.get("version_no"))
+                target_version = str(vid)
     else:
         target_version = version_id
     rows = vrows(
@@ -228,7 +233,13 @@ def get_commentary_evaluations(store: FoundationGraphStore, params: dict) -> lis
 
 @mock_query("get_commentary_versions")
 def get_commentary_versions(store: FoundationGraphStore, params: dict) -> list[dict]:
-    rows = vrows(store, COMMENTARY_VERSION)
+    # R11 B1 — advisor_id != "" filters to that advisor's versions plus the
+    # legacy global ones (advisor_sid == ""); "" returns the full history.
+    advisor_id = str(params.get("advisor_id") or "")
+    rows = vrows(
+        store, COMMENTARY_VERSION,
+        lambda a: advisor_id == "" or str(a.get("advisor_sid") or "") in ("", advisor_id),
+    )
     rows.sort(key=lambda r: -_int(_attr(r, "version_no")))
     return [{"versions": rows}]
 
@@ -365,7 +376,11 @@ def get_anomalies(store: FoundationGraphStore, params: dict) -> list[dict]:
     severity = str(params.get("severity") or "")
     result_limit = _int(params.get("result_limit")) or 1000
     if scan_id == "":
-        scans = store.all_vertices(ANOMALY_SCAN)
+        # R11 B2 — "" resolves to the latest scan FOR THIS ADVISOR: advisor-
+        # scoped scans and legacy global scans (advisor_sid == "") qualify;
+        # advisor_id == "" considers every scan.
+        scans = {sid: a for sid, a in store.all_vertices(ANOMALY_SCAN).items()
+                 if advisor_id == "" or str(a.get("advisor_sid") or "") in ("", advisor_id)}
         latest = max(
             scans.items(),
             key=lambda kv: (str(kv[1].get("started_at") or ""), str(kv[0])),
@@ -384,8 +399,14 @@ def get_anomalies(store: FoundationGraphStore, params: dict) -> list[dict]:
 
 @mock_query("get_anomaly_scans")
 def get_anomaly_scans(store: FoundationGraphStore, params: dict) -> list[dict]:
-    """Mirrors GQ-019: full scan history, newest first (scans are additive)."""
-    rows = vrows(store, ANOMALY_SCAN)
+    """Mirrors GQ-019: scan history, newest first (scans are additive).
+    R11 B2 — advisor_id != "" filters to that advisor's scans plus the legacy
+    global ones (advisor_sid == "")."""
+    advisor_id = str(params.get("advisor_id") or "")
+    rows = vrows(
+        store, ANOMALY_SCAN,
+        lambda a: advisor_id == "" or str(a.get("advisor_sid") or "") in ("", advisor_id),
+    )
     rows.sort(key=lambda r: (str(_attr(r, "started_at") or ""), r["v_id"]), reverse=True)
     return [{"scans": rows}]
 

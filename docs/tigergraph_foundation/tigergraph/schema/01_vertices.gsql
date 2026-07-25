@@ -218,9 +218,13 @@ CREATE VERTEX phx_dm_v2_revenue_driver (
 ) WITH STATS="OUTDEGREE_BY_EDGETYPE", PRIMARY_ID_AS_ATTRIBUTE="true"
 
 // One per batch generation run. DERIVED.
+// R11 B1 — versions are PER-ADVISOR: advisor_sid scopes the version to one
+// advisor; "" marks a legacy pre-R11 global version (all advisors). Supersede
+// applies WITHIN an advisor. version_id / version_no remain globally unique.
 CREATE VERTEX phx_dm_v2_commentary_version (
     PRIMARY_ID version_id STRING,
     version_no INT,
+    advisor_sid STRING,
     generated_at DATETIME,
     model STRING,
     prompt_version STRING,
@@ -309,8 +313,11 @@ CREATE VERTEX phx_dm_v2_anomaly (
 
 // One per scan run. Scans are additive and versioned exactly like commentary —
 // a re-scan creates a new scan_id and never deletes a prior one. DERIVED.
+// R11 B2 — scans are PER-ADVISOR: advisor_sid scopes the scan to one advisor;
+// "" marks a legacy pre-R11 global scan (all advisors).
 CREATE VERTEX phx_dm_v2_anomaly_scan (
     PRIMARY_ID scan_id STRING,
+    advisor_sid STRING,
     started_at DATETIME,
     advisors_reviewed INT,
     transitions_reviewed INT,

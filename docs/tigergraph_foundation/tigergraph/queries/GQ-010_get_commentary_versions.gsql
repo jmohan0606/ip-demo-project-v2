@@ -1,17 +1,20 @@
 /*
  * GQ-010 — get_commentary_versions
- * Purpose: All commentary versions with status and counts, newest first — the
- *          version selector.
+ * Purpose: Commentary versions with status and counts, newest first — the
+ *          version selector. R11 B1 — versions are per-advisor: advisor_id
+ *          != "" filters to that advisor's versions plus legacy global
+ *          versions (advisor_sid == ""); advisor_id = "" returns all.
  * Outputs: versions vertex set (ordered by version_no DESC).
  * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
 
-CREATE QUERY get_commentary_versions() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+CREATE QUERY get_commentary_versions(STRING advisor_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
     all_versions = {phx_dm_v2_commentary_version.*};
     versions = SELECT v
         FROM all_versions:v
+        WHERE advisor_id == "" OR v.advisor_sid == "" OR v.advisor_sid == advisor_id
         ORDER BY v.version_no DESC;
     PRINT versions;
 }

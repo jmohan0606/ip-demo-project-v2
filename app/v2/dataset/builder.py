@@ -304,8 +304,9 @@ def build_dataset(
          "direction", "rank", "inputs_json", "data_source"])
     # Workflow-generated vertices: PRESERVED if present (versions are additive);
     # created header-only on a fresh data set. NEVER generated here.
+    # R11 B1 — advisor_sid scopes a version to one advisor ("" = legacy global).
     counts[csv_file_for("vertex", "commentary_version")] = preserve_or_create(out_dir / csv_file_for("vertex", "commentary_version"),
-        ["version_id", "version_no", "generated_at", "model", "prompt_version", "data_snapshot_dt",
+        ["version_id", "version_no", "advisor_sid", "generated_at", "model", "prompt_version", "data_snapshot_dt",
          "status", "advisor_count", "transition_count", "blocked_count", "notes", "data_source"])
     counts[csv_file_for("vertex", "commentary")] = preserve_or_create(out_dir / csv_file_for("vertex", "commentary"),
         ["commentary_id", "version_id", "advisor_sid", "from_month_id", "to_month_id", "headline",
@@ -318,8 +319,9 @@ def build_dataset(
         ["evidence_id", "driver_id", "finding_text", "calc_json", "source_records_json",
          "lineage_json", "checks_json", "gsql_query_name", "gsql_params_json", "gsql_result_json",
          "source_sql", "source_table", "source_row_count", "data_source"])
+    # R11 B2 — advisor_sid scopes a scan to one advisor ("" = legacy global).
     counts[csv_file_for("vertex", "anomaly_scan")] = preserve_or_create(out_dir / csv_file_for("vertex", "anomaly_scan"),
-        ["scan_id", "started_at", "advisors_reviewed", "transitions_reviewed",
+        ["scan_id", "advisor_sid", "started_at", "advisors_reviewed", "transitions_reviewed",
          "flagged_count", "thresholds_json", "status", "data_source"])
     counts[csv_file_for("vertex", "anomaly")] = preserve_or_create(out_dir / csv_file_for("vertex", "anomaly"),
         ["anomaly_id", "advisor_sid", "from_month_id", "to_month_id", "rule_id", "severity",

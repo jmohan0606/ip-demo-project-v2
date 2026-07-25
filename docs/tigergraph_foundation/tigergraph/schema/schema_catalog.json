@@ -257,6 +257,7 @@
       "attributes": {
         "version_id": "STRING",
         "version_no": "INT",
+        "advisor_sid": "STRING",
         "generated_at": "DATETIME",
         "model": "STRING",
         "prompt_version": "STRING",
@@ -360,6 +361,7 @@
       },
       "attributes": {
         "scan_id": "STRING",
+        "advisor_sid": "STRING",
         "started_at": "DATETIME",
         "advisors_reviewed": "INT",
         "transitions_reviewed": "INT",

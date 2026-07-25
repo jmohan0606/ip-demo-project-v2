@@ -197,20 +197,26 @@
    "consumers": [
     "GET /api/v2/insights/commentary"
    ],
-   "status": "created-v2-NEEDS-LIVE-INSTALL"
+   "status": "updated-r11-NEEDS-LIVE-REINSTALL"
   },
   {
    "id": "GQ-010",
    "name": "get_commentary_versions",
    "file": "GQ-010_get_commentary_versions.gsql",
-   "parameters": [],
-   "purpose": "All commentary versions with status and counts, newest first.",
-   "outputs": "versions: vset rows {version_id, version_no, generated_at, model, prompt_version, data_snapshot_dt, status, advisor_count, transition_count, blocked_count, notes, data_source}",
+   "parameters": [
+    {
+     "name": "advisor_id",
+     "type": "STRING",
+     "description": "advisor_sid to filter to (that advisor's versions plus legacy global advisor_sid=\"\" versions); \"\" = all versions (R11 B1)"
+    }
+   ],
+   "purpose": "Commentary versions with status and counts, newest first. R11 B1 \u2014 per-advisor: advisor_id filters to that advisor's versions plus legacy global ones.",
+   "outputs": "versions: vset rows {version_id, version_no, advisor_sid, generated_at, model, prompt_version, data_snapshot_dt, status, advisor_count, transition_count, blocked_count, notes, data_source}",
    "consumers": [
     "version selector",
     "GET /api/v2/insights/versions"
    ],
-   "status": "created-v2-NEEDS-LIVE-INSTALL"
+   "status": "updated-r11-NEEDS-LIVE-REINSTALL"
   },
   {
    "id": "GQ-011",
@@ -401,20 +407,26 @@
     "GET /api/v2/anomalies",
     "/anomalies screen"
    ],
-   "status": "created-v2-NEEDS-LIVE-INSTALL"
+   "status": "updated-r11-NEEDS-LIVE-REINSTALL"
   },
   {
    "id": "GQ-019",
    "name": "get_anomaly_scans",
    "file": "GQ-019_get_anomaly_scans.gsql",
-   "parameters": [],
-   "purpose": "Anomaly scan history for the scan-version selector (R6 Y). Scans are additive; newest first.",
+   "parameters": [
+    {
+     "name": "advisor_id",
+     "type": "STRING",
+     "description": "advisor_sid to filter to (that advisor's scans plus legacy global advisor_sid=\"\" scans); \"\" = all scans (R11 B2)"
+    }
+   ],
+   "purpose": "Anomaly scan history for the scan-version selector (R6 Y). Scans are additive and per-advisor (R11 B2); newest first.",
    "outputs": "scans: vset rows",
    "consumers": [
     "GET /api/v2/anomalies/scans",
     "/anomalies screen scan selector"
    ],
-   "status": "created-v2-NEEDS-LIVE-INSTALL"
+   "status": "updated-r11-NEEDS-LIVE-REINSTALL"
   },
   {
    "id": "GQ-020",

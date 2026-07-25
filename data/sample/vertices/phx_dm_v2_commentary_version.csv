@@ -1,22 +1,22 @@
-version_id,version_no,generated_at,model,prompt_version,data_snapshot_dt,status,advisor_count,transition_count,blocked_count,notes,data_source
-v1,1,2026-07-20 12:11:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:11:44,SUPERSEDED,3,6,0,first sample run,DERIVED
-v2,2,2026-07-20 12:12:31,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:12:31,SUPERSEDED,3,6,2,regeneration test,DERIVED
-v3,3,2026-07-20 12:13:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:13:44,SUPERSEDED,3,6,2,v3 — tightened prompt + guardrail regex fix,DERIVED
-v4,4,2026-07-20 12:14:29,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:14:29,SUPERSEDED,3,6,2,v4 — rounding tolerance covers truncation,DERIVED
-v5,5,2026-07-20 12:15:14,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:15:14,SUPERSEDED,3,6,0,v5 — identifier digits excluded from figure extraction,DERIVED
-v6,6,2026-07-21 16:24:06,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:24:06,SUPERSEDED,3,6,0,"Round 2 R1: credited-revenue definition corrected (reason-code eligibility, 90-day rule, grid-type config); full regeneration",DERIVED
-v7,7,2026-07-21 16:40:04,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:40:04,SUPERSEDED,3,6,0,"Round 2: deepened evidence (why/attribution/waterfall/rev_nature/credited breakdown), component units, LLM-as-judge first run",DERIVED
-v8,8,2026-07-22 10:12:54,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:12:54,SUPERSEDED,3,6,1,Round 3 T1: LATE_PROCESSING + EXCLUDED_CHANGE drivers added; regenerated on corrected attribution,DERIVED
-v9,9,2026-07-22 10:15:30,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:15:30,SUPERSEDED,3,6,0,Round 3 T1: regenerated after guardrail reason-code fix; LATE_PROCESSING + EXCLUDED_CHANGE live,DERIVED
-v10,10,2026-07-22 10:26:31,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:26:31,SUPERSEDED,3,6,0,Round 3 T4: revenue-driver terminology in evidence wording,DERIVED
-v11,11,2026-07-23 10:45:42,mock,v1.0,2026-07-23 10:45:42,SUPERSEDED,3,6,0,R5 D1: baseline-month BASELINE_LIMITED attribution,DERIVED
-v12,12,2026-07-23 10:46:36,mock,v1.0,2026-07-23 10:46:36,SUPERSEDED,3,6,0,R5 D: sample lost-account story moved to May->Jun; v12,DERIVED
-v13,13,2026-07-23 10:47:07,mock,v1.0,2026-07-23 10:47:07,SUPERSEDED,3,6,0,R5 D: BASELINE_LIMITED + LOST_ACCOUNT both exercised; v13,DERIVED
-v14,14,2026-07-23 17:07:41,claude-haiku-4-5-20251001,v1.0,2026-07-23 17:07:41,SUPERSEDED,3,6,0,Round 6: regenerated after attribution correctness fix (recurring-gated account drivers + persistence rule),DERIVED
-v15,15,2026-07-24 11:08:17,claude-haiku-4-5-20251001,v1.0,2026-07-24 11:08:17,SUPERSEDED,3,6,0,R8: driver metadata from data; DEAL_SIZE; baseline labelling,DERIVED
-v16,16,2026-07-24 11:09:30,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:09:30,SUPERSEDED,3,6,0,R8 final: prompt v1.1 (baseline limitation + display-name vocabulary),DERIVED
-v17,17,2026-07-24 11:11:19,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:11:19,SUPERSEDED,3,6,0,R8 final: prompt v1.1 + strict parenthesis rule,DERIVED
-v18,18,2026-07-24 11:13:44,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:13:44,SUPERSEDED,3,6,1,R8 final: prompt v1.1; guardrail rejects positive-in-parentheses,DERIVED
-v19,19,2026-07-24 11:15:35,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:15:35,SUPERSEDED,3,6,0,R8 final rerun: clean pass under the positive-parenthesis guardrail,DERIVED
-v20,20,2026-07-25 04:50:01,claude-haiku-4-5-20251001,v1.2,2026-07-25 04:50:01,SUPERSEDED,3,6,0,,DERIVED
-v21,21,2026-07-25 13:23:08,claude-haiku-4-5-20251001,v1.2,2026-07-25 13:23:08,PUBLISHED,3,6,0,"R10: corrected A1 taxonomy, eligibility rule (91/92/9L non-credited), INHERITANCE/HOUSEHOLD carve-outs, CLAWBACK scope",DERIVED
+version_id,version_no,advisor_sid,generated_at,model,prompt_version,data_snapshot_dt,status,advisor_count,transition_count,blocked_count,notes,data_source
+v1,1,,2026-07-20 12:11:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:11:44,SUPERSEDED,3,6,0,first sample run,DERIVED
+v2,2,,2026-07-20 12:12:31,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:12:31,SUPERSEDED,3,6,2,regeneration test,DERIVED
+v3,3,,2026-07-20 12:13:44,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:13:44,SUPERSEDED,3,6,2,v3 — tightened prompt + guardrail regex fix,DERIVED
+v4,4,,2026-07-20 12:14:29,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:14:29,SUPERSEDED,3,6,2,v4 — rounding tolerance covers truncation,DERIVED
+v5,5,,2026-07-20 12:15:14,claude-haiku-4-5-20251001,v1.0,2026-07-20 12:15:14,SUPERSEDED,3,6,0,v5 — identifier digits excluded from figure extraction,DERIVED
+v6,6,,2026-07-21 16:24:06,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:24:06,SUPERSEDED,3,6,0,"Round 2 R1: credited-revenue definition corrected (reason-code eligibility, 90-day rule, grid-type config); full regeneration",DERIVED
+v7,7,,2026-07-21 16:40:04,claude-haiku-4-5-20251001,v1.0,2026-07-21 16:40:04,SUPERSEDED,3,6,0,"Round 2: deepened evidence (why/attribution/waterfall/rev_nature/credited breakdown), component units, LLM-as-judge first run",DERIVED
+v8,8,,2026-07-22 10:12:54,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:12:54,SUPERSEDED,3,6,1,Round 3 T1: LATE_PROCESSING + EXCLUDED_CHANGE drivers added; regenerated on corrected attribution,DERIVED
+v9,9,,2026-07-22 10:15:30,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:15:30,SUPERSEDED,3,6,0,Round 3 T1: regenerated after guardrail reason-code fix; LATE_PROCESSING + EXCLUDED_CHANGE live,DERIVED
+v10,10,,2026-07-22 10:26:31,claude-haiku-4-5-20251001,v1.0,2026-07-22 10:26:31,SUPERSEDED,3,6,0,Round 3 T4: revenue-driver terminology in evidence wording,DERIVED
+v11,11,,2026-07-23 10:45:42,mock,v1.0,2026-07-23 10:45:42,SUPERSEDED,3,6,0,R5 D1: baseline-month BASELINE_LIMITED attribution,DERIVED
+v12,12,,2026-07-23 10:46:36,mock,v1.0,2026-07-23 10:46:36,SUPERSEDED,3,6,0,R5 D: sample lost-account story moved to May->Jun; v12,DERIVED
+v13,13,,2026-07-23 10:47:07,mock,v1.0,2026-07-23 10:47:07,SUPERSEDED,3,6,0,R5 D: BASELINE_LIMITED + LOST_ACCOUNT both exercised; v13,DERIVED
+v14,14,,2026-07-23 17:07:41,claude-haiku-4-5-20251001,v1.0,2026-07-23 17:07:41,SUPERSEDED,3,6,0,Round 6: regenerated after attribution correctness fix (recurring-gated account drivers + persistence rule),DERIVED
+v15,15,,2026-07-24 11:08:17,claude-haiku-4-5-20251001,v1.0,2026-07-24 11:08:17,SUPERSEDED,3,6,0,R8: driver metadata from data; DEAL_SIZE; baseline labelling,DERIVED
+v16,16,,2026-07-24 11:09:30,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:09:30,SUPERSEDED,3,6,0,R8 final: prompt v1.1 (baseline limitation + display-name vocabulary),DERIVED
+v17,17,,2026-07-24 11:11:19,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:11:19,SUPERSEDED,3,6,0,R8 final: prompt v1.1 + strict parenthesis rule,DERIVED
+v18,18,,2026-07-24 11:13:44,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:13:44,SUPERSEDED,3,6,1,R8 final: prompt v1.1; guardrail rejects positive-in-parentheses,DERIVED
+v19,19,,2026-07-24 11:15:35,claude-haiku-4-5-20251001,v1.1,2026-07-24 11:15:35,SUPERSEDED,3,6,0,R8 final rerun: clean pass under the positive-parenthesis guardrail,DERIVED
+v20,20,,2026-07-25 04:50:01,claude-haiku-4-5-20251001,v1.2,2026-07-25 04:50:01,SUPERSEDED,3,6,0,,DERIVED
+v21,21,,2026-07-25 13:23:08,claude-haiku-4-5-20251001,v1.2,2026-07-25 13:23:08,PUBLISHED,3,6,0,"R10: corrected A1 taxonomy, eligibility rule (91/92/9L non-credited), INHERITANCE/HOUSEHOLD carve-outs, CLAWBACK scope",DERIVED

@@ -46,8 +46,10 @@ class V2AnomalyService:
         return {"scan_id_used": scan_id_used, "scan": scan, "anomalies": rows,
                 "thresholds_in_force": thresholds_in_force(), "served_by_tier": tier}
 
-    def scans(self) -> dict:
-        results, tier = self._run("get_anomaly_scans", {})
+    def scans(self, advisor_id: str = "") -> dict:
+        # R11 B2 — advisor_id filters to that advisor's scans plus legacy
+        # global scans (advisor_sid == ""); "" = full history.
+        results, tier = self._run("get_anomaly_scans", {"advisor_id": advisor_id})
         rows = [r.get("attributes", {}) for obj in results
                 for r in obj.get("scans", [])]
         return {"scans": rows, "served_by_tier": tier}

@@ -28,7 +28,9 @@
     "advisor_id": "SMPL001",
     "version_id": ""
   },
-  "get_commentary_versions": {},
+  "get_commentary_versions": {
+    "advisor_id": ""
+  },
   "get_product_revenue_change": {
     "advisor_id": "SMPL001",
     "product_group": "structured_products",
@@ -59,7 +61,9 @@
     "severity": "",
     "result_limit": 100
   },
-  "get_anomaly_scans": {},
+  "get_anomaly_scans": {
+    "advisor_id": ""
+  },
   "get_conversations": {
     "advisor_id": "",
     "days": 10,

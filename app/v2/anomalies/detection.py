@@ -16,6 +16,12 @@ Scans are ADDITIVE and versioned exactly like commentary: every run creates a
 new phx_dm_v2_anomaly_scan and attaches its anomalies to it; prior scans are
 never deleted and remain queryable through the scan selector.
 
+R11 B2 — scans are PER-ADVISOR: each scan row carries advisor_sid and covers
+ONE advisor. "Rescan all" creates one scan per advisor (never a global blob).
+Legacy pre-R11 global scans carry advisor_sid = "". R11 C1 — start_scan()
+runs the scan async (daemon thread + job id + progress in get_status());
+run_scan() stays the synchronous CLI path.
+
 Six rules (Y2), thresholds ALL in config (settings.anomaly_*):
     UNEXPLAINED_RESIDUAL      HIGH    |MIX| / |total change| > threshold
     CLAWBACK_CONCENTRATION    HIGH    month clawbacks > N x trailing mean, min floor
@@ -60,6 +66,11 @@ SEVERITY_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "INFO": 3}
 def get_status() -> dict:
     with _lock:
         return dict(_status)
+
+
+def _set_status(**fields) -> None:
+    with _lock:
+        _status.update(fields)
 
 
 def thresholds_in_force() -> dict:
@@ -303,16 +314,52 @@ def _next_scan_id(graph) -> str:
 
 # ---------------------------------------------------------------- the scan
 
-def run_scan(notes: str = "") -> dict:
-    """Synchronous batch scan (small advisor set) — mirrors the commentary
-    workflow: new scan_id every run, prior scans never deleted."""
+def start_scan(notes: str = "", advisor_id: str = "") -> dict:
+    """R11 C1 — async entry point for the API. Reserves the single job slot,
+    spawns a daemon thread (the job survives the browser closing) and returns
+    the job id immediately. A POST while a job runs returns that job's id and
+    never starts a second run (C3)."""
     with _lock:
-        if _status.get("state") == "running":
-            return {"error": True, "message": "scan already running"}
-        _status.update({"state": "running",
+        if _status.get("state") in ("starting", "running"):
+            return {"already_running": True, "job_id": _status.get("job_id"),
+                    "state": _status.get("state")}
+        job_id = "scanjob-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+        _status.clear()
+        _status.update({"state": "starting", "job_id": job_id, "kind": "anomaly_scan",
+                        "scope": advisor_id or "ALL",
+                        "started_at": datetime.now(timezone.utc).isoformat()})
+    threading.Thread(target=_run_job, args=(job_id, notes, advisor_id),
+                     daemon=True, name=f"anomaly-{job_id}").start()
+    return {"started": True, "job_id": job_id, "state": "starting",
+            "scope": advisor_id or "ALL"}
+
+
+def _run_job(job_id: str, notes: str, advisor_id: str) -> None:
+    _set_status(state="running")
+    try:
+        summary = _scan(notes, advisor_id)
+        _set_status(state="completed", summary=summary, phase="done",
+                    finished_at=datetime.now(timezone.utc).isoformat())
+    except Exception as exc:  # noqa: BLE001 — recorded and surfaced, never hidden
+        _log.error("anomaly scan failed: %s", exc, exc_info=True)
+        _set_status(state="failed", error=str(exc),
+                    finished_at=datetime.now(timezone.utc).isoformat())
+
+
+def run_scan(notes: str = "", advisor_id: str = "") -> dict:
+    """Synchronous batch scan (CLI / verification) — mirrors the commentary
+    workflow: per-advisor scan rows, prior scans never deleted. advisor_id =
+    "" scans every advisor, each getting its OWN scan row (R11 B3)."""
+    with _lock:
+        if _status.get("state") in ("starting", "running"):
+            return {"error": True, "message": "scan already running",
+                    "job_id": _status.get("job_id")}
+        _status.clear()
+        _status.update({"state": "running", "kind": "anomaly_scan",
+                        "scope": advisor_id or "ALL",
                         "started_at": datetime.now(timezone.utc).isoformat()})
     try:
-        summary = _scan(notes)
+        summary = _scan(notes, advisor_id)
         with _lock:
             _status.update({"state": "completed", "summary": summary,
                             "finished_at": datetime.now(timezone.utc).isoformat()})
@@ -324,7 +371,9 @@ def run_scan(notes: str = "") -> dict:
         raise
 
 
-def _scan(notes: str = "") -> dict:
+def _scan(notes: str = "", advisor_id: str = "") -> dict:
+    """R11 B2 — one PER-ADVISOR scan row per advisor in scope; each advisor's
+    scan persists before the next starts so scan ids advance additively."""
     from app.agents.nodes.commentary_agent import narrate_anomaly
     from app.llm.client import get_llm_client
 
@@ -333,22 +382,32 @@ def _scan(notes: str = "") -> dict:
     llm = get_llm_client()
     thresholds = thresholds_in_force()
 
-    advisors = [a.get("advisor_sid") for a in
-                _attrs(_run_query(graph, "get_advisors", {}), "advisors")]
+    all_advisors = [a.get("advisor_sid") for a in
+                    _attrs(_run_query(graph, "get_advisors", {}), "advisors")]
+    if advisor_id:
+        if advisor_id not in all_advisors:
+            raise ValueError(f"unknown advisor_sid {advisor_id!r}")
+        advisors = [advisor_id]
+    else:
+        advisors = all_advisors
     month_ids = sorted(str(m.get("month_id")) for m in
                        _attrs(_run_query(graph, "get_months", {}), "months"))
     transitions = list(zip(month_ids, month_ids[1:]))
     cause_names = {str(c.get("cause_id")): str(c.get("cause_name"))
                    for c in _attrs(_run_query(graph, "get_driver_causes", {}), "causes")}
 
-    scan_id = _next_scan_id(graph)
-    started_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    scan_rows: list[dict] = []
+    all_anomalies: list[dict] = []
+    total_ai = total_fallback = 0
 
-    anomalies: list[dict] = []
-    e_for_advisor, e_in_scan, e_cites = [], [], []
-    ai_worded = fallback_worded = 0
-
-    for advisor in advisors:
+    for adv_idx, advisor in enumerate(advisors, start=1):
+        _set_status(phase="scanning", advisor_current=advisor,
+                    advisor_index=adv_idx, advisor_total=len(advisors))
+        scan_id = _next_scan_id(graph)
+        started_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        anomalies: list[dict] = []
+        e_for_advisor, e_in_scan, e_cites = [], [], []
+        ai_worded = fallback_worded = 0
         changes = _attrs(_run_query(graph, "get_revenue_changes", {
             "advisor_id": advisor, "from_month": month_ids[0], "to_month": month_ids[-1]}),
             "changes")
@@ -432,30 +491,40 @@ def _scan(notes: str = "") -> dict:
                 for did in hit["cited_driver_ids"]:
                     e_cites.append({"from_id": anomaly_id, "to_id": did})
 
-    scan_row = {
-        "scan_id": scan_id, "started_at": started_at,
-        "advisors_reviewed": len(advisors),
-        "transitions_reviewed": len(advisors) * len(transitions),
-        "flagged_count": len(anomalies),
-        "thresholds_json": json.dumps(thresholds, sort_keys=True),
-        "status": "COMPLETED", "data_source": "DERIVED",
-    }
-    _persist(upsert, "anomaly_scan", "vertex", [scan_row], "scan_id")
-    _persist(upsert, "anomaly", "vertex", anomalies, "anomaly_id")
-    _persist(upsert, "anomaly_for_advisor", "edge", e_for_advisor)
-    _persist(upsert, "anomaly_in_scan", "edge", e_in_scan)
-    _persist(upsert, "anomaly_cites_driver", "edge", e_cites)
+        # Per-advisor scan row (R11 B2) — persisted before the next advisor so
+        # _next_scan_id keeps advancing and scans stay additive.
+        scan_row = {
+            "scan_id": scan_id, "advisor_sid": advisor, "started_at": started_at,
+            "advisors_reviewed": 1,
+            "transitions_reviewed": len(transitions),
+            "flagged_count": len(anomalies),
+            "thresholds_json": json.dumps(thresholds, sort_keys=True),
+            "status": "COMPLETED", "data_source": "DERIVED",
+        }
+        _persist(upsert, "anomaly_scan", "vertex", [scan_row], "scan_id")
+        _persist(upsert, "anomaly", "vertex", anomalies, "anomaly_id")
+        _persist(upsert, "anomaly_for_advisor", "edge", e_for_advisor)
+        _persist(upsert, "anomaly_in_scan", "edge", e_in_scan)
+        _persist(upsert, "anomaly_cites_driver", "edge", e_cites)
+        scan_rows.append(scan_row)
+        all_anomalies.extend(anomalies)
+        total_ai += ai_worded
+        total_fallback += fallback_worded
+        _set_status(scans=[s["scan_id"] for s in scan_rows])
 
     summary = {
-        "scan_id": scan_id, "started_at": started_at,
+        "scope": advisor_id or "ALL",
+        "scan_ids": [s["scan_id"] for s in scan_rows],
+        "scans": [{"scan_id": s["scan_id"], "advisor_sid": s["advisor_sid"],
+                   "flagged": s["flagged_count"]} for s in scan_rows],
         "advisors_reviewed": len(advisors),
         "transitions_reviewed": len(advisors) * len(transitions),
-        "flagged": len(anomalies),
-        "by_severity": {s: sum(1 for a in anomalies if a["severity"] == s)
+        "flagged": len(all_anomalies),
+        "by_severity": {s: sum(1 for a in all_anomalies if a["severity"] == s)
                         for s in ("HIGH", "MEDIUM", "LOW", "INFO")},
-        "by_rule": {r: sum(1 for a in anomalies if a["rule_id"] == r)
+        "by_rule": {r: sum(1 for a in all_anomalies if a["rule_id"] == r)
                     for r in SEVERITY},
-        "wording": {"ai_generated": ai_worded, "deterministic_fallback": fallback_worded},
+        "wording": {"ai_generated": total_ai, "deterministic_fallback": total_fallback},
         "thresholds": thresholds,
         "notes": notes,
     }
@@ -469,9 +538,12 @@ if __name__ == "__main__":  # pragma: no cover
     import argparse
     import sys
 
-    parser = argparse.ArgumentParser(description="Batch anomaly scan (same as the UI Re-scan button)")
+    parser = argparse.ArgumentParser(description="Batch anomaly scan (same as the UI Rescan buttons)")
     parser.add_argument("--notes", default="", help="free-text note (recorded in the summary log)")
+    parser.add_argument("--advisor", default="",
+                        help="R11 B — advisor_sid to scan (default: all advisors, "
+                             "each getting its OWN per-advisor scan)")
     args = parser.parse_args()
-    result = run_scan(args.notes)
+    result = run_scan(args.notes, args.advisor)
     print(json.dumps(result, indent=2))
     sys.exit(1 if result.get("error") else 0)
