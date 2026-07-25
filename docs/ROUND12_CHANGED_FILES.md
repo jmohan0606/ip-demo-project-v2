@@ -28,4 +28,14 @@ re-apply local edits, or diff before overwriting.
 | `docs/ROUND12_CHANGED_FILES.md` | A | this file | — |
 | `PROGRESS.md` | M | Q-task tracking | — |
 | `ROUND12_STARTER_PROMPT.md` | A | round input (committed for the record) | — |
-| `BUILD_REPORT.md` | M | §18 Round 12 | — |
+| `BUILD_REPORT.md` | M | §18 Round 12 (+ Q-F defect-fix note) | — |
+
+**Post-round defect fix Q-F** (glossary display_order sorted as STRING — commit 8d883d6):
+
+| File | Status | What changed | Conflict risk |
+|------|--------|--------------|---------------|
+| `app/v2/revenue/service.py` | M | `driver_causes()` re-imposes numeric display_order on every serving tier (`_display_order_key`: missing/invalid last, name tiebreak) | — |
+| `app/graph/queries/v2.py` | M | `_int` coerces via float so numeric TEXT sorts numerically | ⚠ local-tier impls edited across rounds |
+| `frontend/lib/v2/driver-causes.tsx` | M | glossary sort key is an explicit `Number(display_order)` | — |
+| `docs/tigergraph_foundation/tigergraph/queries/GQ-004_get_driver_causes.gsql` | M | header note: STRING-typed pre-R8 live install sorts lexicographically → reinstall from current DDL (comment only, query unchanged) | — |
+| `scripts/verify_glossary_order.py` | A | NEW — 7 checks incl. simulated STRING-typed tier-1 result restored to numeric 1..19 | — |
