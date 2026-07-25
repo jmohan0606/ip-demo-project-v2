@@ -1,5 +1,5 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-25T19:00:00Z
+Last updated: 2026-07-25T20:00:00Z
 Current phase: ROUND 12 (FIX_SPEC_R12.md) — COMPLETE (operator acceptance pending: real-cdao per-role config + fallback drill — docs/ROUND12_ACCEPTANCE.md)
 Resume from: — (all Q tasks DONE)
 
@@ -241,7 +241,7 @@ Resume from: — (all Q tasks DONE)
 | Q-D | R12 | Env Health shows each role's effective config + reachability + "will fall back" state | DONE | af79044 | per-role mode/model/deployment/api_version + will-fall-back note; no secrets (programmatic check) |
 | Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | DONE | 616b887/f7359e3 | .env.example block in Q-A; ROUND12_ACCEPTANCE config table + operator drill |
 | Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb9b6a2..HEAD; conflict flags on settings/.env.example/client.py/commentary_agent/generation_workflow/env-health-workspace; + BUILD_REPORT §18 |
-| Q-F | R12 | glossary display_order sorted as STRING (R8/R9 defect): numeric order enforced on every path + regression test | DONE | (this) | DDL already INT; service re-imposes numeric order (covers STRING-typed live graph via tier 1); local-tier _int via float; frontend explicit Number(); GQ-004 header reinstall note; verify_glossary_order 7/7 |
+| Q-F | R12 | glossary display_order sorted as STRING (R8/R9 defect): numeric order enforced on every path + regression test | DONE | 8d883d6 | DDL already INT; service re-imposes numeric order (covers STRING-typed live graph via tier 1); local-tier _int via float; frontend explicit Number(); GQ-004 header reinstall note; verify_glossary_order 7/7. LIVE-VERIFIED in Codespace 2026-07-25: app restarted (8001/3001), API returns 1..19 ascending, glossary dialog on /ai-insights renders Volume(1)→Average Transaction Value(2)→…→Baseline Period(19), zero console errors (headless Chromium + screenshot) |
 
 ## Decisions
 | When | Decision | Why |
