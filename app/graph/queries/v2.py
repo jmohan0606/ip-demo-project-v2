@@ -48,8 +48,10 @@ def _num(value: Any) -> float:
 
 
 def _int(value: Any) -> int:
+    # via float so numeric TEXT ("10", "2.0") from any load path still sorts
+    # numerically — display_order must never compare as a string.
     try:
-        return int(value or 0)
+        return int(float(value or 0))
     except (TypeError, ValueError):
         return 0
 

@@ -241,6 +241,7 @@ Resume from: — (all Q tasks DONE)
 | Q-D | R12 | Env Health shows each role's effective config + reachability + "will fall back" state | DONE | af79044 | per-role mode/model/deployment/api_version + will-fall-back note; no secrets (programmatic check) |
 | Q-D2 | R12 | .env.example: commented examples for every new key incl. deployment-vs-model-vs-apiversion note; completion doc "how to configure each role" table | DONE | 616b887/f7359e3 | .env.example block in Q-A; ROUND12_ACCEPTANCE config table + operator drill |
 | Q-E | R12 | docs/ROUND12_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb9b6a2..HEAD; conflict flags on settings/.env.example/client.py/commentary_agent/generation_workflow/env-health-workspace; + BUILD_REPORT §18 |
+| Q-F | R12 | glossary display_order sorted as STRING (R8/R9 defect): numeric order enforced on every path + regression test | DONE | (this) | DDL already INT; service re-imposes numeric order (covers STRING-typed live graph via tier 1); local-tier _int via float; frontend explicit Number(); GQ-004 header reinstall note; verify_glossary_order 7/7 |
 
 ## Decisions
 | When | Decision | Why |
@@ -310,6 +311,7 @@ Resume from: — (all Q tasks DONE)
 | 2026-07-25 | R12: a judge whose auto-fallback would land on the MOCK adapter returns None (honest UNAVAILABLE) instead of a RoleLLM | mock's deterministic template cannot judge language; a pseudo-verdict would be fabricated (F4: judge never 0.00, never a fake PASS) |
 | 2026-07-25 | R12: on the Azure-shaped adapters the single OpenAI-SDK `model=` request param IS the deployment routing name — a role's DEPLOYMENT (when set) takes precedence over its MODEL id for the request, logged when they differ | the SDK offers one field; spec A says route by deployment, best-effort single value when only one is set |
 | 2026-07-25 | R12: assistant turns surface "[served: …]" in llm_provider only when R12 config is set or a fallback actually happened | unconfigured clean turns keep byte-identical R7 labels (no regression); served_path is always on the generate() result |
+| 2026-07-25 | Q-F: glossary order fixed by ENFORCING numeric sort at the service layer (both tiers) rather than only reinstalling the live graph's schema | repo DDL/catalog/CSVs/local tier were already INT and correct — the lexicographic order can only come from a pre-R8 STRING-typed live graph via GQ-004's ORDER BY; the service guard fixes rendering regardless of the installed schema, and the GQ-004 header directs the schema reinstall. No display_order VALUE or display_name changed |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |

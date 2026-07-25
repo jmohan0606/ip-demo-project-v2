@@ -24,9 +24,13 @@ export async function fetchDriverCauses(): Promise<DriverCause[]> {
         // R9 F — glossary order = display_order (attribution order) from
         // phx_dm_v2_driver_cause. A missing/zero order sorts LAST (not first,
         // which would scramble the list ahead of seeded causes); ties break
-        // by display name so the order is total and stable.
-        const key = (c: DriverCause) =>
-          c.display_order && c.display_order > 0 ? c.display_order : Number.MAX_SAFE_INTEGER;
+        // by display name so the order is total and stable. Number() is
+        // explicit belt-and-braces: a pre-R8 live graph stores display_order
+        // as STRING and "10" must never compare lexicographically before "2".
+        const key = (c: DriverCause) => {
+          const n = Number(c.display_order);
+          return Number.isFinite(n) && n > 0 ? n : Number.MAX_SAFE_INTEGER;
+        };
         cache = [...res.causes].sort(
           (a, b) => key(a) - key(b)
             || (a.display_name || a.cause_id).localeCompare(b.display_name || b.cause_id));

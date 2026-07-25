@@ -18,6 +18,20 @@ def _attrs(row: dict) -> dict:
     return row.get("attributes", {})
 
 
+def _display_order_key(row: dict) -> tuple[float, str]:
+    """Numeric sort key for display_order rows, whatever type the serving
+    tier delivered (INT from the current schema, STRING from a pre-R8 live
+    install, absent on unseeded rows). Missing/invalid/zero sorts LAST, ties
+    break by display name — the R9 F glossary contract."""
+    raw = row.get("display_order")
+    try:
+        order = float(raw)
+    except (TypeError, ValueError):
+        order = 0.0
+    return (order if order > 0 else float("inf"),
+            str(row.get("display_name") or row.get("cause_id") or ""))
+
+
 class V2RevenueService:
     def __init__(self) -> None:
         self.graph = get_graph_client()
@@ -58,6 +72,13 @@ class V2RevenueService:
     def driver_causes(self) -> dict:
         results, tier = self._run("get_driver_causes", {})
         rows = [_attrs(r) for r in results[0].get("causes", [])] if results else []
+        # display_order must sort NUMERICALLY on every serving path. A live
+        # graph installed before display_order became INT holds it as STRING,
+        # and GQ-004's ORDER BY then returns "1","10","11",…,"19","2" — so the
+        # order is re-imposed here from the numeric value regardless of tier
+        # or stored type (R9 F semantics: missing/invalid order sorts last,
+        # ties break by display name).
+        rows.sort(key=_display_order_key)
         return {"causes": rows, "served_by_tier": tier}
 
     def reason_codes(self) -> dict:

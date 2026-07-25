@@ -10,3 +10,6 @@ conversation_id,advisor_sid,title,created_at,last_message_at,message_count,scope
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,0,,DERIVED
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,1,,DERIVED
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,2,,DERIVED
+53e5b862d849,SMPL001,Which advisor had the biggest drop?,2026-07-25 18:24:21,2026-07-25 18:24:21,0,,DERIVED
+53e5b862d849,SMPL001,Which advisor had the biggest drop?,2026-07-25 18:24:21,2026-07-25 18:24:21,1,,DERIVED
+53e5b862d849,SMPL001,Which advisor had the biggest drop?,2026-07-25 18:24:21,2026-07-25 18:24:21,2,,DERIVED

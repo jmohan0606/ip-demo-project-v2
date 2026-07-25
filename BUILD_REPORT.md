@@ -1357,3 +1357,21 @@ new_drivers PASS, clawback_scope PASS, per_advisor 33/33, judge 9/9,
 commentary_retry 10/10, assistant 101/101, anomalies PASS, e2e OVERALL PASS with
 reconciliation $0.00; frontend `tsc --noEmit` clean; .env.example ↔ settings
 cross-check 132/132.
+
+### Post-round defect fix (Q-F) — glossary display_order sorted as STRING
+
+The R8/R9 glossary order defect (Volume, Fee Rate, Discount… before Deal Size =
+"1","10","11",… lexicographic). Everything in the repo was already INT and
+numerically sorted (DDL, schema_catalog, manifest, sample CSVs, seeds, local
+tier, e2e) — the surviving exposure was a live graph installed before
+display_order became INT: its STRING attribute makes GQ-004's `ORDER BY`
+lexicographic, and the service passed that order straight through to the UI.
+Fix (type/sort only — no display_order VALUE or display_name changed):
+service re-imposes numeric order on every serving path (missing/invalid last,
+name tiebreak — R9 F semantics); local-tier `_int` coerces via float so numeric
+TEXT sorts numerically; frontend key is an explicit `Number()`; GQ-004 header
+documents that a STRING-typed live install must be reinstalled from the current
+DDL. Verified: new `scripts/verify_glossary_order.py` 7/7 (incl. a simulated
+STRING-typed lexicographic tier-1 result restored to 1..19); e2e OVERALL PASS
+(glossary sorted 1..19, reconciliation $0.00); attribution / anomalies /
+per_advisor 33/33 / role_llm 32/32 all PASS; `tsc --noEmit` clean.

@@ -10,6 +10,14 @@
  * Created: V2 build 2026-07-20. Updated R8 2026-07-24 (new attributes flow
  *          automatically via the whole-vertex PRINT). NEEDS LIVE REINSTALL
  *          after the schema change adds the three attributes.
+ * Ordering: display_order is declared INT (01_vertices.gsql) so this ORDER BY
+ *          is NUMERIC. A live graph installed before that declaration holds
+ *          display_order as STRING and this same ORDER BY sorts it
+ *          LEXICOGRAPHICALLY ("1","10",…,"19","2") — that graph must be
+ *          reinstalled from the current DDL. The API layer independently
+ *          re-imposes numeric order (V2RevenueService.driver_causes) so the
+ *          glossary renders correctly either way, but the live schema should
+ *          still be fixed at the next reinstall.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
