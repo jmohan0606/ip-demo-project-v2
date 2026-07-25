@@ -206,9 +206,9 @@ Resume from: T-A1
 | N-E | R9 | judge on standard adapter, JUDGE_MODEL configurable, "unavailable" not 0.00 | DONE | 430ce7a | build_llm_client factory; JUDGE_MODEL within active mode (empty=mode default); -1.0 UNAVAILABLE sentinel; modal renders "—(unavailable)"; verify_judge 9/9 |
 | N-F | R9 | glossary ordered by display_order | DONE | 809e0d5 | robust client sort (missing order last + name tiebreak); e2e asserts sorted 17 causes, DEAL_SIZE=2; fixtures regenerated; client reseed = operator |
 | N-G | R9 | docs/ROUND9_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 2f1a13e..HEAD; conflict flags on attribution/builder/workflow/settings/manifest/v2.ts/evidence-modal/v2-shell; data/real + prompts + gitignored dirs excluded; + ROUND9_ACCEPTANCE + BUILD_REPORT §15 |
-| T-A1 | R10 | re-seed taxonomy to the verbatim hierarchy (A1) | TODO | | |
-| T-A2 | R10 | classify by hierarchy path, not name; dual-name cases correct | TODO | | |
-| T-A3 | R10 | propagate taxonomy through DDL→catalog→loading→manifest→both builders→both tiers | TODO | | |
+| T-A1 | R10 | re-seed taxonomy to the verbatim hierarchy (A1) | DONE | 8225cbe | app/v2/revenue/taxonomy.py canonical; 12 lines/34 groups verbatim; verify_taxonomy [1] |
+| T-A2 | R10 | classify by hierarchy path, not name; dual-name cases correct | DONE | 8225cbe | path-scoped ids; resolve_path on (level_one, level_two); AmbiguousPathError on name-only dual cases; verify_taxonomy 33/33 PASS |
+| T-A3 | R10 | propagate taxonomy through DDL→catalog→loading→manifest→both builders→both tiers | DONE | 8225cbe | no DDL change (ids/data only) — schema artifacts regenerated, zero drift; manifest via builders; both tiers data-driven; real-path proven on B6 fixtures |
 | T-B1 | R10 | eligibility: NULL/empty/__NONE__ credited; 91/92/9L flip to non-credited; excluded set unchanged | TODO | | |
 | T-B2 | R10 | evidence: annotate the `less excluded` line with its reason-code breakdown | TODO | | |
 | T-C0 | R10 | confirm per-month reason-code availability; report gap if missing | TODO | | |
@@ -268,6 +268,10 @@ Resume from: T-A1
 | 2026-07-25 | R9: JUDGE_MODEL default changed "claude-sonnet-5" -> "" (= active mode's default model; claude mode still resolves to claude-sonnet-5 in code) | the old default was a Claude model name that 404s on cdao — exactly the client-env failure |
 | 2026-07-25 | R9: verify_ingestion_fixes "delete-all continues past failing entity" FAILS pre-existing at the round-8 baseline (verified in clean worktree) | not a round-9 regression; ingestion out of scope this round (G); recorded for round 10 |
 | 2026-07-25 | R9: anomaly rescan artifacts (scan002) reverted before wrap commit | committed sample state stays deterministic at the scan001 demo scan (R6 decision) |
+
+| 2026-07-25 | R10: unknown product lines (absent from every A1 path) default to NON_RECURRING with a loud stderr warning listing them | class by ABSENCE from the recurring paths is a position decision, not a name match; non-recurring is the conservative class (no account-presence gating); dual-name lines still STOP the build |
+| 2026-07-25 | R10: quarterly TIMING story moved from Alternative Investments (not in A1) to MAC under Trails; legacy group ids kept in QUARTERLY_BILLED_GROUPS for pre-R10 fixtures | A1 is authoritative and has no Alternatives line; TIMING group membership is config, not the settled VOLUME/DEAL_SIZE arithmetic |
+| 2026-07-25 | R10 DATA GAP: the REAL raw_product_hierarchy.csv is operator-local — dual-name distinguishability is proven on the extract SHAPE ((level_one, level_two) path) and fixtures; if the client extract carries a dual-name line with a group A1 does not list, build_real_data STOPS with the exact paths | never guess by name (A2); the operator sees the ambiguous paths verbatim |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
