@@ -1596,3 +1596,75 @@ contract (MaxAccum, no summing accumulator, vertex-id second pass);
 repo-wide no-summing-latest scan. validate_v2_queries ALL PASS; per_advisor
 33/33; assistant 101/101; commentary_retry 10/10; judge 9/9; e2e PASS with
 reconciliation $0.00. No figure, version-model or schema change.
+
+## 22. Round 16 (FIX_SPEC_R16.md, 2026-07-26) — CRITICAL: PER-ADVISOR VERSION/SCAN PRIMARY-KEY COLLISION
+
+**Symptom:** after "Generate all advisors" / "Rescan all", AI Insights and
+Anomalies showed NOTHING for every advisor except the last (operator confirmed
+only 2 version rows in the live graph, both the last advisor's).
+
+**Root cause (confirmed from schema + code, two coordinated layers):**
+1. **WRITE (the root cause):** `phx_dm_v2_commentary_version` has
+   `PRIMARY_ID version_id` and the workflow wrote `version_id = f"v{no}"`
+   from a GLOBAL sequence; `phx_dm_v2_anomaly_scan` identically wrote
+   `scan_id = f"scan{n:03d}"`. In a bulk run every advisor received the SAME
+   primary id, so each advisor's vertex upsert OVERWROTE the previous — only
+   the last advisor's version/scan vertex survived. Commentary/anomaly ROWS
+   survived (their ids embed the advisor) but had no version/scan to resolve.
+2. **READ (kept, not reverted):** the R15.1 SumAccum→MaxAccum fix in
+   get_commentary is correct and KEPT — it was necessary but not sufficient,
+   because the write collision starved it of data.
+
+**Fix:**
+- `version_id = f"v{version_no}|{advisor_sid}"`, `version_no` a PER-ADVISOR
+  sequence (`_latest_version_no(graph, advisor_sid)` = max over the advisor's
+  own versions + legacy global ""); `scan_id = f"scan{n:03d}|{advisor_sid}"`,
+  scan number per advisor (`_next_scan_id(graph, advisor_sid)` via
+  get_anomaly_scans — also fixes the old store-only read that pinned tier 1
+  at scan001). Ids can now NEVER collide across advisors, even if a stale
+  sequence read repeats a number.
+- Every dependent id (commentary_id, evidence_id, evaluation_id "|j1",
+  anomaly_id) is BUILT FROM the version/scan id and inherits the scoped
+  format with no further change; edges/status payloads/CSV rows carry it
+  through the same constructions. Frontend URL-encodes version ids (they now
+  contain "|"); anomaly URLs were already encoded.
+- Supersede reads versions through get_commentary_versions (works on BOTH
+  tiers, previously local-store-only) and supersedes ONLY the advisor's own
+  prior PUBLISHED versions; legacy global "" versions still supersede only on
+  a regenerate-ALL (R11 semantics preserved).
+- GQ-009/010/018/019: per-advisor latest resolution confirmed (filter first,
+  MaxAccum second, id read from the winning vertex); headers now state the
+  contract and the scoped id formats. NEEDS LIVE REINSTALL (with R15.1).
+- **No schema ALTER:** PRIMARY_ID columns stay STRING; only the VALUE format
+  changed. Confirmed in ROUND16_ACCEPTANCE §3.
+
+**Migration (operator):** the live graph holds collided vertices — targeted
+clear of anomaly/anomaly_scan/commentary_evaluation/commentary/
+commentary_version (+ automatic edge removal), CSV header-only reset of the
+dual-persistence files, then regenerate-all + rescan-all. Exact steps and a
+6-step acceptance drill in docs/ROUND16_ACCEPTANCE.md.
+
+**Verification (fixtures/local — the bug needs a multi-advisor bulk run):**
+scripts/verify_round16.py 43/43 PASS on a temp copy of the sample set:
+generate-all → 3/3 advisors keep their own PUBLISHED version with distinct
+scoped ids and get_commentary returns rows for EVERY advisor; generate-all
+twice → 2 versions per advisor (latest PUBLISHED, prior SUPERSEDED,
+version_no +1 within the advisor); rescan-all → 3/3 advisors keep their own
+scan and get_anomalies resolves per advisor; single-advisor generate/rescan
+leaves the others byte-identical; zero dangling references (commentary_in_
+version edges, evidence version suffixes, judge evaluations, anomaly_in_scan
+edges); scoped ids globally distinct while version numbers repeat across
+advisors (the point of per-advisor sequences). All existing suites re-run
+PASS: per_advisor 33/33, anomalies, commentary_version 16/16, attribution,
+taxonomy, eligibility, new_drivers, clawback, judge 9/9, retry 10/10,
+glossary 7/7, assistant 101/101, role 32/32, gpt5 34/34, guardrail 54/54,
+round15 25/25, e2e reconciliation $0.00. tsc clean. Committed sample demo
+state untouched (verification runs in a temp copy; test chat CSVs reverted).
+
+**Decisions:** (a) legacy sample versions/scans keep their old-format ids —
+the readers resolve old and new formats identically (id read from the vertex,
+never parsed), so no sample regeneration was needed; (b) commentary_evaluation
+is included in the migration clear because its rows reference cleared
+commentary/version ids; (c) supersede switched from store-only to query-based
+so tier 1 gets the same per-advisor supersede behaviour the local tier always
+had.
