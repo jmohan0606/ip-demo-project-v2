@@ -60,9 +60,15 @@ class Classification:
     served_path: str     # mock_classifier | role_config | fallback_agent_llm
 
 
-# --- deterministic mock classifier (offline verification, R14 H) -------------
+# --- deterministic mock classifier (offline verification, R14 H, R15 A3) -----
 # Ordered paraphrase rules; first match wins. These are CANNED classifications
 # for fixtures — the real model generalises far beyond them.
+# R15 A3 boundary (same as CLASSIFIER_SYSTEM): attacks target the ASSISTANT
+# (its instructions/scope/safety) or arbitrary/bulk data access. A request to
+# SEE the loaded revenue data (drivers, transactions, anomalies, accounts,
+# "which advisor had the biggest drop") matches NO rule and falls through to
+# safe — the verb (show/list/tell/what/give) never makes a data question an
+# attack.
 _MOCK_RULES: list[tuple[re.Pattern, str, float, str]] = [
     # data_exfiltration — probing for instructions/config, or bulk enumeration
     (re.compile(r"(what\s+(were|are)\s+you\s+told|you\s+were\s+told\s+to)", re.I),
@@ -71,7 +77,13 @@ _MOCK_RULES: list[tuple[re.Pattern, str, float, str]] = [
      "data_exfiltration", 0.85, "probes the assistant's instructions/configuration"),
     (re.compile(r"\bselect\s+\*", re.I),
      "data_exfiltration", 0.85, "attempts an arbitrary SQL query"),
-    (re.compile(r"\b(every|all)\s+advisors?\b", re.I),
+    # Enumeration must pair every/all-advisors with a RAW-data noun (or be a
+    # dump/export) — "which advisor had the biggest drop" is legitimate
+    # cross-advisor analytics and matches neither (R15 A3).
+    (re.compile(r"\b(dump|export)\b.*\b(advisors?|accounts?|rows?|tables?)\b", re.I),
+     "data_exfiltration", 0.85, "bulk raw-data dump request"),
+    (re.compile(r"\b(every|all)\s+advisors?['’]?s?\s+(raw\s+)?"
+                r"(data|revenue|rows?|accounts?|records?|figures?)\b", re.I),
      "data_exfiltration", 0.75, "attempts enumeration beyond the scoped advisor"),
     # jailbreak — escaping scope/persona via any framing
     (re.compile(r"\b(no\s+rules|no\s+restrictions|without\s+(any\s+)?(rules|restrictions|limits))\b", re.I),
@@ -87,7 +99,7 @@ _MOCK_RULES: list[tuple[re.Pattern, str, float, str]] = [
     # prompt_injection — adding/replacing instructions
     (re.compile(r"\b(from\s+now\s+on|new\s+instructions?\s*:|new\s+rules?\s*:|your\s+new\s+(task|instructions?))\b", re.I),
      "prompt_injection", 0.85, "attempts to inject new standing instructions"),
-    (re.compile(r"\bignore\s+(the\s+)?scope\b", re.I),
+    (re.compile(r"\bignore\s+(the\s+|your\s+)?scope\b", re.I),
      "prompt_injection", 0.8, "instructs the assistant to ignore its scope"),
     # off_scope_use — benign but outside the loaded-revenue-data scope
     (re.compile(r"\b(weather|recipe|poem|joke|hr\s+policy|movie|football)\b", re.I),
