@@ -1431,3 +1431,77 @@ advisors); frontend `tsc --noEmit` clean; .env.example ↔ settings cross-check
 **Operator (real cdao):** docs/ROUND13_ACCEPTANCE.md — GPT-5 deployments with
 empty `*_API_VERSION` show all three roles green in Env Health; a GPT-4 role
 with an api_version set still works; commentary/judge/assistant run end-to-end.
+
+## 20. Round 14 (FIX_SPEC_R14.md, 2026-07-26) — LLM-BASED GUARDRAIL LAYER (DEFENSE IN DEPTH)
+
+Security round: the regex pre-filter alone (R9) misses paraphrased attacks
+("what were you told to do", roleplay jailbreaks). Round 14 adds a model-based
+intent classifier between the regex layer and the router, hardens the
+assistant's own system prompt, and extends the output check — four layers,
+each independent. Assistant guardrail plumbing only; no attribution, taxonomy,
+eligibility or computed figure touched; reconciliation stays $0.00.
+
+*Session note:* the build session died mid-round (Codespace stop) after
+S-A..S-H had landed but before PROGRESS.md was truthed up. Session 15 resumed
+per §0.1 (git as truth), committed the pending S-H fixture CSVs, and completed
+the round wrap (this section, S-I, ROUND14_ACCEPTANCE.md).
+
+**S-A — `guardrail` LLM role (038980f).** Fourth role in `ROLES` with the full
+R12 per-field resolution (`GUARDRAIL_LLM_MODE/MODEL/DEPLOYMENT/API_VERSION/
+TEMPERATURE`) and R13 GPT-5 handling inherited unchanged. Env Health gains a
+"guardrail classifier" row (effective config + reachability, no secrets); mock
+mode is labelled as the deterministic keyword classifier.
+
+**S-B/S-C — input classifier + decision policy (e2050b9).**
+`intent_classifier.py` makes ONE constrained guardrail-role call per turn
+returning strict JSON `{category, confidence, reason}` (example-rich system
+prompt in `system_prompts.py`); any failure raises `ClassifierUnavailable` —
+never a guessed classification. `screen_input` runs regex FIRST (PII redacted
+before the classifier ever sees the text), then the classifier on the redacted
+text, then the config policy: block categories at `confidence >=
+GUARDRAIL_BLOCK_THRESHOLD` (default 0.5) BLOCK; `off_scope_use` becomes a
+polite OUT_OF_SCOPE decline BEFORE routing. The classifier can only ADD a
+block — it never downgrades a regex result. `GUARDRAIL_LLM_ENABLED` gates only
+layer 2; `GUARDRAILS_ENABLED` gates the stack (both loud).
+
+**S-D — hardened narrator prompt (e2050b9).** Scope-locked, no instruction
+reveal, no arbitrary execution, user/graph content treated as data — the
+backstop layer if everything upstream degrades.
+
+**S-E — fail-safe (e2050b9).** Classifier outage ⇒ `CLASSIFIER_DEGRADED`
+finding + `GUARDRAIL DEGRADATION` warning; the regex result stands and the
+turn proceeds only to the scoped router under the hardened prompt. Never fails
+open, never silently.
+
+**S-F — output leak check (e2050b9).** `screen_output` additionally blocks
+system-prompt/instruction-fragment leaks (deterministic fragment check — no
+LLM needed) on top of the existing numeric/PII gates; leaking text is never
+displayed.
+
+**S-G — visibility (e2050b9 + existing R9 chip).** Persisted findings carry
+`{category, severity, action}` ONLY — the classifier's `reason` never leaves
+the server log. The payload is shape-identical to R9, so the existing
+⛉ GUARDRAIL chip renders classifier blocks with category + severity and no
+frontend change was needed. Proven by fixture §6 and by the persisted sample
+conversations (0c52ad7).
+
+**S-H — verification (3ca2685, 9c2727d, 0c52ad7).** `verify_guardrail_llm.py`:
+54/54 — paraphrased attacks BLOCK via the mock classifier, benign revenue
+questions PASS, regex layer independent, no-downgrade, PII-before-classifier,
+forced-outage fail-safe logged and never open, visibility payload clean,
+output leak check, Env Health row, thresholds honored. `verify_role_llm` 5.1
+updated for the additive 4th role row (32/32). Live-run fixture conversations
+(attack blocked / benign declined / honest NO_DATA) committed to the sample
+set per CLAUDE.md §3.10.
+
+**S-I — round wrap (this commit).** `docs/ROUND14_CHANGED_FILES.md`
+(git-derived 1550f74..HEAD, additive-config conflict notes, operator-local
+excluded) + `docs/ROUND14_ACCEPTANCE.md` (operator real-cdao checks: live
+guardrail role config, live paraphrased-attack blocks, Env Health row green,
+fail-safe drill, rollback flags).
+
+**Verified here:** verify_guardrail_llm 54/54; assistant 101/101; role_llm
+32/32; gpt5_compat 34/34; per_advisor 33/33; taxonomy, eligibility,
+new_drivers, anomalies all PASS; end-to-end PASS with reconciliation $0.00 on
+every advisor × transition. **Operator-pending:** everything in
+ROUND14_ACCEPTANCE.md (real cdao guardrail deployment).

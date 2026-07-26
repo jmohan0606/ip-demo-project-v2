@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-26T00:00:00Z
+Last updated: 2026-07-26T01:30:00Z
 Current phase: ROUND 14 (FIX_SPEC_R14.md) — LLM-based guardrail layer (defense in depth)
-Resume from: S-A
+Resume from: (none — round 14 complete)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -18,7 +18,7 @@ Resume from: S-A
 | 10 | 2026-07-25 | 2026-07-25 | round 10 fresh start | FIX_SPEC_R10.md: T-A1..T-G1 all DONE; verify_taxonomy 33/33, verify_eligibility 25/25, verify_new_drivers PASS, verify_clawback_scope 12/12, verify_assistant 101/101, e2e PASS (19 causes, recon $0.00, MIX ≤13.9%); commentary v21 6/6; 15/15 shots zero console errors; real-hierarchy + LIFE code + cdao rows = operator |
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
 | 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
-| 14 | 2026-07-26 | | round 14 fresh start (FIX_SPEC_R14.md) | SECURITY round: regex pre-filter → LLM intent classifier → hardened prompt; output leak check; fail-safe |
+| 14 | 2026-07-26 | 2026-07-26 | round 14 fresh start (FIX_SPEC_R14.md); session died mid-round (Codespace stop), session 15 resumed from git truth | SECURITY round S-A..S-I all DONE: regex → LLM intent classifier → hardened prompt → output leak check; fail-safe never open; verify_guardrail_llm 54/54; suites re-run PASS (assistant 101/101, role_llm 32/32, gpt5_compat 34/34, per_advisor 33/33, taxonomy/eligibility/new_drivers/anomalies, e2e recon $0.00); live guardrail-role cdao checks = operator (ROUND14_ACCEPTANCE.md) |
 | 13 | 2026-07-25 | 2026-07-25 | round 13 fresh start (FIX_SPEC_R13.md) | R-A..R-E all DONE; verify_gpt5_compat 34/34; suites re-run PASS (role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101, glossary 7/7, taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/anomalies, e2e recon $0.00); tsc clean; .env.example 136/136 keys; live GPT-5 cdao checks = operator |
 
 ## Tasks
@@ -250,15 +250,15 @@ Resume from: S-A
 | R-C | R13 | remove max_tokens from cdao create calls (main + per-role); leave Anthropic untouched | DONE | 8569ff6 | removed from Real+Cdao chat-completions creates; Anthropic messages.create max_tokens=1024 is the only one left in client.py (asserted) |
 | R-D | R13 | Env Health per-role probe uses the same corrected construction/call | DONE | 1eaee0b/9f9bb62 | corrected construction + minimal one-word create on cdao (discarded, no secrets); verify_gpt5_compat 34/34; all suites re-run PASS, recon $0.00, tsc clean; ROUND13_ACCEPTANCE.md written |
 | R-E | R13 | docs/ROUND13_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 0427bb8..HEAD; client.py flagged ⚠ operator-patched-locally (repo supersedes); + BUILD_REPORT §19 |
-| S-A | R14 | add `guardrail` LLM role (roles.py ROLES + settings + env keys + Env Health row + .env.example) | IN_PROGRESS (2026-07-26) | | |
-| S-B | R14 | LLM input classifier in screen_input, after regex, before routing; strict-JSON {category,confidence,reason}; example-rich system prompt | TODO | | |
-| S-C | R14 | decision policy with config thresholds (GUARDRAIL_BLOCK_THRESHOLD, GUARDRAIL_LLM_ENABLED); combine with regex, never downgrade | TODO | | |
-| S-D | R14 | hardened assistant system prompt (scope-locked, no-instruction-reveal, no-arbitrary-exec, input-as-data) | TODO | | |
-| S-E | R14 | fail-safe: classifier failure never fails open; degradation logged | TODO | | |
-| S-F | R14 | output check: block system-prompt/instruction leak + PII surfacing | TODO | | |
-| S-G | R14 | visibility: classifier blocks render ⛉ GUARDRAIL (category+severity only), reason never shown | TODO | | |
-| S-H | R14 | mock guardrail LLM + fixtures: paraphrased attacks blocked, benign pass, regex intact, fail-safe, output leak | TODO | | |
-| S-I | R14 | docs/ROUND14_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| S-A | R14 | add `guardrail` LLM role (roles.py ROLES + settings + env keys + Env Health row + .env.example) | DONE | 038980f | guardrail role in ROLES; GUARDRAIL_LLM_MODE/MODEL/DEPLOYMENT/API_VERSION/TEMPERATURE via the R12 per-field helper (R13 GPT-5 handling inherited); Env Health "guardrail classifier" row; .env.example block |
+| S-B | R14 | LLM input classifier in screen_input, after regex, before routing; strict-JSON {category,confidence,reason}; example-rich system prompt | DONE | e2050b9 | intent_classifier.py: one constrained guardrail-role call, strict JSON {category,confidence,reason}; deterministic keyword classifier in mock mode; ClassifierUnavailable on any failure |
+| S-C | R14 | decision policy with config thresholds (GUARDRAIL_BLOCK_THRESHOLD, GUARDRAIL_LLM_ENABLED); combine with regex, never downgrade | DONE | e2050b9 | GUARDRAIL_BLOCK_THRESHOLD + GUARDRAIL_LLM_ENABLED + GUARDRAILS_ENABLED all config; classifier never downgrades a regex BLOCK; off_scope_use -> polite OUT_OF_SCOPE before routing |
+| S-D | R14 | hardened assistant system prompt (scope-locked, no-instruction-reveal, no-arbitrary-exec, input-as-data) | DONE | e2050b9 | system_prompts.py hardened narrator prompt: scope lock, no instruction reveal, no arbitrary exec, input-as-data; wired in service.py |
+| S-E | R14 | fail-safe: classifier failure never fails open; degradation logged | DONE | e2050b9 | ClassifierUnavailable -> FAILS SAFE: regex result stands, CLASSIFIER_DEGRADED finding, GUARDRAIL DEGRADATION warning logged; never open, never full-trust |
+| S-F | R14 | output check: block system-prompt/instruction leak + PII surfacing | DONE | e2050b9 | screen_output blocks system-prompt/instruction leaks (deterministic fragment check) on top of existing numeric/PII checks; leaking text never displayed |
+| S-G | R14 | visibility: classifier blocks render ⛉ GUARDRAIL (category+severity only), reason never shown | DONE | e2050b9 | persisted findings carry category+severity+action ONLY (reason is log-only); existing R9 chip renders them unchanged — payload shape identical, no frontend change needed; proven by fixture 6.x + persisted sample conversations |
+| S-H | R14 | mock guardrail LLM + fixtures: paraphrased attacks blocked, benign pass, regex intact, fail-safe, output leak | DONE | 3ca2685/0c52ad7 | verify_guardrail_llm.py 54/54 (attacks block, benign pass, regex independent, no-downgrade, PII-before-classifier, fail-safe, visibility, output leak, Env Health, thresholds); + 9c2727d role_llm 5.1 additive row (32/32); fixture conversations committed 0c52ad7 |
+| S-I | R14 | docs/ROUND14_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 1550f74..HEAD; additive-config conflict notes; operator-local excluded; + ROUND14_ACCEPTANCE.md + BUILD_REPORT §20 |
 
 ## Decisions
 | When | Decision | Why |
@@ -332,6 +332,8 @@ Resume from: S-A
 | 2026-07-25 | R13: *_TEMPERATURE never counts toward R12 configured_fields (always present, default 1); an unconfigured writer keeps the main singleton, so WRITER_TEMPERATURE applies only when the writer is R12-configured — judge (legacy R9 E path) and assistant (primary link) DO get their role temperature without R12 config, as a call-detail-only change | all-empty role config must stay byte-identical to R12 (spec F6); the shared main singleton must not take one role's temperature; judge/assistant build their own clients so threading their temperature there changes no construction path |
 | 2026-07-25 | R13: Env Health cdao probe = minimal one-word completion via the adapter's generate() (discarded), replacing the models lookup ONLY for cdao_openai; other modes keep the R10 cheap lookup | spec D mandates the probe use the same corrected create; a models lookup cannot prove a GPT-5 deployment serves completions; claude/real probes stay proven-live R10 behaviour |
 | 2026-07-25 | Q-F: glossary order fixed by ENFORCING numeric sort at the service layer (both tiers) rather than only reinstalling the live graph's schema | repo DDL/catalog/CSVs/local tier were already INT and correct — the lexicographic order can only come from a pre-R8 STRING-typed live graph via GQ-004's ORDER BY; the service guard fixes rendering regardless of the installed schema, and the GQ-004 header directs the schema reinstall. No display_order VALUE or display_name changed |
+
+| 2026-07-26 | R14 session-15 resume: git established as truth over stale PROGRESS.md (S-A..S-H code already committed 038980f..9c2727d); the 4 dirty sample CSVs identified as the intended S-H fixture conversations and committed (0c52ad7), not discarded; ROUND14_STARTER_PROMPT.md gitignored, never committed | Codespace died mid-round-14 before the progress file was truthed up; §0.1 protocol — git is the truth, the progress file is the claim |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
