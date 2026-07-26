@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-26T01:30:00Z
-Current phase: ROUND 14 (FIX_SPEC_R14.md) — LLM-based guardrail layer (defense in depth)
-Resume from: (none — round 14 complete)
+Last updated: 2026-07-26T12:00:00Z
+Current phase: ROUND 15 (FIX_SPEC_R15.md) — classifier tuning + regex toggle + driver-month + pin removal
+Resume from: U-A
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -19,6 +19,7 @@ Resume from: (none — round 14 complete)
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
 | 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
 | 14 | 2026-07-26 | 2026-07-26 | round 14 fresh start (FIX_SPEC_R14.md); session died mid-round (Codespace stop), session 15 resumed from git truth | SECURITY round S-A..S-I all DONE: regex → LLM intent classifier → hardened prompt → output leak check; fail-safe never open; verify_guardrail_llm 54/54; suites re-run PASS (assistant 101/101, role_llm 32/32, gpt5_compat 34/34, per_advisor 33/33, taxonomy/eligibility/new_drivers/anomalies, e2e recon $0.00); live guardrail-role cdao checks = operator (ROUND14_ACCEPTANCE.md) |
+| 16 | 2026-07-26 | (running) | round 15 fresh start (FIX_SPEC_R15.md) | three client-env bugs: classifier over-blocking, regex toggle, single-month drivers, pin removal |
 | 13 | 2026-07-25 | 2026-07-25 | round 13 fresh start (FIX_SPEC_R13.md) | R-A..R-E all DONE; verify_gpt5_compat 34/34; suites re-run PASS (role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101, glossary 7/7, taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/anomalies, e2e recon $0.00); tsc clean; .env.example 136/136 keys; live GPT-5 cdao checks = operator |
 
 ## Tasks
@@ -259,6 +260,13 @@ Resume from: (none — round 14 complete)
 | S-G | R14 | visibility: classifier blocks render ⛉ GUARDRAIL (category+severity only), reason never shown | DONE | e2050b9 | persisted findings carry category+severity+action ONLY (reason is log-only); existing R9 chip renders them unchanged — payload shape identical, no frontend change needed; proven by fixture 6.x + persisted sample conversations |
 | S-H | R14 | mock guardrail LLM + fixtures: paraphrased attacks blocked, benign pass, regex intact, fail-safe, output leak | DONE | 3ca2685/0c52ad7 | verify_guardrail_llm.py 54/54 (attacks block, benign pass, regex independent, no-downgrade, PII-before-classifier, fail-safe, visibility, output leak, Env Health, thresholds); + 9c2727d role_llm 5.1 additive row (32/32); fixture conversations committed 0c52ad7 |
 | S-I | R14 | docs/ROUND14_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 1550f74..HEAD; additive-config conflict notes; operator-local excluded; + ROUND14_ACCEPTANCE.md + BUILD_REPORT §20 |
+| U-A | R15 | tune classifier system prompt: legitimate revenue-data questions ALWAYS safe; worked examples; "when in doubt, safe" for data questions | IN_PROGRESS | | started 2026-07-26T12:00Z |
+| U-A3 | R15 | mock classifier updated to the same boundary | TODO | | |
+| U-B | R15 | GUARDRAIL_REGEX_ENABLED toggle (classifier-only mode); PII redaction stays on; fail-safe intact; Env Health/logs note posture | TODO | | |
+| U-C | R15 | single loaded month → transition for WHY_CHANGE/DRIVER_DETAIL; NO_DATA only for genuinely unloaded | TODO | | |
+| U-D | R15 | REMOVE transition-pinning (frontend pinned state + chip; backend pinned param + scope_json write); scope to advisor across all months; R9 advisor binding + multi-turn inheritance preserved | TODO | | |
+| U-F | R15 | scripts/verify_round15.py — checks 1–7 across the full advisor×transition matrix, per-check PASS/FAIL, exit non-zero on failure | TODO | | |
+| U-E | R15 | docs/ROUND15_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
