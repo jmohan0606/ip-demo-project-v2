@@ -172,17 +172,21 @@ def check_context(svc) -> None:
     check("turn 1 seeds from screen (May→Jun, SMPL001)",
           c1["advisor_sid"] == "SMPL001" and c1["from_month"] == "202605"
           and c1["to_month"] == "202606", str(c1))
+    # R15 C — a single month named on a DRIVER intent resolves M → next
+    # loaded month (May → June); drivers need a transition and this is the
+    # spec'd mapping (prev → M only when M is the last loaded month).
     r2 = svc.ask("What about May?", conversation_id=cid,
                  screen={"advisor_sid": "SMPL001"})
     c2 = json.loads(r2["assistant_message"]["resolved_context_json"])
-    check("turn 2 re-anchors to Apr→May, keeps advisor + intent",
-          c2["from_month"] == "202604" and c2["to_month"] == "202605"
+    check("turn 2 re-anchors to May→Jun (R15 C: month→next), keeps advisor + intent",
+          c2["from_month"] == "202605" and c2["to_month"] == "202606"
           and c2["advisor_sid"] == "SMPL001" and c2["intent"] == "WHY_CHANGE", str(c2))
     r3 = svc.ask("Which accounts?", conversation_id=cid,
                  screen={"advisor_sid": "SMPL001"})
     c3 = json.loads(r3["assistant_message"]["resolved_context_json"])
-    check("turn 3 inherits Apr→May into TRANSACTIONS",
-          c3["intent"] == "TRANSACTIONS" and c3["to_month"] == "202605"
+    check("turn 3 inherits May→Jun into TRANSACTIONS",
+          c3["intent"] == "TRANSACTIONS" and c3["to_month"] == "202606"
+          and c3["from_month"] == "202605"
           and c3["advisor_sid"] == "SMPL001", str(c3))
     check("resolved context visible (chip label present)",
           bool(c3.get("chip")), str(c3))
@@ -417,14 +421,14 @@ def check_span(svc) -> None:
     resolved = ctx_mod.resolve(
         entities={}, screen={"advisor_sid": "SMPL001", "from_month": "202604",
                              "to_month": "202606"},
-        previous=None, pinned=None,
+        previous=None,
         month_ids=["202604", "202605", "202606"], intent="MOM_CHANGE")
     check("a wide SCREEN-sourced span snaps to the adjacent transition (May→Jun)",
           resolved.from_month == "202605" and resolved.to_month == "202606",
           f"{resolved.from_month}->{resolved.to_month}")
     resolved_q = ctx_mod.resolve(
         entities={"from_month": "202604", "to_month": "202606"},
-        screen={"advisor_sid": "SMPL001"}, previous=None, pinned=None,
+        screen={"advisor_sid": "SMPL001"}, previous=None,
         month_ids=["202604", "202605", "202606"], intent="MOM_CHANGE")
     check("a QUESTION-sourced span is kept (decomposed in the answer, not snapped)",
           resolved_q.from_month == "202604" and resolved_q.to_month == "202606",

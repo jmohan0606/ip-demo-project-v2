@@ -210,7 +210,8 @@ class AskBody(BaseModel):
     text: str
     conversation_id: str = ""
     screen: dict | None = None    # screen-seeded context: advisor_sid, from_month, to_month, group_id
-    pinned: dict | None = None    # frozen context when the Pin control is on
+    # R15 D — transition-pinning removed; the conversation is scoped to one
+    # advisor across all loaded months, the transition resolves per-question.
 
 
 @router.post("/assistant/ask")
@@ -218,7 +219,7 @@ def assistant_ask(body: AskBody):
     from app.v2.assistant.service import AssistantService
 
     return ok(data=AssistantService().ask(
-        body.text, body.conversation_id, body.screen, body.pinned))
+        body.text, body.conversation_id, body.screen))
 
 
 @router.get("/assistant/conversations")

@@ -7,9 +7,12 @@
  * screen context). ONE state store serves BOTH presentations — the overlay
  * panel and the full-page /ask view — so the logic is never forked.
  *
- * Screen state seeds the context on every send (advisor + loaded transition);
- * Pin freezes it (A4). The open/collapsed flag and current conversation id
- * survive a reload via localStorage + server-side rehydration (A5).
+ * Screen state seeds the context on every send (advisor + loaded transition).
+ * R15 D — transition-pinning is REMOVED: a conversation is scoped to ONE
+ * advisor across ALL loaded months; the transition comes from the question
+ * (or the latest loaded transition by default), never a sticky pin. The
+ * open/collapsed flag and current conversation id survive a reload via
+ * localStorage + server-side rehydration (A5).
  */
 import {
   ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState,
@@ -36,9 +39,8 @@ interface AssistantState {
   extras: Record<string, TurnExtras>; // message_id -> extras
   sending: boolean;
   error: string | null;
-  pinned: ScreenContext | null;
-  setPinned: (pin: ScreenContext | null) => void;
   screen: ScreenContext;
+  monthIds: string[]; // loaded months (ascending) — the conversation's honest scope
   send: (text: string) => Promise<void>;
   newConversation: () => void;
   openConversation: (conversationId: string) => Promise<void>;
@@ -70,7 +72,6 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
   const [extras, setExtras] = useState<Record<string, TurnExtras>>({});
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pinned, setPinned] = useState<ScreenContext | null>(null);
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [servedByTier, setServedByTier] = useState<number | null>(null);
 
@@ -78,6 +79,8 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
   // the latest loaded ADJACENT transition (A4 — "why did this drop?" resolves;
   // R9 C2 — never the full loaded span).
   const monthKey = monthIds.filter(Boolean).sort().join(",");
+  const loadedMonths = useMemo(
+    () => (monthKey ? monthKey.split(",") : []), [monthKey]);
   const screen = useMemo<ScreenContext>(() => {
     const months = monthKey ? monthKey.split(",") : [];
     return {
@@ -136,7 +139,6 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
         text,
         conversation_id: conversationId,
         screen,
-        pinned,
       });
       setConversationId(r.conversation.conversation_id);
       setTitle(r.conversation.title);
@@ -185,7 +187,7 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
     } finally {
       setSending(false);
     }
-  }, [conversationId, pinned, screen, sending, refreshConversations]);
+  }, [conversationId, screen, sending, refreshConversations]);
 
   const newConversation = useCallback(() => {
     setConversationId("");
@@ -198,11 +200,11 @@ export function AssistantProvider({ children, advisorId, monthIds }: {
 
   const value = useMemo<AssistantState>(() => ({
     open, setOpen, conversationId, title, messages, extras, sending, error,
-    pinned, setPinned, screen, send, newConversation, openConversation,
+    screen, monthIds: loadedMonths, send, newConversation, openConversation,
     conversations, refreshConversations, servedByTier,
   }), [open, setOpen, conversationId, title, messages, extras, sending, error,
-       pinned, screen, send, newConversation, openConversation, conversations,
-       refreshConversations, servedByTier]);
+       screen, loadedMonths, send, newConversation, openConversation,
+       conversations, refreshConversations, servedByTier]);
 
   return <AssistantContext.Provider value={value}>{children}</AssistantContext.Provider>;
 }

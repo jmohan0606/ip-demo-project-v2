@@ -59,11 +59,11 @@ function GuardrailChip({ message }: { message: MessageRow }) {
 }
 
 function ContextChip({ message }: { message: MessageRow }) {
-  const ctx = parse<{ chip?: string; pinned?: boolean }>(message.resolved_context_json, {});
+  const ctx = parse<{ chip?: string }>(message.resolved_context_json, {});
   if (!ctx.chip) return null;
   return (
     <span className="inline-block whitespace-nowrap rounded-full bg-v2-warn-bg px-2 py-0.5 text-[9.5px] font-medium text-v2-warn">
-      ↩ {ctx.pinned ? "pinned" : "context"}: {ctx.chip}
+      ↩ context: {ctx.chip}
     </span>
   );
 }
@@ -152,7 +152,7 @@ function AssistantTurn({ message }: { message: MessageRow }) {
 
 export function AssistantPanel({ variant }: { variant: "overlay" | "page" }) {
   const {
-    messages, extras, sending, error, send, pinned, setPinned, screen,
+    messages, extras, sending, error, send, screen, monthIds,
   } = useAssistant();
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -165,13 +165,22 @@ export function AssistantPanel({ variant }: { variant: "overlay" | "page" }) {
   const suggestions = lastAssistant
     ? extras[lastAssistant.message_id]?.suggestions ?? []
     : [];
-  const chipText = pinned
-    ? `Pinned: ${[pinned.advisor_sid, pinned.from_month && pinned.to_month
-        ? `${pinned.from_month}→${pinned.to_month}` : pinned.to_month]
-        .filter(Boolean).join(" · ")}`
-    : `Following screen: ${[screen.advisor_sid, screen.from_month && screen.to_month
-        ? `${screen.from_month}→${screen.to_month}` : screen.to_month, "credited"]
-        .filter(Boolean).join(" · ")}`;
+  // R15 D — no transition pin: the honest scope header. A conversation is
+  // scoped to the current advisor across ALL loaded months; each question
+  // resolves its own transition (a named month, or the latest by default).
+  const monthLabel = (id: string) => {
+    const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return id.length === 6
+      ? `${names[Number(id.slice(4, 6)) - 1]} ${id.slice(0, 4)}` : id;
+  };
+  const rangeText = monthIds.length
+    ? (monthIds.length > 1
+        ? `${monthLabel(monthIds[0])}–${monthLabel(monthIds[monthIds.length - 1])}`
+        : monthLabel(monthIds[0]))
+    : "no months loaded";
+  const chipText = `Scoped to ${screen.advisor_sid || "the selected advisor"} · ${
+    rangeText} · credited`;
 
   const submit = () => {
     const text = draft.trim();
@@ -184,18 +193,14 @@ export function AssistantPanel({ variant }: { variant: "overlay" | "page" }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* context chip + Pin (A4 — visible resolved context) */}
-      <div className="flex items-center justify-between gap-2 border-b border-v2-border bg-v2-warn-bg px-3 py-1.5">
-        <span className="truncate text-[10.5px] text-v2-warn">↺ {chipText}</span>
-        <button
-          type="button"
-          onClick={() => setPinned(pinned ? null : { ...screen })}
-          className={`shrink-0 rounded px-2 py-0.5 text-[10.5px] font-semibold ${
-            pinned ? "bg-v2-navy text-white" : "text-v2-navy hover:bg-v2-header-bg"}`}
-          title={pinned ? "Unpin — follow the screen again" : "Pin this context so it stops following the screen"}
+      {/* honest scope header (R15 D — advisor across all loaded months; no pin) */}
+      <div className="flex items-center gap-2 border-b border-v2-border bg-v2-warn-bg px-3 py-1.5">
+        <span
+          className="truncate text-[10.5px] text-v2-warn"
+          title="This conversation is scoped to the current advisor across the loaded months. Each question resolves its own transition — name a month to ask about it."
         >
-          {pinned ? "Pinned ✕" : "Pin"}
-        </button>
+          ↺ {chipText}
+        </span>
       </div>
 
       {/* transcript (B4: empty / loading / error states all render) */}

@@ -6,7 +6,9 @@ Order of operations for every user turn (A9 — fixed, non-negotiable):
       -> guardrails.check_input()          BLOCK / REDACT / PASS   (Z-A10)
       -> intent router (deterministic)                             (Z-A3)
       -> constrained LLM fallback if no rule matched               (Z-A4)
-      -> context resolution (question > pinned > inherited > screen > default)
+      -> context resolution (question > inherited > screen > default — R15 D,
+         transition-pinning removed; the conversation stays bound to ONE
+         advisor across all loaded months, R9 C1 unchanged)
       -> catalogued query execution (AnswerEngine — never computes)
       -> narration (AssistantLLM) under the no-invented-figures guardrail
       -> guardrails.check_output() + numeric validation            (Z-A9)
@@ -92,8 +94,8 @@ class AssistantService:
 
     # ------------------------------------------------------------ the turn
 
-    def ask(self, text: str, conversation_id: str = "", screen: dict | None = None,
-            pinned: dict | None = None) -> dict:
+    def ask(self, text: str, conversation_id: str = "",
+            screen: dict | None = None) -> dict:
         ref = self._reference()
 
         # ---- A9 step 1: input guardrails BEFORE anything else sees the text
@@ -101,10 +103,14 @@ class AssistantService:
         conversation = (self.store.conversation(conversation_id)
                         if conversation_id else None)
         if conversation is None:
+            # R15 D — no transition pin is ever written: scope_json stays
+            # empty (the column remains in the schema, unused). The
+            # conversation's scope is its advisor (R9 C1) across ALL loaded
+            # months.
             conversation = self.store.create_conversation(
                 title=gate.text[:60] or "New conversation",
                 advisor_sid=(screen or {}).get("advisor_sid", ""),
-                scope_json=json.dumps(pinned) if pinned else "")
+                scope_json="")
 
         user_message = self.store.append_message(
             conversation, role="USER", text=gate.text,
@@ -147,7 +153,7 @@ class AssistantService:
 
         resolved = ctx_mod.resolve(
             entities=plan.entities, screen=screen, previous=previous,
-            pinned=pinned, month_ids=ref["month_ids"], intent=plan.intent or "")
+            month_ids=ref["month_ids"], intent=plan.intent or "")
 
         # ---- R9 C1: the conversation is BOUND to one advisor. Every query in
         # it runs as that advisor; a question about another advisor (or a
@@ -172,7 +178,6 @@ class AssistantService:
         resolved_dict["intent"] = plan.intent
         resolved_dict["chip"] = ctx_mod.chip_label(
             resolved, ref["advisor_names"], self._short_months(), ref["group_names"])
-        resolved_dict["pinned"] = bool(pinned)
 
         # ---- honest non-answers (A7)
         if scope_refusal:

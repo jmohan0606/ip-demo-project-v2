@@ -3,15 +3,18 @@
 Deterministic code, not model memory. Each turn stores its RESOLVED parameters
 (advisor_sid, from_month, to_month, group_id, measure); the next turn inherits
 them unless the new question overrides. Screen state seeds the context — so
-"why did this drop?" with no parameters resolves correctly — and a Pin freezes
-the context so it stops following the screen.
+"why did this drop?" with no parameters resolves correctly.
+
+R15 D — transition-level pinning is REMOVED. A conversation is scoped to ONE
+advisor (the R9 binding, unchanged) across ALL loaded months; the transition
+comes from the QUESTION (a named month resolves its own transition) or the
+latest loaded transition by default — never a sticky pin.
 
 Precedence per field (highest wins):
     1. entities extracted from THIS question
-    2. the pinned context (when pinned)
-    3. the previous turn's resolved context (inheritance)
-    4. the current screen state (when not pinned)
-    5. defaults: latest loaded transition; advisor from the screen
+    2. the previous turn's resolved context (inheritance)
+    3. the current screen state (advisor; all loaded months)
+    4. defaults: latest loaded transition; advisor from the screen
 
 Every resolved field carries WHERE it came from, so the UI can show the
 context chip honestly (invisible context is where chat assistants lose trust).
@@ -28,7 +31,7 @@ class ResolvedContext:
     to_month: str = ""
     group_id: str = ""
     measure: str = "credited"
-    sources: dict = field(default_factory=dict)  # field -> question|pinned|inherited|screen|default
+    sources: dict = field(default_factory=dict)  # field -> question|inherited|screen|default
 
     def as_dict(self) -> dict:
         return {
@@ -45,16 +48,16 @@ _FIELDS = ("advisor_sid", "from_month", "to_month", "group_id", "measure")
 
 
 def resolve(*, entities: dict, screen: dict | None, previous: dict | None,
-            pinned: dict | None, month_ids: list[str], intent: str) -> ResolvedContext:
-    """Merge the four context layers by precedence. `entities` comes from the
-    router's extraction over THIS question only; `month_ids` is the loaded
-    month list (ascending) used for transition defaults."""
+            month_ids: list[str], intent: str) -> ResolvedContext:
+    """Merge the context layers by precedence (question > inherited > screen >
+    default — R15 D, no pin layer). `entities` comes from the router's
+    extraction over THIS question only; `month_ids` is the loaded month list
+    (ascending) used for transition defaults."""
     ctx = ResolvedContext()
     layers = [
         ("default", _defaults(month_ids, screen)),
-        ("screen", {} if pinned else (screen or {})),
+        ("screen", screen or {}),
         ("inherited", previous or {}),
-        ("pinned", pinned or {}),
         ("question", entities or {}),
     ]
     for source, values in layers:
@@ -79,13 +82,32 @@ def resolve(*, entities: dict, screen: dict | None, previous: dict | None,
             ctx.from_month = prior
             ctx.sources["from_month"] = "screen"
 
-    # A month named alone ("what about May?") re-anchors the transition:
-    # to_month = that month, from_month = the prior loaded month.
+    # A month named alone re-anchors the transition (R15 C). Drivers need a
+    # TRANSITION, so for driver intents a single loaded month M maps to
+    # M → next loaded month (or prev → M when M is the last loaded month) —
+    # "revenue drivers for April 2026" must return April→May drivers, never
+    # NO_DATA. Unloaded months never reach here (the router flags them as
+    # unloaded_month and the service answers NO_DATA honestly).
     if entities.get("to_month") and not entities.get("from_month"):
-        prior = _prior_month(str(entities["to_month"]), month_ids)
-        if prior:
-            ctx.from_month = prior
-            ctx.sources["from_month"] = "question"
+        named = str(entities["to_month"])
+        if intent in ("WHY_CHANGE", "DRIVER_DETAIL"):
+            nxt = _next_month(named, month_ids)
+            if nxt:  # first or middle loaded month: M → next
+                ctx.from_month, ctx.to_month = named, nxt
+                ctx.sources["from_month"] = ctx.sources["to_month"] = "question"
+            else:    # last loaded month: prev → M
+                prior = _prior_month(named, month_ids)
+                if prior:
+                    ctx.from_month = prior
+                    ctx.sources["from_month"] = "question"
+        else:
+            # Other intents keep the R7 anchoring: to_month = that month,
+            # from_month = the prior loaded month ("what changed in June?"
+            # reads May→June).
+            prior = _prior_month(named, month_ids)
+            if prior:
+                ctx.from_month = prior
+                ctx.sources["from_month"] = "question"
 
     # Cross-advisor intents drop the single-advisor scope.
     if intent == "COMPARE_ADVISORS" and not entities.get("advisor_sid"):
@@ -93,7 +115,7 @@ def resolve(*, entities: dict, screen: dict | None, previous: dict | None,
         ctx.sources["advisor_sid"] = "question"
 
     # A question that names a NEW subject clears a group carried from a
-    # previous drill-down unless this question (or pin) named the group.
+    # previous drill-down unless this question named the group.
     if intent in ("REVENUE_TREND", "MOM_CHANGE", "COMPARE_ADVISORS", "ANOMALIES",
                   "COMMENTARY") and ctx.sources.get("group_id") == "inherited":
         ctx.group_id = ""
@@ -117,6 +139,14 @@ def _prior_month(month_id: str, month_ids: list[str]) -> str:
     except ValueError:
         return ""
     return month_ids[i - 1] if i > 0 else ""
+
+
+def _next_month(month_id: str, month_ids: list[str]) -> str:
+    try:
+        i = month_ids.index(month_id)
+    except ValueError:
+        return ""
+    return month_ids[i + 1] if i + 1 < len(month_ids) else ""
 
 
 def chip_label(ctx: ResolvedContext, advisor_names: dict[str, str],

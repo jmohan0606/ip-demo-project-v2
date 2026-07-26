@@ -378,11 +378,13 @@ export interface ScreenContext {
   group_id?: string;
 }
 
+// R15 D — transition-pinning removed: no pinned field. The conversation is
+// scoped to one advisor across all loaded months; transitions resolve per
+// question server-side.
 export interface AskRequest {
   text: string;
   conversation_id?: string;
   screen?: ScreenContext | null;
-  pinned?: ScreenContext | null;
 }
 
 export interface ConversationRow {
