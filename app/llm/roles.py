@@ -1,8 +1,8 @@
 """Per-role LLM configuration + auto-fallback (FIX_SPEC_R12).
 
-Three LLM roles — the commentary WRITER, the JUDGE (advisory only, R9 E) and
-the ASSISTANT ("Ask iPerform", R7) — may each need a different model in the
-client environment. Azure/cdao route by DEPLOYMENT NAME, the model id is passed
+Four LLM roles — the commentary WRITER, the JUDGE (advisory only, R9 E), the
+ASSISTANT ("Ask iPerform", R7) and the GUARDRAIL input intent classifier
+(FIX_SPEC_R14) — may each need a different model in the client environment. Azure/cdao route by DEPLOYMENT NAME, the model id is passed
 in the request, and some models need their own api_version; the three can all
 differ (a bare JUDGE_MODEL=gpt-4o-mini 404'd because it could not carry a
 different api_version). Each role therefore gets an optional
@@ -43,10 +43,12 @@ from app.shared.logging import get_logger
 
 _log = get_logger("app.llm.roles")
 
-ROLES = ("writer", "judge", "assistant")
+ROLES = ("writer", "judge", "assistant", "guardrail")
 
 # role -> Settings attribute per field. The assistant's mode key is the existing
 # ASSISTANT_LLM_MODE; the judge's model key is the existing JUDGE_MODEL (A).
+# R14 — the guardrail role (input intent classifier) resolves identically;
+# its mode key is GUARDRAIL_LLM_MODE.
 _ROLE_SETTING_ATTRS = {
     "writer": {"mode": "writer_client_mode", "model": "writer_model",
                "deployment": "writer_deployment", "api_version": "writer_api_version"},
@@ -54,6 +56,8 @@ _ROLE_SETTING_ATTRS = {
               "deployment": "judge_deployment", "api_version": "judge_api_version"},
     "assistant": {"mode": "assistant_llm_mode", "model": "assistant_model",
                   "deployment": "assistant_deployment", "api_version": "assistant_api_version"},
+    "guardrail": {"mode": "guardrail_llm_mode", "model": "guardrail_model",
+                  "deployment": "guardrail_deployment", "api_version": "guardrail_api_version"},
 }
 
 # The .env alias for each (role, field) — used in Env Health / operator messages.
@@ -64,6 +68,8 @@ ROLE_ENV_KEYS = {
               "deployment": "JUDGE_DEPLOYMENT", "api_version": "JUDGE_API_VERSION"},
     "assistant": {"mode": "ASSISTANT_LLM_MODE", "model": "ASSISTANT_MODEL",
                   "deployment": "ASSISTANT_DEPLOYMENT", "api_version": "ASSISTANT_API_VERSION"},
+    "guardrail": {"mode": "GUARDRAIL_LLM_MODE", "model": "GUARDRAIL_MODEL",
+                  "deployment": "GUARDRAIL_DEPLOYMENT", "api_version": "GUARDRAIL_API_VERSION"},
 }
 
 
@@ -153,6 +159,10 @@ def default_model_for(role: str, mode: str, settings=None) -> str:
     mode = (mode or "").lower()
     if mode == "claude" and role == "judge":
         return "claude-sonnet-5"  # R5: a different model than the writer
+    if mode == "mock" and role == "guardrail":
+        # R14 — in mock mode the classifier is NOT the mock template adapter
+        # (its output is not JSON); it is a deterministic keyword classifier.
+        return "deterministic-keyword-classifier"
     return {
         "mock": "deterministic-template",
         "claude": settings.anthropic_model,

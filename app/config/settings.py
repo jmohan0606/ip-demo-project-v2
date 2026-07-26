@@ -186,6 +186,26 @@ class Settings(BaseSettings):
     judge_temperature: float = Field(default=1.0, alias="JUDGE_TEMPERATURE")
     assistant_temperature: float = Field(default=1.0, alias="ASSISTANT_TEMPERATURE")
 
+    # --- R14 — the `guardrail` LLM role: the model-based input intent
+    # classifier (defense-in-depth layer 2, FIX_SPEC_R14 A/B). Same per-field
+    # resolution + R13 GPT-5 handling + auto-fallback as the other roles;
+    # GUARDRAIL_LLM_MODE is its client-mode key. In mock mode the classifier
+    # is a deterministic keyword classifier (canned classifications) so the
+    # whole flow is testable offline.
+    guardrail_llm_mode: str = Field(default="", alias="GUARDRAIL_LLM_MODE")
+    guardrail_model: str = Field(default="", alias="GUARDRAIL_MODEL")
+    guardrail_deployment: str = Field(default="", alias="GUARDRAIL_DEPLOYMENT")
+    guardrail_api_version: str = Field(default="", alias="GUARDRAIL_API_VERSION")
+    guardrail_temperature: float = Field(default=1.0, alias="GUARDRAIL_TEMPERATURE")
+    # R14 C — decision policy is CONFIG, not hardcoded. GUARDRAILS_ENABLED
+    # (above) gates the whole stack; GUARDRAIL_LLM_ENABLED gates only the LLM
+    # classifier so it can be switched off independently for debugging (the
+    # regex pre-filter always stays on while the stack is enabled).
+    guardrail_llm_enabled: bool = Field(default=True, alias="GUARDRAIL_LLM_ENABLED")
+    # injection/jailbreak/exfiltration classifications at or above this
+    # confidence BLOCK the turn (0.0–1.0).
+    guardrail_block_threshold: float = Field(default=0.5, alias="GUARDRAIL_BLOCK_THRESHOLD")
+
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],
     # client artifactory only; guarded import). Auth comes from the ambient PCL AWS login session

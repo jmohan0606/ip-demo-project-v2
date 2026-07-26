@@ -164,6 +164,15 @@ def _role_row(role: str, label: str, settings) -> dict[str, Any]:
         "source": source,
     }
 
+    # R14 — in mock mode the guardrail classifier is the deterministic keyword
+    # classifier (the mock template adapter's output is not JSON): local,
+    # always available, no external call.
+    if role == "guardrail" and cfg.mode == "mock":
+        row.update({"status": "reachable", "error": None,
+                    "check": "deterministic keyword classifier — local, canned "
+                             "classifications, no external call (R14)"})
+        return row
+
     # The judge never runs on the mock adapter (deterministic output cannot
     # judge language) — honest by-design row, does not redden the card.
     if role == "judge" and cfg.mode == "mock":
@@ -184,15 +193,23 @@ def _role_row(role: str, label: str, settings) -> dict[str, Any]:
             row["fallback"] = ("configured model unreachable and the default agent "
                                "LLM is mock — the judge records the honest "
                                "UNAVAILABLE state (never 0.00, never blocks publication)")
+    # R14 D — an unreachable guardrail classifier NEVER fails open: say so.
+    if role == "guardrail" and row["status"] == "unavailable":
+        note = ("classifier unavailable ⇒ FAIL-SAFE (R14 D): the regex pre-filter "
+                "still blocks/redacts, turns proceed only to the scoped router, and "
+                "every degraded turn is logged — never full-trust")
+        row["fallback"] = f"{row['fallback']}; {note}" if row.get("fallback") else note
     return row
 
 
 def llm_connectivity_report() -> list[dict[str, Any]]:
-    """The three role rows. Never raises; never generates; never mutates."""
+    """The four role rows (writer, judge, assistant, guardrail — R14). Never
+    raises; never generates (except the R13 cdao minimal probe); never mutates."""
     settings = get_settings()
     rows = [_role_row("writer", "commentary writer", settings),
             _role_row("judge", "judge", settings),
-            _role_row("assistant", "assistant", settings)]
+            _role_row("assistant", "assistant", settings),
+            _role_row("guardrail", "guardrail classifier", settings)]
     # The assistant additionally has its R7 sequential chain after the primary.
     fallback_modes = (settings.assistant_llm_fallback_modes or "").strip()
     rows[2]["source"] += " (R7 chain" + (f": {fallback_modes}" if fallback_modes else "") + \
