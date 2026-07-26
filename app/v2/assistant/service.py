@@ -37,15 +37,10 @@ _log = get_logger("app.v2.assistant")
 _ADVICE_LIMIT = ("I can show what happened and why — recommendations aren't "
                  "something I cover yet.")
 
-_NARRATE_SYSTEM = (
-    "You are Ask iPerform, a revenue analytics assistant for a wealth "
-    "management firm. Rewrite the DETERMINISTIC ANSWER below into 1-3 clear, "
-    "professional sentences. HARD RULES: use ONLY figures that appear in the "
-    "FIGURES list, copied VERBATIM in their formatted form (negatives stay in "
-    "parentheses). Never compute, estimate, round differently, or add any "
-    "number, month, advisor or product not present. No advice or "
-    "recommendations. No greetings."
-)
+# R14 C — the narrator's system prompt is the HARDENED version (scope-locked,
+# no instruction reveal, no arbitrary execution, input-as-data). One module
+# owns it so the output leak check can test responses against the same text.
+from app.v2.assistant.system_prompts import HARDENED_NARRATE_SYSTEM as _NARRATE_SYSTEM  # noqa: E402
 
 
 class AssistantService:
@@ -124,6 +119,17 @@ class AssistantService:
                 guardrail_json=gate.findings_json)
             return self._payload(conversation, user_message, assistant_message,
                                  suggestions=[], links=[], ai_generated=False)
+
+        if gate.out_of_scope:
+            # R14 B3 — the LLM intent classifier judged the input
+            # off_scope_use (not an attack): the existing polite decline,
+            # BEFORE routing, so the selector LLM is never consulted.
+            return self._finish_simple(
+                conversation, user_message, {"intent": "", "chip": ""},
+                "OUT_OF_SCOPE",
+                "That's outside what I can answer — I answer questions about the "
+                "loaded revenue data (revenue, changes, drivers, transactions, "
+                "anomalies and stored commentary).", gate)
 
         # ---- previous turn's resolved context (inheritance, A4)
         previous, last_intent = self._last_context(conversation)
