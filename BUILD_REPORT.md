@@ -1569,3 +1569,30 @@ transition; tsc clean; headless UI walk 7/7 zero console errors, scope header
 renders, no Pin control. Test-run chat CSVs reverted — committed sample demo
 state unchanged. **Operator-pending:** docs/ROUND15_ACCEPTANCE.md (real cdao
 classifier under the retuned prompt, live UI walk, regex-toggle drill).
+
+### 21.1 R15.1 — get_commentary latest-version resolution (live bug, reinstall required)
+
+Client symptom: commentary rows present (advisor_sid correct, version_id
+"v1") but AI Insights shows "No commentary generated for this advisor yet".
+Root cause: the LIVE-INSTALLED get_commentary summed version_no across all
+matching versions (advisor's own + legacy global advisor_sid=="") when
+resolving version_id="", overshooting to a non-existent version. The repo's
+GQ-009 has declared MaxAccum since creation (git: 8d440ab, d41cda6) — the
+summing copy is an install-side divergence — so the fix (a) documents the
+MAX-never-SUM contract in the query header, (b) removes the second latent
+fragility by resolving the winning vertex's OWN version_id in a second pass
+(GQ-018 pattern; PRIMARY_ID_AS_ATTRIBUTE="true") instead of reconstructing
+"v"+to_string(@@latest_no), and (c) mandates the live reinstall
+(ROUND15_ACCEPTANCE.md §8). Sibling audit: GQ-010/019 order-by only, GQ-018
+MaxAccum two-step, GQ-017 no latest resolution, both local-tier resolvers
+strict max — no other summing latest-resolver exists.
+
+Verification: scripts/verify_commentary_version.py 16/16 — fixture store with
+the exact client shape (PUBLISHED legacy global v1 + advisor v2 SUPERSEDED +
+v3 PUBLISHED; sum 4 overshoots max 3): resolution returns v3's rows and the
+summed id v4 matches nothing (the symptom); sample regression: all 3 advisors
+non-empty with resolved_version == true max (v22/v23/v24); GQ-009 file
+contract (MaxAccum, no summing accumulator, vertex-id second pass);
+repo-wide no-summing-latest scan. validate_v2_queries ALL PASS; per_advisor
+33/33; assistant 101/101; commentary_retry 10/10; judge 9/9; e2e PASS with
+reconciliation $0.00. No figure, version-model or schema change.

@@ -7,12 +7,23 @@
  *          Powers 03_ai_insights_walk cards and 06_ai_commentary_table.
  * Outputs: commentaries vertex set + resolved_version (the version actually used).
  * Created: V2 build 2026-07-20. NEEDS LIVE INSTALL.
+ * R15.1 (2026-07-26): version resolution hardened — NEEDS LIVE REINSTALL.
+ *          @@latest_no MUST be a MaxAccum (+= takes the MAX). A SumAccum here
+ *          (found installed in the client env) SUMS version_no across every
+ *          matching version (advisor's own + legacy global advisor_sid=="")
+ *          and points at a non-existent version, so the commentary WHERE
+ *          matches nothing and the screen shows "No commentary generated".
+ *          The resolved id is now also read from the winning vertex itself
+ *          (second pass, GQ-018 pattern) instead of reconstructed as
+ *          "v"+number — resolution can never name a version that does not
+ *          exist in the graph.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
 
 CREATE QUERY get_commentary(STRING advisor_id, STRING version_id) FOR GRAPH iperform_v2_revenue SYNTAX V1 {
-    MaxAccum<INT> @@latest_no;
+    MaxAccum<INT> @@latest_no;          // MAX, never Sum — see R15.1 header
+    MaxAccum<STRING> @@resolved_id;
     STRING target_version;
 
     all_versions = {phx_dm_v2_commentary_version.*};
@@ -23,7 +34,13 @@ CREATE QUERY get_commentary(STRING advisor_id, STRING version_id) FOR GRAPH iper
         ACCUM @@latest_no += v.version_no;
 
     IF version_id == "" THEN
-        target_version = "v" + to_string(@@latest_no);
+        latest = SELECT v
+            FROM all_versions:v
+            WHERE v.status == "PUBLISHED"
+              AND (v.advisor_sid == "" OR v.advisor_sid == advisor_id)
+              AND v.version_no == @@latest_no
+            ACCUM @@resolved_id += v.version_id;
+        target_version = @@resolved_id;
     ELSE
         target_version = version_id;
     END;

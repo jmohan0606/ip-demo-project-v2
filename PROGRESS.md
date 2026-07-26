@@ -267,6 +267,7 @@ Resume from: (none — round 15 complete)
 | U-D | R15 | REMOVE transition-pinning (frontend pinned state + chip; backend pinned param + scope_json write); scope to advisor across all months; R9 advisor binding + multi-turn inheritance preserved | DONE | e009cde | no pinned front or back; scope_json written empty (column kept); honest scope header; verify_assistant 101/101 |
 | U-F | R15 | scripts/verify_round15.py — checks 1–7 across the full advisor×transition matrix, per-check PASS/FAIL, exit non-zero on failure | DONE | 135731f | 25/25 PASS; surfaced + fixed router gaps (what-changed/compare) and the mock 'new instructions:' regex bug |
 | U-E | R15 | docs/ROUND15_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb418a3..HEAD; + ROUND15_ACCEPTANCE.md + BUILD_REPORT §21; test-run chat CSVs reverted (sample demo state unchanged) |
+| U-G | R15.1 | get_commentary latest-version resolution: MAX never SUM; resolved id read from the winning vertex; sibling queries audited; local-tier verification | DONE | (this) | GQ-009 hardened (MaxAccum kept + second-pass id resolution, "v"+number reconstruction removed); GQ-010/017/018/019 + local tier audited clean; verify_commentary_version 16/16; NEEDS LIVE REINSTALL (ROUND15_ACCEPTANCE §8) |
 
 ## Decisions
 | When | Decision | Why |
@@ -348,6 +349,8 @@ Resume from: (none — round 15 complete)
 | 2026-07-26 | R15: router MOM_CHANGE extended (what-changed / changed-in / compare) — spec F.1 requires these phrasings ANSWERED, and they previously fell through to OUT_OF_SCOPE | answering the spec's legitimate-question list needed a deterministic route; verify_assistant routing fixtures still 101/101 |
 | 2026-07-26 | R15: verify_round15 5.1 asserts the transition via figure labels + context chip, not the narrated sentence | in mock mode the narration can replace the deterministic wording; the computed figure labels and chip are the always-rendered statement of the transition |
 | 2026-07-26 | R15: round-15 verification-run chat CSVs reverted before wrap | committed sample demo state stays deterministic (R11 decision); verify_round15 regenerates its conversations on any machine |
+| 2026-07-26 | R15.1: the repo GQ-009 already declared MaxAccum (both prior commits) — the summing copy is a live-install divergence; the fix hardens the repo query (warning comment + second-pass id resolution so the target can never name a non-existent version) and mandates the reinstall | git history is the truth; the "v"+to_string(@@latest_no) reconstruction was a second latent fragility removed at the same time; local tier already resolved the actual vertex id (strict max) |
+| 2026-07-26 | R15.1: the multi-version + legacy-global-PUBLISHED scenario is proven on an in-memory fixture store (global v1 PUBLISHED + advisor v2 SUPERSEDED + v3 PUBLISHED), not by mutating sample data | sample legacy globals v1-v21 are deliberately SUPERSEDED (R11 supersede model); flipping one PUBLISHED would change the committed demo state — the fixture reproduces the exact client shape (their v1 IS published) without touching data |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |

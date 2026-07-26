@@ -87,3 +87,32 @@ For each of 2–3 advisors and EVERY loaded month:
 Trends / AI Insights / Transactions / Anomalies / Ingestion / Env Health all
 render with zero console errors; commentary retrieval unchanged (stored
 versions only); reconciliation panel still $0.00.
+
+## 8. R15.1 — get_commentary version-resolution fix (LIVE REINSTALL REQUIRED)
+
+Symptom fixed: commentary rows exist in TigerGraph (correct advisor_sid,
+version_id="v1") but AI Insights shows "No commentary generated for this
+advisor yet". Root cause: the live-installed `get_commentary` SUMMED
+`version_no` across every matching version (the advisor's own plus legacy
+global `advisor_sid==""`) when resolving `version_id=""`, so the target
+pointed at a non-existent version. The repo query resolves by MAX
+(`MaxAccum<INT> @@latest_no`) and now also reads the winning vertex's own
+`version_id` (second pass) instead of reconstructing `"v"+number` — it can
+never name a version that does not exist.
+
+Operator steps:
+
+1. Reinstall the query on live TigerGraph — either the full pack
+   (`docs/tigergraph_foundation/tigergraph/queries/install_all_queries.gsql`)
+   or just `GQ-009_get_commentary.gsql` (DROP QUERY get_commentary first if
+   the tooling requires it). No schema change; no data change.
+2. Verify: `RUN QUERY get_commentary("<advisor_sid>", "")` returns a
+   non-empty `commentaries` set and a `resolved_version` that EXISTS in
+   `get_commentary_versions` output with the highest `version_no` among that
+   advisor's versions + legacy global ones.
+3. UI: AI Insights for that advisor shows the commentary cards again; the
+   version selector default equals the resolved version.
+4. Sibling queries audited — GQ-010/017/018/019 and both local-tier
+   resolvers use max/order-by, never a sum; nothing else needs reinstalling
+   for this fix (build-box proof: `scripts/verify_commentary_version.py`,
+   16/16 PASS).
