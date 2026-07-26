@@ -1,0 +1,108 @@
+// iPerform V2 — CLEAR ALL COMMENTARY + ANOMALY RECORDS (Round 16 migration)
+//
+// Purpose: one-shot DATA clear of every commentary/anomaly workflow record so
+// the round-16 advisor-scoped keys can be regenerated cleanly. The live graph
+// (pre-R16) holds COLLIDED version/scan vertices — the global "v{no}" /
+// "scan{n}" primary ids made every advisor in a bulk run overwrite the
+// previous one, so only the last advisor's version/scan survived and the
+// remaining commentary/anomaly/evaluation/evidence rows are stale orphans.
+//
+// This is a TARGETED delete. It touches ONLY the derived workflow entities:
+//
+//   vertices: phx_dm_v2_anomaly, phx_dm_v2_anomaly_scan,
+//             phx_dm_v2_commentary_evaluation, phx_dm_v2_commentary,
+//             phx_dm_v2_commentary_version, phx_dm_v2_evidence
+//   edges:    phx_dm_v2_anomaly_for_advisor, phx_dm_v2_anomaly_in_scan,
+//             phx_dm_v2_anomaly_cites_driver, phx_dm_v2_evaluation_of_commentary,
+//             phx_dm_v2_commentary_for_advisor, phx_dm_v2_commentary_from_month,
+//             phx_dm_v2_commentary_to_month, phx_dm_v2_commentary_in_version,
+//             phx_dm_v2_commentary_cites_driver, phx_dm_v2_evidence_for_driver
+//             (+ their reverse_* twins)
+//
+// It does NOT touch source/derived revenue data: advisors, months, products,
+// transactions, monthly revenue, revenue changes, drivers, reason codes,
+// driver causes, conversations — all preserved. NO schema object is dropped
+// and NO ALTER is performed (the R16 change is id VALUE format only), so the
+// schema, loading jobs and installed queries all survive this script.
+//
+// Edge handling: TigerGraph deletes an edge (and its reverse twin) when either
+// endpoint vertex is deleted, so the vertex deletes below already remove every
+// edge listed above. The explicit edge-delete passes are still included FIRST,
+// belt-and-braces, so the script is also correct on any tier/store where
+// vertex deletion does not cascade.
+//
+// Order is mandatory (dependents before their targets):
+//   1. anomaly edges, then anomaly vertices, then anomaly_scan
+//   2. evaluation edge, then commentary_evaluation (references commentary)
+//   3. commentary edges, then commentary, then commentary_version
+//   4. evidence edge, then evidence (rebuilt in full by generate-all)
+//
+// NEEDS-LIVE-VERIFICATION: GSQL in this repo is parse-reasoned, never executed
+// here. "... does not exist" on the DROP QUERY line is EXPECTED on first run.
+//
+// Run:   gsql docs/tigergraph_foundation/tigergraph/schema/91_clear_commentary_anomalies.gsql
+// Then:  reset the dual-persistence CSVs to header-only and re-run
+//        generate-all + rescan-all — exact steps in docs/ROUND16_ACCEPTANCE.md
+//        §5b/§5c (the CSVs would otherwise re-load the stale rows on the next
+//        manifest run).
+// Prove: RUN QUERY get_commentary_versions("<advisor>") / get_anomaly_scans(
+//        "<advisor>") per advisor — every advisor has its own PUBLISHED
+//        version ("v{n}|<advisor>") and scan ("scan{nnn}|<advisor>").
+
+USE GRAPH iperform_v2_revenue
+
+DROP QUERY clear_commentary_anomalies
+
+CREATE QUERY clear_commentary_anomalies() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
+    // ---- 1. anomalies: edges first, then vertices, then scans -------------
+    anomalies = {phx_dm_v2_anomaly.*};
+    d1 = SELECT a FROM anomalies:a -(phx_dm_v2_anomaly_for_advisor:e)- phx_dm_v2_advisor
+         ACCUM DELETE(e);
+    d2 = SELECT a FROM anomalies:a -(phx_dm_v2_anomaly_in_scan:e)- phx_dm_v2_anomaly_scan
+         ACCUM DELETE(e);
+    d3 = SELECT a FROM anomalies:a -(phx_dm_v2_anomaly_cites_driver:e)- phx_dm_v2_revenue_driver
+         ACCUM DELETE(e);
+    DELETE a FROM anomalies:a;
+
+    scans = {phx_dm_v2_anomaly_scan.*};
+    DELETE s FROM scans:s;
+
+    // ---- 2. judge evaluations (reference commentary) ----------------------
+    evaluations = {phx_dm_v2_commentary_evaluation.*};
+    d4 = SELECT ev FROM evaluations:ev -(phx_dm_v2_evaluation_of_commentary:e)- phx_dm_v2_commentary
+         ACCUM DELETE(e);
+    DELETE ev FROM evaluations:ev;
+
+    // ---- 3. commentary: edges first, then rows, then versions -------------
+    commentaries = {phx_dm_v2_commentary.*};
+    d5 = SELECT c FROM commentaries:c -(phx_dm_v2_commentary_for_advisor:e)- phx_dm_v2_advisor
+         ACCUM DELETE(e);
+    d6 = SELECT c FROM commentaries:c -(phx_dm_v2_commentary_from_month:e)- phx_dm_v2_month
+         ACCUM DELETE(e);
+    d7 = SELECT c FROM commentaries:c -(phx_dm_v2_commentary_to_month:e)- phx_dm_v2_month
+         ACCUM DELETE(e);
+    d8 = SELECT c FROM commentaries:c -(phx_dm_v2_commentary_in_version:e)- phx_dm_v2_commentary_version
+         ACCUM DELETE(e);
+    d9 = SELECT c FROM commentaries:c -(phx_dm_v2_commentary_cites_driver:e)- phx_dm_v2_revenue_driver
+         ACCUM DELETE(e);
+    DELETE c FROM commentaries:c;
+
+    versions = {phx_dm_v2_commentary_version.*};
+    DELETE v FROM versions:v;
+
+    // ---- 4. evidence (rebuilt in full by the next generate-all) -----------
+    evidence = {phx_dm_v2_evidence.*};
+    d10 = SELECT ed FROM evidence:ed -(phx_dm_v2_evidence_for_driver:e)- phx_dm_v2_revenue_driver
+          ACCUM DELETE(e);
+    DELETE ed FROM evidence:ed;
+
+    PRINT "cleared: anomaly, anomaly_scan, commentary_evaluation, commentary, commentary_version, evidence (+ their edges)" AS result;
+}
+
+INSTALL QUERY clear_commentary_anomalies
+
+RUN QUERY clear_commentary_anomalies()
+
+// One-shot script: remove the query again so the installed-query inventory
+// stays exactly the catalog's 21. Re-run the whole file if needed again.
+DROP QUERY clear_commentary_anomalies

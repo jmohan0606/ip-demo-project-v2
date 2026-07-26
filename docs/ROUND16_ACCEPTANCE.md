@@ -117,21 +117,22 @@ checkpoints.)
 `commentary_for_advisor`, `commentary_from_month`, `commentary_to_month`,
 `commentary_cites_driver`, `evaluation_of_commentary` — automatically.)
 
-**Method 2 — GSQL (equivalent):**
+**Method 2 — GSQL (equivalent, committed script):**
 
-```gsql
-USE GRAPH iperform_v2_revenue
-CREATE QUERY tmp_r16_clear() FOR GRAPH iperform_v2_revenue SYNTAX V1 {
-    a  = {phx_dm_v2_anomaly.*};              DELETE v FROM a:v;
-    s  = {phx_dm_v2_anomaly_scan.*};         DELETE v FROM s:v;
-    ev = {phx_dm_v2_commentary_evaluation.*}; DELETE v FROM ev:v;
-    c  = {phx_dm_v2_commentary.*};           DELETE v FROM c:v;
-    cv = {phx_dm_v2_commentary_version.*};   DELETE v FROM cv:v;
-}
-INSTALL QUERY tmp_r16_clear
-RUN QUERY tmp_r16_clear()
-DROP QUERY tmp_r16_clear
+```bash
+gsql docs/tigergraph_foundation/tigergraph/schema/91_clear_commentary_anomalies.gsql
 ```
+
+The script is self-contained (CREATE + INSTALL + RUN + DROP of a one-shot
+`clear_commentary_anomalies` query). It deletes the edges explicitly FIRST
+(anomaly_for_advisor / anomaly_in_scan / anomaly_cites_driver /
+evaluation_of_commentary / commentary_for_advisor / commentary_from_month /
+commentary_to_month / commentary_in_version / commentary_cites_driver /
+evidence_for_driver, + reverse twins), then the vertices in dependency order
+(anomaly → anomaly_scan → commentary_evaluation → commentary →
+commentary_version → evidence). It also clears `phx_dm_v2_evidence` — evidence
+is rebuilt in full by the next generate-all, so no stale evidence survives.
+It touches NO source/revenue data and drops NO schema object.
 
 Note: `phx_dm_v2_commentary_evaluation` (judge verdicts) is cleared with
 commentary because its rows reference `commentary_id`/`version_id` — keeping

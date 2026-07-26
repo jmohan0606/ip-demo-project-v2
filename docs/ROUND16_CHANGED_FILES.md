@@ -27,6 +27,7 @@ supersedes; re-apply local config through `.env`, not code edits.
 | File | Change | Conflict risk |
 |---|---|---|
 | `docs/ROUND16_ACCEPTANCE.md` | NEW — migration steps (targeted clear + CSV header reset + regenerate-all/rescan-all), no-ALTER confirmation, query-reinstall contract, live acceptance drill | none (new) |
+| `docs/tigergraph_foundation/tigergraph/schema/91_clear_commentary_anomalies.gsql` | NEW — one-shot GSQL clear of ALL commentary/anomaly records (6 vertex types + 10 edge types + reverses, dependency-ordered, edges deleted explicitly first); no schema object dropped, no source data touched; NEEDS-LIVE-VERIFICATION | none (new) |
 | `scripts/verify_round16.py` | NEW — 43 checks: multi-advisor bulk survival, double generate-all supersede-per-advisor, rescan-all, single-advisor no-clobber, dangling-reference audit, per-advisor sequences | none (new) |
 | `docs/ROUND16_CHANGED_FILES.md` | NEW — this file | none (new) |
 | `PROGRESS.md` | R16 session row + W-task rows + decisions | low (append-only) |
