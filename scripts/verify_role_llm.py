@@ -215,8 +215,10 @@ def main() -> None:  # noqa: PLR0915 — a linear verification script
     from app.services.llm_connectivity import llm_connectivity_report
     rows = llm_connectivity_report()
     dump = json.dumps(rows)
-    check("5.1 three role rows", [r["role"] for r in rows]
-          == ["commentary writer", "judge", "assistant"])
+    # R14 added the guardrail classifier as the fourth role row (additive).
+    check("5.1 role rows (writer, judge, assistant + R14 guardrail)",
+          [r["role"] for r in rows]
+          == ["commentary writer", "judge", "assistant", "guardrail classifier"])
     check("5.2 every row shows mode/model/deployment/api_version",
           all(k in r for r in rows for k in
               ("provider", "model", "deployment", "api_version")))
