@@ -164,6 +164,15 @@ def _role_row(role: str, label: str, settings) -> dict[str, Any]:
         "source": source,
     }
 
+    # R15 B — the guardrail row states the active REGEX posture so the
+    # operator can see at a glance when pattern blocking is bypassed.
+    if role == "guardrail":
+        row["regex_layer"] = (
+            "regex pattern blocking ACTIVE (GUARDRAIL_REGEX_ENABLED=true)"
+            if settings.guardrail_regex_enabled else
+            "regex pattern blocking DISABLED (GUARDRAIL_REGEX_ENABLED=false) — "
+            "classifier-only block decisions; PII redaction STILL ACTIVE")
+
     # R14 — in mock mode the guardrail classifier is the deterministic keyword
     # classifier (the mock template adapter's output is not JSON): local,
     # always available, no external call.
@@ -195,9 +204,13 @@ def _role_row(role: str, label: str, settings) -> dict[str, Any]:
                                "UNAVAILABLE state (never 0.00, never blocks publication)")
     # R14 D — an unreachable guardrail classifier NEVER fails open: say so.
     if role == "guardrail" and row["status"] == "unavailable":
-        note = ("classifier unavailable ⇒ FAIL-SAFE (R14 D): the regex pre-filter "
-                "still blocks/redacts, turns proceed only to the scoped router, and "
-                "every degraded turn is logged — never full-trust")
+        regex_part = ("the regex pre-filter still blocks/redacts"
+                      if settings.guardrail_regex_enabled else
+                      "regex pattern blocking is ALSO disabled — PII is still "
+                      "redacted")
+        note = (f"classifier unavailable ⇒ FAIL-SAFE (R14 D): {regex_part}, "
+                "turns proceed only to the scoped router under the hardened "
+                "prompt, and every degraded turn is logged — never full-trust")
         row["fallback"] = f"{row['fallback']}; {note}" if row.get("fallback") else note
     return row
 

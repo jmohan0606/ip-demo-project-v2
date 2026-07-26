@@ -55,6 +55,13 @@ _log = get_logger("app.v2.assistant.guardrails")
 # here, not PII (see module docstring). Everything else stays enforced.
 _EXEMPT_RULES = {"PII-ACCOUNT"}
 
+# R15 B — the regex INJECTION/JAILBREAK pattern rules (app/guardrails/client.py
+# _INJECTION_PATTERNS use these prefixes). GUARDRAIL_REGEX_ENABLED=false
+# bypasses ONLY these pattern-based BLOCK findings — NOT PII redaction (which
+# stays active: redaction is cheap and safe; only the injection/jailbreak
+# pattern matching is bypassed) and NOT the oversize input check (IV-LENGTH).
+_PATTERN_BLOCK_PREFIXES = ("PI-", "JB-")
+
 
 @dataclass
 class GateResult:
@@ -98,6 +105,36 @@ def _strip_exempt(result: GuardrailResult, original_text: str) -> GuardrailResul
     return result
 
 
+def _demote_pattern_blocks(result: GuardrailResult) -> GuardrailResult:
+    """R15 B — GUARDRAIL_REGEX_ENABLED=false: demote regex injection/jailbreak
+    PATTERN blocks to FLAG (kept as an audit trail) so the block decision is
+    the LLM classifier's alone. PII redaction findings and IV-LENGTH are left
+    untouched — redaction stays on regardless of this toggle."""
+    demoted = []
+    kept = []
+    for f in result.findings:
+        if (f.action == GuardrailAction.BLOCK
+                and f.matched_rule.startswith(_PATTERN_BLOCK_PREFIXES)):
+            kept.append(f.model_copy(update={"action": GuardrailAction.FLAG}))
+            demoted.append(f.matched_rule)
+        else:
+            kept.append(f)
+    if not demoted:
+        return result
+    result = result.model_copy(update={"findings": kept})
+    action = GuardrailAction.ALLOW
+    for f in kept:
+        if f.action.rank > action.rank:
+            action = f.action
+    result.action = action
+    result.blocked = action == GuardrailAction.BLOCK
+    _log.warning(
+        "GUARDRAIL_REGEX_ENABLED=false — regex pattern match(es) %s NOT blocking "
+        "(demoted to FLAG); block decision deferred to the LLM classifier; "
+        "PII redaction remains ACTIVE", ", ".join(demoted))
+    return result
+
+
 def _classifier_severity(confidence: float) -> str:
     if confidence >= 0.9:
         return "CRITICAL"
@@ -126,6 +163,13 @@ def screen_input(text: str) -> GateResult:
 
     service = GuardrailService()
     result = _strip_exempt(service.check_input(text or ""), text or "")
+    if not settings.guardrail_regex_enabled:
+        # R15 B — posture noted on every screened turn so the operator can see
+        # the active configuration in the logs (Env Health shows it too).
+        _log.info("guardrail posture: regex PATTERN blocking DISABLED "
+                  "(GUARDRAIL_REGEX_ENABLED=false) — classifier-only block "
+                  "decisions; PII redaction still active")
+        result = _demote_pattern_blocks(result)
 
     findings = [
         {"category": f.category.value, "severity": f.severity, "action": f.action.value}

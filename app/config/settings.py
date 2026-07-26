@@ -205,6 +205,14 @@ class Settings(BaseSettings):
     # injection/jailbreak/exfiltration classifications at or above this
     # confidence BLOCK the turn (0.0–1.0).
     guardrail_block_threshold: float = Field(default=0.5, alias="GUARDRAIL_BLOCK_THRESHOLD")
+    # R15 B — operator escape hatch if the regex pre-filter ever over-blocks:
+    # false = skip ONLY the regex injection/jailbreak PATTERN block layer and
+    # let the LLM classifier alone make block decisions. PII REDACTION STAYS
+    # ACTIVE regardless of this flag (redaction is cheap and safe — only the
+    # pattern-based BLOCK matching is bypassed), as does the oversize input
+    # check. Fail-safe (R14 D) still holds: classifier unavailable + regex off
+    # never fails open.
+    guardrail_regex_enabled: bool = Field(default=True, alias="GUARDRAIL_REGEX_ENABLED")
 
     # --- cdao OpenAI Azure client (client env: LLM_CLIENT_MODE=cdao_openai — PRIMARY) ---
     # Backs CdaoOpenAILLMClient via `from cdao import openai_azure_client` (cdaosdk-all[openai],
