@@ -17,6 +17,14 @@
  *          (second pass, GQ-018 pattern) instead of reconstructed as
  *          "v"+number — resolution can never name a version that does not
  *          exist in the graph.
+ * R16 (2026-07-26): version ids are now ADVISOR-SCOPED — the workflow writes
+ *          version_id = "v{version_no}|{advisor_sid}" with a PER-ADVISOR
+ *          version_no sequence, so bulk generate-all runs can no longer
+ *          collide on the primary key. This query needs NO logic change: it
+ *          already filters to the advisor's versions (+ legacy global "")
+ *          and reads the resolved id from the winning vertex itself, so the
+ *          new id format flows through. Reinstall together with the R15.1
+ *          hardening. NEEDS LIVE REINSTALL.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue

@@ -11,6 +11,14 @@ superseded only by a regenerate-all (every advisor then has a newer scoped
 version). Previous versions are never deleted. Page loads retrieve; they never
 reach this module.
 
+R16 A1 — version_id = "v{version_no}|{advisor_sid}" and version_no is a
+PER-ADVISOR sequence. The primary key MUST embed the advisor: the R11 global
+"v{no}" id made every advisor in a bulk generate-all share one primary id, so
+each advisor's version-vertex upsert overwrote the previous and only the last
+advisor's version survived (the round-16 root-caused collision). Every id that
+embeds the version id (commentary_id, evidence_id, evaluation ids) inherits
+the advisor-scoped format automatically.
+
 R11 C1 — the workflow runs ASYNC from the API: start_generation() spawns a
 daemon thread and returns a job id immediately; get_status() reports
 state / phase / advisor N of M and, on completion, the new version ids. The
@@ -34,7 +42,6 @@ from app.agents.nodes.supervisor_agent import SupervisorAgent
 from app.config.settings import get_settings
 from app.graph.client import get_graph_client
 from app.v2.dataset.builder import csv_file_for
-from app.graph.queries.common import COMMENTARY_VERSION
 from app.ingestion.tigergraph_upsert import TigerGraphUpsertClient
 from app.shared.logging import get_logger
 from app.v2.commentary import judge as judge_mod
@@ -82,15 +89,21 @@ def _set_status(**fields) -> None:
         _status.update(fields)
 
 
-def _latest_version_no(graph) -> int:
-    """Global max version_no — version ids stay globally unique (R11 decision:
-    per-advisor SCOPE via advisor_sid, one shared version_no sequence so ids
-    never collide and history stays totally ordered)."""
-    result = graph.run_query("get_commentary_versions", {})
+def _latest_version_no(graph, advisor_sid: str) -> int:
+    """R16 A1 — max version_no for THIS advisor (its own versions plus legacy
+    global ones with advisor_sid == ""). Each advisor numbers independently.
+
+    This REPLACES the R11 global sequence: with a global max and version_id =
+    "v{no}", a bulk generate-all gave every advisor the SAME primary id and
+    each advisor's version-vertex upsert OVERWROTE the previous — only the
+    last advisor's version survived (the round-16 root cause). Never read a
+    global max here."""
+    result = graph.run_query("get_commentary_versions", {"advisor_id": advisor_sid})
     versions = []
     for obj in result.get("results", []):
         versions = [r.get("attributes", {}) for r in obj.get("versions", [])]
-    return max((int(v.get("version_no") or 0) for v in versions), default=0)
+    return max((int(v.get("version_no") or 0) for v in versions
+                if str(v.get("advisor_sid") or "") in ("", advisor_sid)), default=0)
 
 
 def start_generation(notes: str = "", advisor_id: str = "") -> dict:
@@ -222,9 +235,13 @@ def _run_for_advisor(advisor_sid: str, transitions: list[tuple[str, str]],
                      supervisor, settings, model: str, judge_llm) -> dict:
     """Generate + persist + publish ONE advisor's version (R11 B1). Supersedes
     only THIS advisor's prior PUBLISHED versions."""
-    prior_no = _latest_version_no(graph)
+    prior_no = _latest_version_no(graph, advisor_sid)
     version_no = prior_no + 1
-    version_id = f"v{version_no}"
+    # R16 A1 — the PRIMARY id embeds the advisor so a bulk "generate all" can
+    # NEVER collide across advisors (version_id is the vertex primary key; a
+    # shared "v{no}" made each advisor's upsert overwrite the previous one).
+    # version_no and advisor_sid stay separate attributes on the vertex.
+    version_id = f"v{version_no}|{advisor_sid}"
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     version_row = {
@@ -358,15 +375,17 @@ def _run_for_advisor(advisor_sid: str, transitions: list[tuple[str, str]],
     # another advisor's versions or the legacy global ones).
     version_row.update({"status": "PUBLISHED", "blocked_count": blocked})
     upsert.upsert_vertex_rows("phx_dm_v2_commentary_version", [version_row], "version_id")
+    # R16 A3 — supersede ONLY this advisor's prior PUBLISHED versions (legacy
+    # global "" rows are handled by _supersede_global_versions after a
+    # regenerate-ALL, never here). Read through the query so tier 1 and the
+    # local store behave identically.
     graph = get_graph_client()
-    store = getattr(graph, "store", None)
-    if store is not None:
-        for vid, attrs in store.all_vertices(COMMENTARY_VERSION).items():
-            if (vid != version_id and attrs.get("status") == "PUBLISHED"
-                    and str(attrs.get("advisor_sid") or "") == advisor_sid):
-                upsert.upsert_vertex_rows(
-                    "phx_dm_v2_commentary_version",
-                    [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
+    for vid, attrs in _versions_with_ids(graph, advisor_sid):
+        if (vid != version_id and str(attrs.get("status")) == "PUBLISHED"
+                and str(attrs.get("advisor_sid") or "") == advisor_sid):
+            upsert.upsert_vertex_rows(
+                "phx_dm_v2_commentary_version",
+                [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
     # The version CSV is REWRITTEN (not appended): supersede is a status update
     # on existing rows, and append-only would resurrect PUBLISHED on reload.
     _rewrite_version_csv(settings, version_row,
@@ -411,17 +430,25 @@ def _rewrite_version_csv(settings, new_row: dict | None,
         writer.writerows(existing)
 
 
+def _versions_with_ids(graph, advisor_id: str) -> list[tuple[str, dict]]:
+    """(vertex id, attributes) pairs from get_commentary_versions — works on
+    BOTH tiers (R16: the supersede path must not depend on a local store)."""
+    result = graph.run_query("get_commentary_versions", {"advisor_id": advisor_id})
+    for obj in result.get("results", []):
+        if "versions" in obj:
+            return [(str(r.get("v_id")), r.get("attributes", {})) for r in obj["versions"]]
+    return []
+
+
 def _supersede_global_versions(upsert: TigerGraphUpsertClient, settings) -> None:
     """After a regenerate-ALL, legacy global versions (advisor_sid = "") are
     superseded — every advisor now resolves to a newer per-advisor version."""
     graph = get_graph_client()
-    store = getattr(graph, "store", None)
-    if store is not None:
-        for vid, attrs in store.all_vertices(COMMENTARY_VERSION).items():
-            if attrs.get("status") == "PUBLISHED" and not str(attrs.get("advisor_sid") or ""):
-                upsert.upsert_vertex_rows(
-                    "phx_dm_v2_commentary_version",
-                    [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
+    for vid, attrs in _versions_with_ids(graph, ""):
+        if str(attrs.get("status")) == "PUBLISHED" and not str(attrs.get("advisor_sid") or ""):
+            upsert.upsert_vertex_rows(
+                "phx_dm_v2_commentary_version",
+                [{**attrs, "version_id": vid, "status": "SUPERSEDED"}], "version_id")
     _rewrite_version_csv(settings, None,
                          supersede=lambda row: not str(row.get("advisor_sid") or ""))
 

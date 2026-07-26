@@ -310,7 +310,8 @@ export const v2Api = {
       `/api/v2/insights/drivers?advisor_id=${advisorId}&from_month=${fromMonth}&to_month=${toMonth}&result_limit=${limit}`),
   commentary: (advisorId: string, versionId = "") =>
     apiClient.get<{ commentaries: CommentaryRow[]; resolved_version: string; served_by_tier: number; empty_state: string | null }>(
-      `/api/v2/insights/commentary?advisor_id=${advisorId}&version_id=${versionId}`),
+      // R16 — version ids are advisor-scoped ("v3|Z166924"): always URL-encode.
+      `/api/v2/insights/commentary?advisor_id=${advisorId}&version_id=${encodeURIComponent(versionId)}`),
   versions: (advisorId = "") =>
     apiClient.get<{ versions: CommentaryVersion[]; served_by_tier: number }>(
       `/api/v2/insights/versions?advisor_id=${encodeURIComponent(advisorId)}`),
@@ -326,7 +327,7 @@ export const v2Api = {
 
   evidence: (driverId: string, versionId = "") =>
     apiClient.get<{ evidence: EvidenceRecord[]; served_by_tier: number }>(
-      `/api/v2/evidence?driver_id=${encodeURIComponent(driverId)}&version_id=${versionId}`),
+      `/api/v2/evidence?driver_id=${encodeURIComponent(driverId)}&version_id=${encodeURIComponent(versionId)}`),
 
   transactions: (advisorId: string, monthId: string, groupId = "", limit = 1000) =>
     apiClient.get<{ transactions: TransactionRow[]; row_count: number; credited_total: number; served_by_tier: number }>(
