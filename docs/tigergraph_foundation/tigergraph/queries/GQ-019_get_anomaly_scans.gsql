@@ -7,6 +7,11 @@
  *          scans (advisor_sid == ""); advisor_id = "" returns all.
  * Outputs: scans vertex set (ordered by started_at DESC).
  * Created: V2 round 6 2026-07-23. NEEDS LIVE INSTALL.
+ * R16 (2026-07-26): scan ids are ADVISOR-SCOPED ("scan{n:03d}|{advisor_sid}",
+ *          per-advisor scan number) so bulk rescan-all runs can no longer
+ *          collide on the primary key. No logic change here — the advisor
+ *          filter already returns each advisor its own scans + legacy global
+ *          ones. Reinstall together with GQ-018. NEEDS LIVE REINSTALL.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue

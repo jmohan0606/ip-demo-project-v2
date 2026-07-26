@@ -18,7 +18,12 @@ never deleted and remain queryable through the scan selector.
 
 R11 B2 — scans are PER-ADVISOR: each scan row carries advisor_sid and covers
 ONE advisor. "Rescan all" creates one scan per advisor (never a global blob).
-Legacy pre-R11 global scans carry advisor_sid = "". R11 C1 — start_scan()
+Legacy pre-R11 global scans carry advisor_sid = "". R16 B1 — the scan PRIMARY
+id is advisor-scoped: scan_id = "scan{n:03d}|{advisor_sid}" with a per-advisor
+scan number, so a bulk rescan-all can never collide on the primary key (the
+old global "scan{n:03d}" id made every advisor's scan upsert overwrite the
+previous — only the last advisor's scan survived). anomaly_id embeds scan_id
+and inherits the scoped format automatically. R11 C1 — start_scan()
 runs the scan async (daemon thread + job id + progress in get_status());
 run_scan() stays the synchronous CLI path.
 
@@ -42,7 +47,6 @@ from datetime import datetime, timezone
 
 from app.config.settings import get_settings
 from app.graph.client import get_graph_client
-from app.graph.queries.common import ANOMALY_SCAN
 from app.ingestion.tigergraph_upsert import TigerGraphUpsertClient
 from app.shared.logging import get_logger
 from app.v2.dataset.builder import csv_file_for
@@ -304,12 +308,32 @@ def _persist(upsert: TigerGraphUpsertClient, entity: str, kind: str,
     _csv_append(csv_file_for(kind, entity), rows)
 
 
-def _next_scan_id(graph) -> str:
-    store = getattr(graph, "store", None)
-    existing = store.all_vertices(ANOMALY_SCAN) if store is not None else {}
-    numbers = [int(str(s).replace("scan", "") or 0) for s in existing
-               if str(s).startswith("scan") and str(s)[4:].isdigit()]
-    return f"scan{(max(numbers, default=0) + 1):03d}"
+def _next_scan_id(graph, advisor_sid: str) -> str:
+    """R16 B1 — the scan PRIMARY id embeds the advisor and the scan number is
+    a PER-ADVISOR sequence: scan_id = "scan{n:03d}|{advisor_sid}".
+
+    The R6..R15 format "scan{n:03d}" with a global sequence made every advisor
+    in a bulk rescan-all share one PRIMARY_ID, so each advisor's scan-vertex
+    upsert overwrote the previous — only the last advisor's scan survived (the
+    round-16 root cause, identical to the commentary-version collision). The
+    max is taken over THIS advisor's scans + legacy global "" ones, read
+    through get_anomaly_scans so tier 1 and the local store behave identically
+    (the old store-only read always returned scan001 on tier 1)."""
+    result = graph.run_query("get_anomaly_scans", {"advisor_id": advisor_sid})
+    scans = []
+    for obj in result.get("results", []):
+        if "scans" in obj:
+            scans = obj["scans"]
+    numbers = []
+    for row in scans:
+        attrs = row.get("attributes", {})
+        if str(attrs.get("advisor_sid") or "") not in ("", advisor_sid):
+            continue
+        # number prefix: "scan003" (legacy global) or "scan003|ADVISOR" (R16)
+        prefix = str(row.get("v_id") or "").split("|", 1)[0]
+        if prefix.startswith("scan") and prefix[4:].isdigit():
+            numbers.append(int(prefix[4:]))
+    return f"scan{(max(numbers, default=0) + 1):03d}|{advisor_sid}"
 
 
 # ---------------------------------------------------------------- the scan
@@ -403,7 +427,7 @@ def _scan(notes: str = "", advisor_id: str = "") -> dict:
     for adv_idx, advisor in enumerate(advisors, start=1):
         _set_status(phase="scanning", advisor_current=advisor,
                     advisor_index=adv_idx, advisor_total=len(advisors))
-        scan_id = _next_scan_id(graph)
+        scan_id = _next_scan_id(graph, advisor)
         started_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         anomalies: list[dict] = []
         e_for_advisor, e_in_scan, e_cites = [], [], []

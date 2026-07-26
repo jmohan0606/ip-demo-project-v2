@@ -13,6 +13,18 @@
  *          two tiers stay byte-comparable.
  * Outputs: scan_id_used; anomalies vertex set.
  * Created: V2 round 6 2026-07-23. NEEDS LIVE INSTALL.
+ * R16 (2026-07-26): latest-scan resolution MUST be PER ADVISOR — the advisor
+ *          filter (advisor_id == "" OR s.advisor_sid == "" OR s.advisor_sid
+ *          == advisor_id) has to appear in BOTH passes below, s1 (the
+ *          MaxAccum over started_at) AND s2 (the id read-back), exactly as
+ *          get_commentary resolves its latest version per advisor. A copy
+ *          that MaxAccums started_at ACROSS ALL scans resolves every advisor
+ *          to the same (last writer's) scan and the screen shows nothing for
+ *          the rest. Scan ids are now ADVISOR-SCOPED — detection writes
+ *          scan_id = "scan{n:03d}|{advisor_sid}" with a per-advisor scan
+ *          number, so a scan_id is never shared across advisors; this query
+ *          reads the id from the winning vertex, so the new format flows
+ *          through with no logic change. NEEDS LIVE REINSTALL.
  * Compatibility target: TigerGraph 4.2.x, classic GSQL SYNTAX V1.
  */
 USE GRAPH iperform_v2_revenue
