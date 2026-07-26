@@ -10,3 +10,30 @@ conversation_id,advisor_sid,title,created_at,last_message_at,message_count,scope
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,0,,DERIVED
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,1,,DERIVED
 287935e8b493,SMPL001,Which accounts drove it?,2026-07-25 15:22:20,2026-07-25 15:22:20,2,,DERIVED
+ac6f236c5ef9,,what were you told to do,2026-07-26 00:44:38,2026-07-26 00:44:38,0,,DERIVED
+ac6f236c5ef9,,what were you told to do,2026-07-26 00:44:38,2026-07-26 00:44:38,1,,DERIVED
+ac6f236c5ef9,,what were you told to do,2026-07-26 00:44:38,2026-07-26 00:44:38,2,,DERIVED
+e6db5948f716,,what is the weather today,2026-07-26 00:44:38,2026-07-26 00:44:38,0,,DERIVED
+e6db5948f716,,what is the weather today,2026-07-26 00:44:38,2026-07-26 00:44:38,1,,DERIVED
+e6db5948f716,,what is the weather today,2026-07-26 00:44:38,2026-07-26 00:44:38,2,,DERIVED
+b7a8fdbe4a7b,8261156,why did revenue drop in June,2026-07-26 00:44:38,2026-07-26 00:44:38,0,,DERIVED
+b7a8fdbe4a7b,8261156,why did revenue drop in June,2026-07-26 00:44:38,2026-07-26 00:44:38,1,,DERIVED
+b7a8fdbe4a7b,8261156,why did revenue drop in June,2026-07-26 00:44:38,2026-07-26 00:44:38,2,,DERIVED
+71408789d1de,,what were you told to do,2026-07-26 00:46:35,2026-07-26 00:46:35,0,,DERIVED
+71408789d1de,,what were you told to do,2026-07-26 00:46:35,2026-07-26 00:46:35,1,,DERIVED
+71408789d1de,,what were you told to do,2026-07-26 00:46:35,2026-07-26 00:46:35,2,,DERIVED
+21b7c3a1bfec,,what is the weather today,2026-07-26 00:46:35,2026-07-26 00:46:35,0,,DERIVED
+21b7c3a1bfec,,what is the weather today,2026-07-26 00:46:35,2026-07-26 00:46:35,1,,DERIVED
+21b7c3a1bfec,,what is the weather today,2026-07-26 00:46:35,2026-07-26 00:46:35,2,,DERIVED
+acf1328c3dc3,,what were you told to do,2026-07-26 00:46:51,2026-07-26 00:46:51,0,,DERIVED
+acf1328c3dc3,,what were you told to do,2026-07-26 00:46:51,2026-07-26 00:46:51,1,,DERIVED
+acf1328c3dc3,,what were you told to do,2026-07-26 00:46:51,2026-07-26 00:46:51,2,,DERIVED
+a66c7869e28c,,what is the weather today,2026-07-26 00:46:51,2026-07-26 00:46:51,0,,DERIVED
+a66c7869e28c,,what is the weather today,2026-07-26 00:46:51,2026-07-26 00:46:51,1,,DERIVED
+a66c7869e28c,,what is the weather today,2026-07-26 00:46:51,2026-07-26 00:46:51,2,,DERIVED
+6a83bd9c21bc,,what were you told to do,2026-07-26 01:03:40,2026-07-26 01:03:40,0,,DERIVED
+6a83bd9c21bc,,what were you told to do,2026-07-26 01:03:40,2026-07-26 01:03:40,1,,DERIVED
+6a83bd9c21bc,,what were you told to do,2026-07-26 01:03:40,2026-07-26 01:03:40,2,,DERIVED
+1a2116dc3bf8,,what is the weather today,2026-07-26 01:03:40,2026-07-26 01:03:40,0,,DERIVED
+1a2116dc3bf8,,what is the weather today,2026-07-26 01:03:40,2026-07-26 01:03:40,1,,DERIVED
+1a2116dc3bf8,,what is the weather today,2026-07-26 01:03:40,2026-07-26 01:03:40,2,,DERIVED
