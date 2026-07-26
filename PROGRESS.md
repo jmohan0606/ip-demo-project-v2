@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-26T14:30:00Z
-Current phase: ROUND 15 (FIX_SPEC_R15.md) — classifier tuning + regex toggle + driver-month + pin removal
-Resume from: (none — round 15 complete)
+Last updated: 2026-07-26T16:00:00Z
+Current phase: ROUND 16 (FIX_SPEC_R16.md) — CRITICAL per-advisor version/scan primary-key collision
+Resume from: W-A1 (R16)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -20,6 +20,7 @@ Resume from: (none — round 15 complete)
 | 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
 | 14 | 2026-07-26 | 2026-07-26 | round 14 fresh start (FIX_SPEC_R14.md); session died mid-round (Codespace stop), session 15 resumed from git truth | SECURITY round S-A..S-I all DONE: regex → LLM intent classifier → hardened prompt → output leak check; fail-safe never open; verify_guardrail_llm 54/54; suites re-run PASS (assistant 101/101, role_llm 32/32, gpt5_compat 34/34, per_advisor 33/33, taxonomy/eligibility/new_drivers/anomalies, e2e recon $0.00); live guardrail-role cdao checks = operator (ROUND14_ACCEPTANCE.md) |
 | 16 | 2026-07-26 | 2026-07-26 | round 15 fresh start (FIX_SPEC_R15.md) | U-A..U-E all DONE; verify_round15 25/25 (matrix 3 advisors × 4 months); all suites re-run PASS (assistant 101/101, guardrail 54/54, role 32/32, gpt5 34/34, per_advisor 33/33, judge/retry/glossary, attribution/taxonomy/eligibility/new_drivers/clawback/anomalies, e2e recon $0.00); tsc clean; UI walk 7/7 zero console errors; live cdao checks = operator (ROUND15_ACCEPTANCE.md) |
+| 17 | 2026-07-26 | | round 16 fresh start (FIX_SPEC_R16.md) | CRITICAL: version/scan PRIMARY-KEY omits advisor — bulk generate-all/rescan-all writes collide, only last advisor's vertex survives; fix WRITE key + per-advisor READ resolution |
 | 13 | 2026-07-25 | 2026-07-25 | round 13 fresh start (FIX_SPEC_R13.md) | R-A..R-E all DONE; verify_gpt5_compat 34/34; suites re-run PASS (role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101, glossary 7/7, taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/anomalies, e2e recon $0.00); tsc clean; .env.example 136/136 keys; live GPT-5 cdao checks = operator |
 
 ## Tasks
@@ -268,6 +269,15 @@ Resume from: (none — round 15 complete)
 | U-F | R15 | scripts/verify_round15.py — checks 1–7 across the full advisor×transition matrix, per-check PASS/FAIL, exit non-zero on failure | DONE | 135731f | 25/25 PASS; surfaced + fixed router gaps (what-changed/compare) and the mock 'new instructions:' regex bug |
 | U-E | R15 | docs/ROUND15_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb418a3..HEAD; + ROUND15_ACCEPTANCE.md + BUILD_REPORT §21; test-run chat CSVs reverted (sample demo state unchanged) |
 | U-G | R15.1 | get_commentary latest-version resolution: MAX never SUM; resolved id read from the winning vertex; sibling queries audited; local-tier verification | DONE | (this) | GQ-009 hardened (MaxAccum kept + second-pass id resolution, "v"+number reconstruction removed); GQ-010/017/018/019 + local tier audited clean; verify_commentary_version 16/16; NEEDS LIVE REINSTALL (ROUND15_ACCEPTANCE §8) |
+| W-A1 | R16 | commentary version_id advisor-scoped (`v{n}\|{advisor}`); version_no per-advisor sequence | IN_PROGRESS | | |
+| W-A2 | R16 | update all version-id references (commentary rows, edge, evaluations, status payloads, CSV) | TODO | | |
+| W-A3 | R16 | get_commentary / get_commentary_versions resolve latest PER ADVISOR; supersede per advisor | TODO | | |
+| W-B1 | R16 | anomaly scan_id advisor-scoped; scan number per-advisor | TODO | | |
+| W-B2 | R16 | update all scan-id references (anomaly rows, edges, status payloads) | TODO | | |
+| W-B3 | R16 | get_anomalies / get_anomaly_scans resolve latest scan PER ADVISOR | TODO | | |
+| W-C | R16 | migration steps in ROUND16_ACCEPTANCE.md (clear collided data, regenerate all); confirm no schema ALTER | TODO | | |
+| W-D | R16 | scripts/verify_round16.py — multi-advisor generate-all + rescan-all survival, PASS/FAIL counts | TODO | | |
+| W-E | R16 | docs/ROUND16_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
 
 ## Decisions
 | When | Decision | Why |
@@ -351,6 +361,8 @@ Resume from: (none — round 15 complete)
 | 2026-07-26 | R15: round-15 verification-run chat CSVs reverted before wrap | committed sample demo state stays deterministic (R11 decision); verify_round15 regenerates its conversations on any machine |
 | 2026-07-26 | R15.1: the repo GQ-009 already declared MaxAccum (both prior commits) — the summing copy is a live-install divergence; the fix hardens the repo query (warning comment + second-pass id resolution so the target can never name a non-existent version) and mandates the reinstall | git history is the truth; the "v"+to_string(@@latest_no) reconstruction was a second latent fragility removed at the same time; local tier already resolved the actual vertex id (strict max) |
 | 2026-07-26 | R15.1: the multi-version + legacy-global-PUBLISHED scenario is proven on an in-memory fixture store (global v1 PUBLISHED + advisor v2 SUPERSEDED + v3 PUBLISHED), not by mutating sample data | sample legacy globals v1-v21 are deliberately SUPERSEDED (R11 supersede model); flipping one PUBLISHED would change the committed demo state — the fixture reproduces the exact client shape (their v1 IS published) without touching data |
+
+| 2026-07-26 | R16: task ids W-A1..W-E kept exactly as FIX_SPEC_R16 §F names them, even though round 5 also used W-* ids | starter prompt says "do not renumber"; the Phase column (R16 vs R5-x) disambiguates — a resuming session must match the spec's ids verbatim |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
