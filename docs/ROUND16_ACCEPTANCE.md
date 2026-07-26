@@ -145,8 +145,28 @@ generate-all).
 ### 5b. Reset the workflow CSVs in the active data set (`data/real/`)
 
 The dual-persistence CSVs would otherwise re-load the collided rows on the
-next manifest run. Truncate each to its HEADER LINE ONLY (keep the file, keep
-the header):
+next manifest run. Each must be truncated to its HEADER LINE ONLY (keep the
+file, keep the header).
+
+**Use the committed script** (pure stdlib — no dependency sync needed):
+
+```bash
+# preview what will be cleared (dry-run, changes nothing):
+uv run --no-project python scripts/clear_workflow_csvs.py --data-set real
+
+# actually clear (header-only reset of all 16 workflow files):
+uv run --no-project python scripts/clear_workflow_csvs.py --data-set real --yes
+```
+
+Without uv, plain Python works identically:
+`python scripts/clear_workflow_csvs.py --data-set real --yes`.
+Flags: `--dir /explicit/path` overrides `--data-set`; `--keep-evidence` skips
+the two evidence files (default clears them — generate-all rebuilds evidence
+in full, matching the GSQL script). The script prints a per-file report with
+row counts and exits non-zero if any file fails.
+
+For reference, the files it resets (manual equivalent:
+`head -1 file.csv > file.csv.tmp && mv file.csv.tmp file.csv`):
 
 ```
 data/real/vertices/phx_dm_v2_commentary_version.csv
@@ -163,12 +183,9 @@ data/real/edges/phx_dm_v2_evaluation_of_commentary.csv
 data/real/edges/phx_dm_v2_anomaly_in_scan.csv
 data/real/edges/phx_dm_v2_anomaly_for_advisor.csv
 data/real/edges/phx_dm_v2_anomaly_cites_driver.csv
+data/real/vertices/phx_dm_v2_evidence.csv
+data/real/edges/phx_dm_v2_evidence_for_driver.csv
 ```
-
-e.g. `head -1 file.csv > file.csv.tmp && mv file.csv.tmp file.csv` for each.
-(If you also cleared evidence in 5a, truncate
-`vertices/phx_dm_v2_evidence.csv` and `edges/phx_dm_v2_evidence_for_driver.csv`
-the same way.)
 
 ### 5c. Regenerate everything
 

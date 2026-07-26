@@ -28,6 +28,7 @@ supersedes; re-apply local config through `.env`, not code edits.
 |---|---|---|
 | `docs/ROUND16_ACCEPTANCE.md` | NEW — migration steps (targeted clear + CSV header reset + regenerate-all/rescan-all), no-ALTER confirmation, query-reinstall contract, live acceptance drill | none (new) |
 | `docs/tigergraph_foundation/tigergraph/schema/91_clear_commentary_anomalies.gsql` | NEW — one-shot GSQL clear of ALL commentary/anomaly records (6 vertex types + 10 edge types + reverses, dependency-ordered, edges deleted explicitly first); no schema object dropped, no source data touched; NEEDS-LIVE-VERIFICATION | none (new) |
+| `scripts/clear_workflow_csvs.py` | NEW — CSV-side companion to 91_clear: header-only reset of the 16 dual-persistence workflow CSVs; pure stdlib, dry-run by default, `--yes` to clear, `--data-set`/`--dir`/`--keep-evidence` flags; run via `uv run --no-project python scripts/clear_workflow_csvs.py --data-set real --yes` | none (new) |
 | `scripts/verify_round16.py` | NEW — 43 checks: multi-advisor bulk survival, double generate-all supersede-per-advisor, rescan-all, single-advisor no-clobber, dangling-reference audit, per-advisor sequences | none (new) |
 | `docs/ROUND16_CHANGED_FILES.md` | NEW — this file | none (new) |
 | `PROGRESS.md` | R16 session row + W-task rows + decisions | low (append-only) |
