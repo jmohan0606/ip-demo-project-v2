@@ -40,7 +40,7 @@ PASS = FAIL = 0
 GUARDRAIL_KEYS = ["GUARDRAIL_LLM_MODE", "GUARDRAIL_MODEL", "GUARDRAIL_DEPLOYMENT",
                   "GUARDRAIL_API_VERSION", "GUARDRAIL_TEMPERATURE",
                   "GUARDRAIL_LLM_ENABLED", "GUARDRAIL_BLOCK_THRESHOLD",
-                  "GUARDRAILS_ENABLED"]
+                  "GUARDRAILS_ENABLED", "GUARDRAIL_REGEX_ENABLED"]
 
 
 def check(name: str, ok: bool, detail: str = "") -> None:

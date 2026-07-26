@@ -97,7 +97,9 @@ _MOCK_RULES: list[tuple[re.Pattern, str, float, str]] = [
     (re.compile(r"\bgrandm(a|other)\b", re.I),
      "jailbreak", 0.7, "grandma-style social engineering framing"),
     # prompt_injection — adding/replacing instructions
-    (re.compile(r"\b(from\s+now\s+on|new\s+instructions?\s*:|new\s+rules?\s*:|your\s+new\s+(task|instructions?))\b", re.I),
+    # (no trailing \b after the colon alternatives — ":" ends on a non-word
+    # char, so a boundary there would never match "new instructions: ...")
+    (re.compile(r"\b(from\s+now\s+on\b|new\s+(instructions?|rules?)\s*:|your\s+new\s+(task|instructions?)\b)", re.I),
      "prompt_injection", 0.85, "attempts to inject new standing instructions"),
     (re.compile(r"\bignore\s+(the\s+|your\s+)?scope\b", re.I),
      "prompt_injection", 0.8, "instructs the assistant to ignore its scope"),

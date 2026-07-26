@@ -73,7 +73,8 @@ _INTENT_RULES: list[tuple[str, re.Pattern]] = [
         r"\bby product\b|\bper product\b|\bproduct (mix|breakdown|split)\b|"
         r"\bbreak\s?down\b|\bsplit by\b", re.IGNORECASE)),
     ("MOM_CHANGE", re.compile(
-        r"\bhow much did\b.*\bchange\b|\bchange (in|for|from)\b|\bmonth[- ]over[- ]month\b|"
+        r"\bhow much did\b.*\bchange\b|\bchanged? (in|for|from)\b|\bmonth[- ]over[- ]month\b|"
+        r"\bwhat(?:'s| is| has)? changed\b|\bcompare\b|"
         r"\b(vs\.?|versus|compared? (to|with))\b|\b(drop|fall|fell|decline[d]?|"
         r"decrease[d]?|increase[d]?|rise|rose|up|down)\b.*\b(much|by)\b|"
         r"\bhow much (lower|higher|less|more)\b", re.IGNORECASE)),
