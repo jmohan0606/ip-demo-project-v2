@@ -1505,3 +1505,67 @@ fail-safe drill, rollback flags).
 new_drivers, anomalies all PASS; end-to-end PASS with reconciliation $0.00 on
 every advisor × transition. **Operator-pending:** everything in
 ROUND14_ACCEPTANCE.md (real cdao guardrail deployment).
+
+## 21. Round 15 (FIX_SPEC_R15.md, 2026-07-26) — CLASSIFIER TUNING, REGEX TOGGLE, DRIVER-MONTH, PIN REMOVAL
+
+Three live client-environment bugs, fixed without weakening the R14 stack.
+
+**U-A / U-A3 — classifier boundary (da26861).** The real cdao classifier was
+blocking "show me the revenue drivers" as prompt_injection. CLASSIFIER_SYSTEM
+rewritten with the hard boundary — the classifier polices attacks on the
+ASSISTANT (its instructions/scope/safety) and arbitrary data access, and must
+NEVER block a request to SEE the loaded revenue data — plus 21 worked examples
+pairing the exact bug phrasings with `safe` and the paraphrased attacks with
+their categories, and the verbatim when-in-doubt-choose-safe rule.
+GUARDRAIL_BLOCK_THRESHOLD untouched (A2: fix the prompt, not the threshold).
+The mock classifier holds the same boundary: every/all-advisors blocks only
+with a raw-data noun (or dump/export), so "which advisor had the biggest drop"
+is safe while "dump every advisor's account rows" blocks; a trailing-\b bug
+that let "new instructions: …" through was fixed.
+
+**U-B — GUARDRAIL_REGEX_ENABLED (eceb7e8).** Default true (R14 behaviour
+byte-identical). false demotes ONLY the regex PI-*/JB-* pattern BLOCK findings
+to FLAG (audit kept) — block decisions become classifier-only. PII REDACTION
+STAYS ACTIVE regardless (implemented option (a) of spec B: redaction is cheap
+and safe; only the injection/jailbreak pattern matching is bypassed); the
+IV-LENGTH oversize check also stays. Fail-safe intact: regex off + classifier
+down ⇒ scoped router under the hardened prompt, degradation flagged + logged,
+never full-trust. Posture surfaces on the Env Health guardrail row
+(`regex_layer`) and in a per-turn log line.
+
+**U-C — single-month driver questions (e009cde).** Drivers need a transition:
+WHY_CHANGE/DRIVER_DETAIL naming one LOADED month M now resolves M → next
+loaded month (prev → M when M is last) — "revenue drivers for April 2026"
+returns April→May drivers; July (last) returns June→July. The transition is
+stated in the answer (deterministic text, figure labels, context chip).
+NO_DATA remains only for genuinely unloaded months; an absent/ambiguous month
+keeps the latest-transition default. Other intents keep prior→M ("what
+changed in June" reads May→June). Router additionally learned "what changed
+…" and "compare April and May" (they previously fell through to OUT_OF_SCOPE).
+
+**U-D — transition-pinning REMOVED (e009cde).** The pin's lifecycle bug class
+is deleted, not repaired. Frontend: pinned state, setPinned, Pin button and
+pinned chip removed; honest header "Scoped to <advisor> · Apr 2026–Jul 2026 ·
+credited". Backend: resolve() precedence is question > inherited > screen >
+default; ask() lost the pinned param; scope_json is written empty — the
+COLUMN stays in the schema (no schema change). The R9 advisor binding and
+R7/R9 multi-turn inheritance are unchanged and matrix-verified.
+
+**U-F — verification (135731f).** `scripts/verify_round15.py`: 25/25 PASS,
+matrix read from the data (3 advisors × 4 months): legit questions 31/31
+answered end-to-end + mock/real-template contracts; R14 attack set 14/14
+blocked with correct categories; 7/7 near-miss pairs; regex toggle 7 checks
+(pattern skip, PII-still-redacted, classifier-blocks, fail-safe, Env Health
+posture both ways); driver-month 12/12 + unloaded NO_DATA 3/3; pin removal
+statics + one-conversation month walk 12/12 (no stale transition) + scope 3/3
++ advisor switch + R9 decline; inheritance 3/3.
+
+**Verified here:** verify_round15 25/25; assistant 101/101 (multi-turn fixture
+moved to the R15 C anchoring); guardrail_llm 54/54; role_llm 32/32;
+gpt5_compat 34/34; per_advisor 33/33; judge 9/9; commentary_retry 10/10;
+glossary 7/7; attribution, taxonomy, eligibility, new_drivers, clawback,
+anomalies all PASS; e2e PASS, reconciliation $0.00 on every advisor ×
+transition; tsc clean; headless UI walk 7/7 zero console errors, scope header
+renders, no Pin control. Test-run chat CSVs reverted — committed sample demo
+state unchanged. **Operator-pending:** docs/ROUND15_ACCEPTANCE.md (real cdao
+classifier under the retuned prompt, live UI walk, regex-toggle drill).

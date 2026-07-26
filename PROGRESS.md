@@ -1,7 +1,7 @@
 # BUILD PROGRESS — iPerform V2
-Last updated: 2026-07-26T12:00:00Z
+Last updated: 2026-07-26T14:30:00Z
 Current phase: ROUND 15 (FIX_SPEC_R15.md) — classifier tuning + regex toggle + driver-month + pin removal
-Resume from: U-A
+Resume from: (none — round 15 complete)
 
 ## Session log
 | # | Started | Ended | Resumed from | Notes |
@@ -19,7 +19,7 @@ Resume from: U-A
 | 11 | 2026-07-25 | 2026-07-25 | round 11 fresh start (FIX_SPEC_R11.md) | P-A1..P-F1 all DONE; verify_taxonomy PASS (42-path real-hierarchy fixture), verify_per_advisor 33/33, verify_assistant 101/101, verify_anomalies --rescan PASS, e2e PASS recon $0.00; sample Apr–Jul, all 6 anomaly rules fire; commentary v22–v24 per-advisor 9/9; 15/15 shots + passive walk zero console errors; live reinstall + ALTI confirmation = operator |
 | 12 | 2026-07-25 | 2026-07-25 | round 12 fresh start (FIX_SPEC_R12.md) | Q-A..Q-E all DONE; verify_role_llm 32/32; all existing suites re-run PASS (attribution/taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/judge 9/9/commentary_retry 10/10/assistant 101/101/anomalies/e2e recon $0.00); tsc clean; .env.example 132/132 keys; live per-role cdao checks = operator |
 | 14 | 2026-07-26 | 2026-07-26 | round 14 fresh start (FIX_SPEC_R14.md); session died mid-round (Codespace stop), session 15 resumed from git truth | SECURITY round S-A..S-I all DONE: regex → LLM intent classifier → hardened prompt → output leak check; fail-safe never open; verify_guardrail_llm 54/54; suites re-run PASS (assistant 101/101, role_llm 32/32, gpt5_compat 34/34, per_advisor 33/33, taxonomy/eligibility/new_drivers/anomalies, e2e recon $0.00); live guardrail-role cdao checks = operator (ROUND14_ACCEPTANCE.md) |
-| 16 | 2026-07-26 | (running) | round 15 fresh start (FIX_SPEC_R15.md) | three client-env bugs: classifier over-blocking, regex toggle, single-month drivers, pin removal |
+| 16 | 2026-07-26 | 2026-07-26 | round 15 fresh start (FIX_SPEC_R15.md) | U-A..U-E all DONE; verify_round15 25/25 (matrix 3 advisors × 4 months); all suites re-run PASS (assistant 101/101, guardrail 54/54, role 32/32, gpt5 34/34, per_advisor 33/33, judge/retry/glossary, attribution/taxonomy/eligibility/new_drivers/clawback/anomalies, e2e recon $0.00); tsc clean; UI walk 7/7 zero console errors; live cdao checks = operator (ROUND15_ACCEPTANCE.md) |
 | 13 | 2026-07-25 | 2026-07-25 | round 13 fresh start (FIX_SPEC_R13.md) | R-A..R-E all DONE; verify_gpt5_compat 34/34; suites re-run PASS (role_llm 32/32, judge 9/9, commentary_retry 10/10, assistant 101/101, glossary 7/7, taxonomy/eligibility/new_drivers/clawback/per_advisor 33/33/anomalies, e2e recon $0.00); tsc clean; .env.example 136/136 keys; live GPT-5 cdao checks = operator |
 
 ## Tasks
@@ -260,13 +260,13 @@ Resume from: U-A
 | S-G | R14 | visibility: classifier blocks render ⛉ GUARDRAIL (category+severity only), reason never shown | DONE | e2050b9 | persisted findings carry category+severity+action ONLY (reason is log-only); existing R9 chip renders them unchanged — payload shape identical, no frontend change needed; proven by fixture 6.x + persisted sample conversations |
 | S-H | R14 | mock guardrail LLM + fixtures: paraphrased attacks blocked, benign pass, regex intact, fail-safe, output leak | DONE | 3ca2685/0c52ad7 | verify_guardrail_llm.py 54/54 (attacks block, benign pass, regex independent, no-downgrade, PII-before-classifier, fail-safe, visibility, output leak, Env Health, thresholds); + 9c2727d role_llm 5.1 additive row (32/32); fixture conversations committed 0c52ad7 |
 | S-I | R14 | docs/ROUND14_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived 1550f74..HEAD; additive-config conflict notes; operator-local excluded; + ROUND14_ACCEPTANCE.md + BUILD_REPORT §20 |
-| U-A | R15 | tune classifier system prompt: legitimate revenue-data questions ALWAYS safe; worked examples; "when in doubt, safe" for data questions | IN_PROGRESS | | started 2026-07-26T12:00Z |
-| U-A3 | R15 | mock classifier updated to the same boundary | TODO | | |
-| U-B | R15 | GUARDRAIL_REGEX_ENABLED toggle (classifier-only mode); PII redaction stays on; fail-safe intact; Env Health/logs note posture | TODO | | |
-| U-C | R15 | single loaded month → transition for WHY_CHANGE/DRIVER_DETAIL; NO_DATA only for genuinely unloaded | TODO | | |
-| U-D | R15 | REMOVE transition-pinning (frontend pinned state + chip; backend pinned param + scope_json write); scope to advisor across all months; R9 advisor binding + multi-turn inheritance preserved | TODO | | |
-| U-F | R15 | scripts/verify_round15.py — checks 1–7 across the full advisor×transition matrix, per-check PASS/FAIL, exit non-zero on failure | TODO | | |
-| U-E | R15 | docs/ROUND15_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | TODO | | |
+| U-A | R15 | tune classifier system prompt: legitimate revenue-data questions ALWAYS safe; worked examples; "when in doubt, safe" for data questions | DONE | da26861 | hard boundary + 21 worked examples + when-in-doubt-safe; threshold untouched |
+| U-A3 | R15 | mock classifier updated to the same boundary | DONE | da26861 | every/all-advisors needs a raw-data noun or dump/export; 'ignore your scope' caught; all legit phrasings safe |
+| U-B | R15 | GUARDRAIL_REGEX_ENABLED toggle (classifier-only mode); PII redaction stays on; fail-safe intact; Env Health/logs note posture | DONE | eceb7e8 | PI-*/JB-* blocks demoted to FLAG when false; PII + IV-LENGTH stay; regex_layer posture on Env Health guardrail row; per-turn log |
+| U-C | R15 | single loaded month → transition for WHY_CHANGE/DRIVER_DETAIL; NO_DATA only for genuinely unloaded | DONE | e009cde | M→next (prev→M when last); Apr→Apr/May, Jul→Jun/Jul verified; Jan 2026 still NO_DATA |
+| U-D | R15 | REMOVE transition-pinning (frontend pinned state + chip; backend pinned param + scope_json write); scope to advisor across all months; R9 advisor binding + multi-turn inheritance preserved | DONE | e009cde | no pinned front or back; scope_json written empty (column kept); honest scope header; verify_assistant 101/101 |
+| U-F | R15 | scripts/verify_round15.py — checks 1–7 across the full advisor×transition matrix, per-check PASS/FAIL, exit non-zero on failure | DONE | 135731f | 25/25 PASS; surfaced + fixed router gaps (what-changed/compare) and the mock 'new instructions:' regex bug |
+| U-E | R15 | docs/ROUND15_CHANGED_FILES.md (git-derived, conflict flags, operator-local excluded) | DONE | (wrap) | git-derived eb418a3..HEAD; + ROUND15_ACCEPTANCE.md + BUILD_REPORT §21; test-run chat CSVs reverted (sample demo state unchanged) |
 
 ## Decisions
 | When | Decision | Why |
@@ -342,6 +342,12 @@ Resume from: U-A
 | 2026-07-25 | Q-F: glossary order fixed by ENFORCING numeric sort at the service layer (both tiers) rather than only reinstalling the live graph's schema | repo DDL/catalog/CSVs/local tier were already INT and correct — the lexicographic order can only come from a pre-R8 STRING-typed live graph via GQ-004's ORDER BY; the service guard fixes rendering regardless of the installed schema, and the GQ-004 header directs the schema reinstall. No display_order VALUE or display_name changed |
 
 | 2026-07-26 | R14 session-15 resume: git established as truth over stale PROGRESS.md (S-A..S-H code already committed 038980f..9c2727d); the 4 dirty sample CSVs identified as the intended S-H fixture conversations and committed (0c52ad7), not discarded; ROUND14_STARTER_PROMPT.md gitignored, never committed | Codespace died mid-round-14 before the progress file was truthed up; §0.1 protocol — git is the truth, the progress file is the claim |
+
+| 2026-07-26 | R15: GUARDRAIL_REGEX_ENABLED=false demotes PI-*/JB-* pattern blocks to FLAG findings (audit kept) rather than dropping them; IV-LENGTH oversize block stays active | spec B bypasses only the injection/jailbreak PATTERN matching; keeping the match as a FLAG preserves the audit trail without blocking; oversize is input validation, not attack-pattern matching |
+| 2026-07-26 | R15: single-month → transition mapping (M→next, prev→M when last) applies ONLY to WHY_CHANGE/DRIVER_DETAIL; other intents keep the R7 prior→M anchoring | spec C scopes the rule to driver intents; "what changed in June" reading May→June is the established MOM_CHANGE semantics |
+| 2026-07-26 | R15: router MOM_CHANGE extended (what-changed / changed-in / compare) — spec F.1 requires these phrasings ANSWERED, and they previously fell through to OUT_OF_SCOPE | answering the spec's legitimate-question list needed a deterministic route; verify_assistant routing fixtures still 101/101 |
+| 2026-07-26 | R15: verify_round15 5.1 asserts the transition via figure labels + context chip, not the narrated sentence | in mock mode the narration can replace the deterministic wording; the computed figure labels and chip are the always-rendered statement of the transition |
+| 2026-07-26 | R15: round-15 verification-run chat CSVs reverted before wrap | committed sample demo state stays deterministic (R11 decision); verify_round15 regenerates its conversations on any machine |
 
 ## Blocked / deferred
 | Task | Reason | What would unblock it |
